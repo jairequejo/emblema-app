@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>JR Stars — Batidos</title>
+  <link rel="stylesheet" href="/static/theme.css">
+  <link rel="stylesheet" href="/static/batidos/batidos.css">
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <a href="/" class="topbar-brand">
+    <div class="topbar-logo-circle">
+      <img src="/static/img/logo.png" alt="logo" onload="this.classList.add('loaded')">
+    </div>
+    <span class="topbar-name">JR <span>STARS</span></span>
+  </a>
+  <div class="topbar-right">
+    <a href="/dashboard" class="btn btn-outline">📊 Asistencias</a>
+    <a href="/" class="btn btn-outline">← Inicio</a>
+  </div>
+</div>
+
+<!-- HERO -->
+<div class="batidos-hero">
+  <span class="section-tag">// Post-entreno</span>
+  <h1 class="section-title">BATIDOS <span style="color:var(--gold)">JR</span></h1>
+  <div class="section-divider" style="margin:1rem auto;"></div>
+  <p>Nutrición para campeones · Canjea tus créditos</p>
+</div>
+
+<!-- SALDO BAR -->
+<div class="saldo-bar">
+  <span class="saldo-label">🔍 Consultar saldo:</span>
+  <input class="input-jr" id="dni-input" type="text"
+    placeholder="DNI del atleta" style="max-width:160px;"
+    maxlength="8" oninput="this.value=this.value.replace(/\D/g,'')">
+  <button class="btn btn-gold" onclick="consultarSaldo()">Consultar</button>
+  <div class="saldo-result" id="saldo-result">
+    <span class="saldo-name" id="saldo-name"></span>
+    <span>·</span>
+    <span id="saldo-num">0</span> créditos disponibles
+  </div>
+</div>
+
+<!-- MENÚ -->
+<div class="menu-wrap">
+
+  <div class="menu-section-title">🥤 Clásicos</div>
+  <div class="menu-grid">
+    <div class="batido-card" onclick="abrirCanjear('Fresa','🍓',1)">
+      <span class="batido-emoji">🍓</span>
+      <div class="batido-name">Fresa</div>
+      <div class="batido-desc">Fresa natural con leche fresca. El favorito de los atletas.</div>
+      <div class="batido-credits">1</div>
+      <div class="batido-credits-label">crédito</div>
+    </div>
+    <div class="batido-card" onclick="abrirCanjear('Plátano','🍌',1)">
+      <span class="batido-emoji">🍌</span>
+      <div class="batido-name">Plátano</div>
+      <div class="batido-desc">Energía pura. Plátano con miel y leche entera.</div>
+      <div class="batido-credits">1</div>
+      <div class="batido-credits-label">crédito</div>
+    </div>
+    <div class="batido-card" onclick="abrirCanjear('Verde','🌿',1)">
+      <span class="batido-emoji">🌿</span>
+      <div class="batido-name">Verde</div>
+      <div class="batido-desc">Espinaca, manzana y pepino. Detox y recuperación.</div>
+      <div class="batido-credits">1</div>
+      <div class="batido-credits-label">crédito</div>
+    </div>
+    <div class="batido-card" onclick="abrirCanjear('Maracuyá','🍊',1)">
+      <span class="batido-emoji">🍊</span>
+      <div class="batido-name">Maracuyá</div>
+      <div class="batido-desc">Tropical y refrescante. Rico en vitamina C.</div>
+      <div class="batido-credits">1</div>
+      <div class="batido-credits-label">crédito</div>
+    </div>
+  </div>
+
+  <div class="menu-section-title">💪 Premium</div>
+  <div class="menu-grid">
+    <div class="batido-card" onclick="abrirCanjear('Proteína','💪',2)">
+      <span class="batido-emoji">💪</span>
+      <div class="batido-name">Proteína</div>
+      <div class="batido-desc">Whey protein + plátano + avena. Máxima recuperación.</div>
+      <div class="batido-credits">2</div>
+      <div class="batido-credits-label">créditos</div>
+      <span class="batido-tag"><span class="badge badge-gold">Premium</span></span>
+    </div>
+    <div class="batido-card" onclick="abrirCanjear('Campeón','🏆',2)">
+      <span class="batido-emoji">🏆</span>
+      <div class="batido-name">Campeón</div>
+      <div class="batido-desc">Cacao, plátano, maní y proteína. El batido élite.</div>
+      <div class="batido-credits">2</div>
+      <div class="batido-credits-label">créditos</div>
+      <span class="batido-tag"><span class="badge badge-gold">Premium</span></span>
+    </div>
+    <div class="batido-card" onclick="abrirCanjear('Energía Total','⚡',2)">
+      <span class="batido-emoji">⚡</span>
+      <div class="batido-name">Energía Total</div>
+      <div class="batido-desc">Avena, miel, canela y leche. Pre o post entreno.</div>
+      <div class="batido-credits">2</div>
+      <div class="batido-credits-label">créditos</div>
+      <span class="batido-tag"><span class="badge badge-gold">Premium</span></span>
+    </div>
+  </div>
+
+  <!-- CÓMO RECARGAR -->
+  <div class="recarga-box">
+    <div class="recarga-title">¿Cómo recargar créditos?</div>
+    <p style="font-family:var(--font-cond);font-size:.9rem;color:var(--gray);">
+      Habla con el entrenador o escríbenos. El proceso es simple:
+    </p>
+    <div class="recarga-steps">
+      <div class="recarga-step">
+        <div class="recarga-step-num">1</div>
+        <div class="recarga-step-text">Transfiere por <strong style="color:var(--white)">Yape o Plin</strong></div>
+      </div>
+      <div class="recarga-step">
+        <div class="recarga-step-num">2</div>
+        <div class="recarga-step-text">Envía el <strong style="color:var(--white)">screenshot</strong> al entrenador</div>
+      </div>
+      <div class="recarga-step">
+        <div class="recarga-step-num">3</div>
+        <div class="recarga-step-text">¡Listo! Créditos acreditados al instante</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div class="menu-section-title">📋 Últimos canjes</div>
+  <ul class="canjes-list" id="canjes-list">
+    <li class="empty-canjes">Consulta un DNI para ver el historial</li>
+  </ul>
+
+</div>
+
+<!-- MODAL CANJEAR -->
+<div class="canjear-panel" id="canjear-panel" onclick="cerrarCanjear(event)">
+  <div class="canjear-box">
+    <div class="canjear-title" id="modal-titulo">Canjear Batido</div>
+    <div class="canjear-sub" id="modal-sub">Confirma el canje</div>
+    <div class="canjear-info">
+      <div>
+        <div class="canjear-info-label">Alumno</div>
+        <div id="modal-alumno" style="font-family:var(--font-cond);font-weight:700;color:var(--white);">—</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="canjear-info-label">Saldo actual</div>
+        <div class="canjear-info-val" id="modal-saldo">—</div>
+      </div>
+    </div>
+    <div class="canjear-info">
+      <div>
+        <div class="canjear-info-label">Costo</div>
+        <div class="canjear-info-val" id="modal-costo" style="color:var(--red2);">—</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="canjear-info-label">Saldo restante</div>
+        <div class="canjear-info-val" id="modal-restante">—</div>
+      </div>
+    </div>
+    <div class="canjear-btns">
+      <button class="btn btn-gold" style="flex:1" onclick="confirmarCanje()">✓ Confirmar</button>
+      <button class="btn btn-outline" onclick="document.getElementById('canjear-panel').classList.remove('open')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let alumnoActual = null;
+  let batidoActual = null;
+
+  async function consultarSaldo() {
+    const dni = document.getElementById('dni-input').value.trim();
+    if (dni.length < 7) return;
+    try {
+      const res = await fetch(`/students/by-dni/${dni}`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      alumnoActual = data;
+      document.getElementById('saldo-name').textContent = data.name || data.nombre || 'Atleta';
+      document.getElementById('saldo-num').textContent = data.batido_credits ?? 0;
+      document.getElementById('saldo-result').classList.add('visible');
+      cargarCanjes(data.id);
+    } catch {
+      document.getElementById('saldo-result').classList.remove('visible');
+      alumnoActual = null;
+      alert('DNI no encontrado.');
+    }
+  }
+
+  async function cargarCanjes(studentId) {
+    try {
+      const res = await fetch(`/batidos/history/${studentId}`);
+      const data = await res.json();
+      const list = document.getElementById('canjes-list');
+      if (!data.length) {
+        list.innerHTML = '<li class="empty-canjes">Sin canjes registrados aún</li>';
+        return;
+      }
+      list.innerHTML = data.slice(0,8).map(c => `
+        <li class="canje-item">
+          <span class="canje-emoji">${c.emoji || '🥤'}</span>
+          <div class="canje-info">
+            <div class="canje-name">${c.batido_name}</div>
+            <div class="canje-date">${new Date(c.created_at).toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+          </div>
+          <span class="canje-cost">-${c.credits_used} cr.</span>
+        </li>
+      `).join('');
+    } catch {}
+  }
+
+  function abrirCanjear(nombre, emoji, costo) {
+    if (!alumnoActual) { alert('Primero consulta el DNI del atleta.'); return; }
+    batidoActual = { nombre, emoji, costo };
+    const saldo = alumnoActual.batido_credits ?? 0;
+    document.getElementById('modal-titulo').textContent = `${emoji} ${nombre}`;
+    document.getElementById('modal-alumno').textContent = alumnoActual.name || alumnoActual.nombre;
+    document.getElementById('modal-saldo').textContent = `${saldo} cr.`;
+    document.getElementById('modal-costo').textContent = `-${costo} cr.`;
+    const restante = saldo - costo;
+    document.getElementById('modal-restante').textContent = restante >= 0 ? `${restante} cr.` : '❌ Saldo insuficiente';
+    document.getElementById('canjear-panel').classList.add('open');
+  }
+
+  function cerrarCanjear(e) {
+    if (e.target.id === 'canjear-panel')
+      document.getElementById('canjear-panel').classList.remove('open');
+  }
+
+  async function confirmarCanje() {
+    if (!alumnoActual || !batidoActual) return;
+    const saldo = alumnoActual.batido_credits ?? 0;
+    if (saldo < batidoActual.costo) { alert('Saldo insuficiente.'); return; }
+    try {
+      const res = await fetch('/batidos/canjear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_id: alumnoActual.id,
+          batido_name: batidoActual.nombre,
+          credits_used: batidoActual.costo,
+          emoji: batidoActual.emoji
+        })
+      });
+      if (!res.ok) throw new Error();
+      alumnoActual.batido_credits = saldo - batidoActual.costo;
+      document.getElementById('saldo-num').textContent = alumnoActual.batido_credits;
+      document.getElementById('canjear-panel').classList.remove('open');
+      cargarCanjes(alumnoActual.id);
+      alert(`✅ ¡Canje exitoso! ${batidoActual.emoji} ${batidoActual.nombre} entregado.`);
+    } catch {
+      alert('Error al procesar el canje.');
+    }
+  }
+</script>
+</body>
+</html>

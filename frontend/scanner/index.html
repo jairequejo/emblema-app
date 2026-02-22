@@ -1,27 +1,71 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JR Stars - Scanner v2.0</title>
-    <link rel="stylesheet" href="/static/scanner/style.css">
-    <script src="https://unpkg.com/html5-qrcode"></script>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>JR Stars — Scanner</title>
+  <link rel="stylesheet" href="/static/theme.css">
+  <link rel="stylesheet" href="/static/scanner/style.css">
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+  <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>🚀 JR Stars</h1>
-            <p>Control de Asistencia Antifrágil</p>
-        </header>
-        <main>
-            <div id="reader"></div>
-            <div id="result" class="result-card" style="display:none;"></div>
-        </main>
-        <section class="history">
-            <h3>Últimos Registros</h3>
-            <ul id="attendance-list"></ul>
-        </section>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <a href="/" class="topbar-brand">
+    <div class="topbar-logo-circle">
+      <img src="/static/img/logo.png" alt="logo" onload="this.classList.add('loaded')">
     </div>
-    <script src="/static/scanner/scanner.js"></script>
+    <span class="topbar-name">JR <span>STARS</span></span>
+  </a>
+  <div class="topbar-right">
+    <div id="sync-badge" class="sync-badge" style="display:none">
+      ⏳ Pendientes: <span id="sync-count">0</span>
+    </div>
+    <a href="/" class="btn btn-outline">← Inicio</a>
+  </div>
+</div>
+
+<!-- OFFLINE BANNER -->
+<div class="offline-banner" id="offline-banner">
+  ⚡ Sin conexión — Los registros se guardan localmente y se sincronizan al volver el WiFi
+</div>
+
+<!-- LAYOUT -->
+<div class="scanner-layout">
+
+  <!-- PANEL IZQUIERDO: SCANNER -->
+  <div class="scanner-main">
+    <div class="scanner-title">CONTROL DE<br><span>ASISTENCIA</span></div>
+    <div class="scanner-status">
+      <div class="status-dot active" id="status-dot"></div>
+      <span id="status-text">Escáner activo — listo para escanear</span>
+    </div>
+    <div id="reader"></div>
+    <div id="result" class="result-card" style="display:none;"></div>
+  </div>
+
+  <!-- PANEL DERECHO: HISTORIAL -->
+  <div class="history-panel">
+    <div class="history-header">
+      <span class="history-title">Últimos registros</span>
+      <span class="history-count" id="history-count">0 hoy</span>
+    </div>
+    <ul class="history-list" id="attendance-list"></ul>
+  </div>
+
+</div>
+
+<script src="/static/scanner/scanner.js"></script>
+<script>
+  const banner = document.getElementById('offline-banner');
+  window.addEventListener('offline', () => banner.classList.add('visible'));
+  window.addEventListener('online',  () => {
+    banner.classList.remove('visible');
+    if (typeof syncPending === 'function') syncPending();
+  });
+  if (!navigator.onLine) banner.classList.add('visible');
+</script>
 </body>
 </html>
