@@ -5,9 +5,11 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from routers import students, credentials, attendance, batidos  # ← agrega batidos
+from routers import students, credentials, attendance, batidos, admin
 
 app = FastAPI()
+
+app.include_router(admin.router)
 
 # --- CORS ---
 app.add_middleware(
@@ -48,6 +50,15 @@ def batidos_page():        # ← renombra la función para que no choque con el 
 @app.get("/status")
 def status():
     return {"status": "Backend funcionando 🚀"}
+
+@app.get("/admin/login")
+def admin_login_page():
+    return FileResponse("frontend/admin/login.html")
+
+@app.get("/admin")
+def admin_panel():
+    return FileResponse("frontend/admin/index.html")
+
 
 if __name__ == "__main__":
     puerto = int(os.environ.get("PORT", 8000))
