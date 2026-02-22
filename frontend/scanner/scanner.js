@@ -1,7 +1,7 @@
 // scanner/scanner.js
 
 // ⚠️ Cambia esta URL por la de tu ngrok cada vez que lo reinicies
-const API_URL = "https://unwading-nonofficially-lilliana.ngrok-free.dev";
+const API_URL = "https://emblema-app-production.up.railway.app";
 
 // --- SONIDOS ---
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
