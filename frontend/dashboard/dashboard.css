@@ -142,3 +142,20 @@
 .empty-state p {
   font-family: var(--font-cond); letter-spacing: .1em; margin-top: .5rem;
 }
+
+/* columnas de cabecera */
+.day-col       { text-align:center; min-width:28px; padding:.6rem .3rem; }
+.today-h       { color: var(--gold) !important; }
+.weekend-h     { color: var(--gray2) !important; }
+
+/* badge turno en tabla */
+.badge-turno {
+  font-size:.65rem; font-family:var(--font-cond);
+  letter-spacing:.1em; padding:.1rem .4rem;
+  margin-left:.4rem;
+}
+.t-mañana  { color: var(--gold); }
+.t-tarde   { color: var(--red2); }
+
+/* porcentaje col */
+.pct-col { text-align:center; border-left:1px solid var(--border); }

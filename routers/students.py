@@ -25,12 +25,11 @@ def delete_student(student_id: str):
     response = supabase.table("students").delete().eq("id", student_id).execute()
     return {"message": "Estudiante eliminado"}
 
-@router.get("/students/by-dni/{dni}")
+@router.get("/by-dni/{dni}") 
 def get_student_by_dni(dni: str):
-    """Retorna datos del alumno incluyendo créditos de batido."""
     res = (
         supabase.table("students")
-        .select("id, name, dni, sede, turno, batido_credits")
+        .select("id, full_name, dni, sede, turno, batido_credits")
         .eq("dni", dni)
         .single()
         .execute()

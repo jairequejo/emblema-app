@@ -102,3 +102,4 @@ def get_history(limit: int = 50):
         .limit(limit) \
         .execute()
     return response.data
+

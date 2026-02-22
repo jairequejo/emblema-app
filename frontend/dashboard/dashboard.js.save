@@ -1,6 +1,6 @@
 // dashboard/dashboard.js — JR Stars v4
 
-const API_URL = "";  // rutas relativas, sin ngrok
+constAPI_URL = "";  // rutas relativas, sin ngrok
 const HEADERS  = { 'Accept': 'application/json' };
 const MESES    = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DIAS     = ['Do','Lu','Ma','Mi','Ju','Vi','Sa'];
