@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JR Stars - Scanner v2.0</title>
+    <link rel="stylesheet" href="/static/scanner/style.css">
+    <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 JR Stars</h1>
+            <p>Control de Asistencia Antifrágil</p>
+        </header>
+        <main>
+            <div id="reader"></div>
+            <div id="result" class="result-card" style="display:none;"></div>
+        </main>
+        <section class="history">
+            <h3>Últimos Registros</h3>
+            <ul id="attendance-list"></ul>
+        </section>
+    </div>
+    <script src="/static/scanner/scanner.js"></script>
+</body>
+</html>

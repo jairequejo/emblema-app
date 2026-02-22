@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JR Stars — Asistencia</title>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/dashboard/dashboard.css?v=3">
+</head>
+<body>
+
+<div class="header">
+    <div class="logo">JR<span>★</span>STARS</div>
+    <div class="month-nav">
+        <button onclick="changeMonth(-1)">◀</button>
+        <div class="month-label" id="month-label">—</div>
+        <button onclick="changeMonth(1)">▶</button>
+    </div>
+    <div class="last-update" id="last-update"></div>
+</div>
+
+<div class="filters">
+    <span class="filter-label">Filtrar:</span>
+    <select class="filter-select" id="filter-turno" onchange="applyFilters()">
+        <option value="">Todos los turnos</option>
+        <option value="mañana">Mañana</option>
+        <option value="tarde">Tarde</option>
+    </select>
+    <select class="filter-select" id="filter-sede" onchange="applyFilters()">
+        <option value="">Todas las sedes</option>
+    </select>
+    <input class="search-input" type="text" id="search" placeholder="🔍 Buscar alumno..." oninput="applyFilters()">
+    <button class="refresh-btn" onclick="loadData()">⟳ Actualizar</button>
+</div>
+
+<div class="stats-bar">
+    <div class="stat"><div class="stat-value" id="stat-total">—</div><div class="stat-label">Alumnos</div></div>
+    <div class="stat"><div class="stat-value green" id="stat-present">—</div><div class="stat-label">Hoy presentes</div></div>
+    <div class="stat"><div class="stat-value red" id="stat-absent">—</div><div class="stat-label">Hoy ausentes</div></div>
+    <div class="stat"><div class="stat-value yellow" id="stat-pct">—</div><div class="stat-label">% asistencia mes</div></div>
+</div>
+
+<div class="table-wrapper">
+    <div class="loading" id="loading">Cargando datos</div>
+    <div id="table-container"></div>
+</div>
+
+<div class="legend">
+    <div class="legend-item"><div class="legend-dot present-dot"></div>Presente</div>
+    <div class="legend-item"><div class="legend-dot absent-dot"></div>Ausente</div>
+    <div class="legend-item"><div class="legend-dot weekend-dot"></div>Fin de semana</div>
+    <div class="legend-item"><div class="legend-dot today-dot"></div>Hoy</div>
+</div>
+
+<script src="/static/dashboard/dashboard.js?v=3"></script>
+</body>
+</html>

@@ -1,0 +1,134 @@
+/* ===== RESET Y BASE ===== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #0f0f1a;
+    color: #e0e0e0;
+    min-height: 100vh;
+}
+
+/* ===== CONTENEDOR ===== */
+.container {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* ===== HEADER ===== */
+header {
+    text-align: center;
+    padding: 24px 0 16px;
+}
+
+header h1 {
+    font-size: 2rem;
+    color: #a78bfa;
+    letter-spacing: 2px;
+}
+
+header p {
+    color: #888;
+    font-size: 0.9rem;
+    margin-top: 4px;
+}
+
+/* ===== LECTOR QR ===== */
+#reader {
+    border-radius: 16px;
+    overflow: hidden;
+    border: 2px solid #2d2d4e;
+    margin: 16px 0;
+    background: #1a1a2e;
+}
+
+/* Ocultar botones feos del lib */
+#reader__dashboard_section_swaplink,
+#reader__filescan_input {
+    display: none !important;
+}
+
+/* ===== TARJETA DE RESULTADO ===== */
+.result-card {
+    padding: 16px 20px;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    text-align: center;
+    margin: 12px 0;
+    animation: fadeIn 0.3s ease;
+    display: none;
+}
+
+.result-card.success {
+    background: #064e3b;
+    border: 1px solid #10b981;
+    color: #6ee7b7;
+}
+
+.result-card.warning {
+    background: #451a03;
+    border: 1px solid #f59e0b;
+    color: #fcd34d;
+}
+
+.result-card.error {
+    background: #450a0a;
+    border: 1px solid #ef4444;
+    color: #fca5a5;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== HISTORIAL ===== */
+.history {
+    margin-top: 24px;
+}
+
+.history h3 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #666;
+    margin-bottom: 12px;
+}
+
+#attendance-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+#attendance-list li {
+    background: #1a1a2e;
+    border: 1px solid #2d2d4e;
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 0.95rem;
+    color: #c4c4d4;
+    transition: border-color 0.2s;
+}
+
+#attendance-list li.success {
+    border-left: 3px solid #10b981;
+}
+
+#attendance-list li.warning {
+    border-left: 3px solid #f59e0b;
+}
+
+#attendance-list li strong {
+    color: #a78bfa;
+    margin-right: 6px;
+}
+#reader video.mirror {
+    transform: scaleX(-1);
+}
