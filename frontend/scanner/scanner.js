@@ -44,7 +44,7 @@ function playError() {
     osc.stop(audioCtx.currentTime + 0.5);
 }
 
-// --- LÓGICA CENTRAL DE SCAN (expuesta globalmente para kiosko) ---
+// --- LÓGICA CENTRAL (expuesta globalmente para kiosko y NFC) ---
 function handleScan(decodedText) {
     const code = decodedText.includes('?code=')
         ? decodedText.split('?code=')[1]
@@ -90,7 +90,7 @@ function handleScan(decodedText) {
         else if (estado === 'warning') playWarning();
         else playError();
 
-        // Mostrar en scanner normal
+        // Vista scanner normal
         if (resultDiv) {
             resultDiv.style.display = 'block';
             resultDiv.className = `result-card ${estado}`;
@@ -98,7 +98,7 @@ function handleScan(decodedText) {
             setTimeout(() => { resultDiv.style.display = 'none'; }, 3000);
         }
 
-        // Agregar a lista del scanner normal
+        // Lista scanner normal
         if (list && (estado === 'success' || estado === 'warning')) {
             const newItem = document.createElement('li');
             const hora = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -112,7 +112,7 @@ function handleScan(decodedText) {
             list.prepend(newItem);
         }
 
-        // Disparar evento para kiosko
+        // Evento para kiosko
         document.dispatchEvent(new CustomEvent('scan-result', {
             detail: { estado, nombre: nombre || 'Desconocido', mensaje }
         }));
@@ -121,8 +121,7 @@ function handleScan(decodedText) {
             if (html5QrcodeScanner) html5QrcodeScanner.resume();
         }, 2000);
     })
-    .catch(err => {
-        console.error('Fetch error:', err);
+    .catch(() => {
         playError();
         if (resultDiv) {
             resultDiv.style.display = 'block';
@@ -137,10 +136,7 @@ function handleScan(decodedText) {
 }
 
 // --- QR SCANNER ---
-function onScanSuccess(decodedText) {
-    handleScan(decodedText);
-}
-
+// Sin facingMode forzado — deja elegir cámara igual que admin scanner
 let html5QrcodeScanner = new Html5QrcodeScanner(
     "reader",
     {
@@ -149,9 +145,9 @@ let html5QrcodeScanner = new Html5QrcodeScanner(
         rememberLastUsedCamera: true
     }
 );
-html5QrcodeScanner.render(onScanSuccess);
+html5QrcodeScanner.render(handleScan);
 
-// --- MODO ESPEJO CÁMARA FRONTAL ---
+// --- MODO ESPEJO: solo en cámara frontal ---
 function checkMirror() {
     const video = document.querySelector('#reader video');
     if (!video || !video.srcObject) return;
@@ -164,13 +160,17 @@ function checkMirror() {
 }
 setInterval(checkMirror, 1000);
 
-// --- NFC (Web NFC API — Chrome Android) ---
+// --- NFC ---
 async function initNFC() {
     if (!('NDEFReader' in window)) return;
     try {
         const ndef = new NDEFReader();
         await ndef.scan();
         console.log('✅ NFC activo');
+
+        // Mostrar indicador si existe en la página
+        const nfcEl = document.getElementById('nfc-indicator');
+        if (nfcEl) nfcEl.classList.add('visible');
 
         ndef.addEventListener('reading', ({ message }) => {
             for (const record of message.records) {
