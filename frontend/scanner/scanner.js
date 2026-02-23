@@ -1,6 +1,5 @@
-// scanner/scanner.js
+// scanner/scanner.js — v2.0 con NFC
 
-// ⚠️ Cambia esta URL por la de tu ngrok cada vez que lo reinicies
 const API_URL = "https://emblema-app-production.up.railway.app";
 
 // --- SONIDOS ---
@@ -9,8 +8,7 @@ const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playSuccess() {
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
+    osc.connect(gain); gain.connect(audioCtx.destination);
     osc.type = 'sine';
     osc.frequency.setValueAtTime(880, audioCtx.currentTime);
     gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
@@ -20,12 +18,10 @@ function playSuccess() {
 }
 
 function playWarning() {
-    // Dos beeps cortos para "ya registrado"
     [0, 0.2].forEach(offset => {
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
+        osc.connect(gain); gain.connect(audioCtx.destination);
         osc.type = 'sine';
         osc.frequency.setValueAtTime(440, audioCtx.currentTime + offset);
         gain.gain.setValueAtTime(0.3, audioCtx.currentTime + offset);
@@ -36,11 +32,9 @@ function playWarning() {
 }
 
 function playError() {
-    // Sonido grave descendente para error/negado
     const osc = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
+    osc.connect(gain); gain.connect(audioCtx.destination);
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(300, audioCtx.currentTime);
     osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.5);
@@ -50,16 +44,16 @@ function playError() {
     osc.stop(audioCtx.currentTime + 0.5);
 }
 
-// --- SCANNER ---
-function onScanSuccess(decodedText) {
+// --- LÓGICA CENTRAL DE SCAN (expuesta globalmente para kiosko) ---
+function handleScan(decodedText) {
     const code = decodedText.includes('?code=')
         ? decodedText.split('?code=')[1]
         : decodedText;
 
     const resultDiv = document.getElementById('result');
-    const list = document.getElementById('attendance-list');
+    const list      = document.getElementById('attendance-list');
 
-    html5QrcodeScanner.pause();
+    if (html5QrcodeScanner) html5QrcodeScanner.pause();
 
     fetch(`${API_URL}/attendance/scan`, {
         method: 'POST',
@@ -68,74 +62,85 @@ function onScanSuccess(decodedText) {
             'ngrok-skip-browser-warning': 'true',
             'Accept': 'application/json'
         },
-        body: JSON.stringify({ code: code })
+        body: JSON.stringify({ code })
     })
     .then(res => res.text())
     .then(rawText => {
-        console.log("RAW response:", rawText);
-
         let data;
-        try {
-            data = JSON.parse(rawText);
-        } catch(e) {
+        try { data = JSON.parse(rawText); }
+        catch(e) {
             playError();
-            resultDiv.style.display = 'block';
-            resultDiv.className = 'result-card error';
-            resultDiv.innerHTML = '❌ Error: Abre la URL de ngrok en el navegador y acepta la advertencia';
+            if (resultDiv) {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'result-card error';
+                resultDiv.innerHTML = '❌ Error de conexión';
+            }
             setTimeout(() => {
-                resultDiv.style.display = 'none';
-                html5QrcodeScanner.resume();
+                if (resultDiv) resultDiv.style.display = 'none';
+                if (html5QrcodeScanner) html5QrcodeScanner.resume();
             }, 4000);
             return;
         }
 
-        const nombreRecibido = data.student_name;
-        const mensajeServidor = data.message;
-        const estado = data.status;
+        const nombre  = data.student_name;
+        const mensaje = data.message;
+        const estado  = data.status;
 
-        // Reproducir sonido según estado
         if (estado === 'success') playSuccess();
         else if (estado === 'warning') playWarning();
         else playError();
 
-        // Mostrar tarjeta resultado
-        resultDiv.style.display = 'block';
-        resultDiv.className = `result-card ${estado}`;
-        resultDiv.innerHTML = mensajeServidor;
-        setTimeout(() => { resultDiv.style.display = 'none'; }, 3000);
+        // Mostrar en scanner normal
+        if (resultDiv) {
+            resultDiv.style.display = 'block';
+            resultDiv.className = `result-card ${estado}`;
+            resultDiv.innerHTML = mensaje;
+            setTimeout(() => { resultDiv.style.display = 'none'; }, 3000);
+        }
 
-        // Agregar a lista
-        if (estado === 'success' || estado === 'warning') {
+        // Agregar a lista del scanner normal
+        if (list && (estado === 'success' || estado === 'warning')) {
             const newItem = document.createElement('li');
             const hora = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-            let nombreFinal = nombreRecibido;
-            if (!nombreFinal || nombreFinal === "null" || nombreFinal === "undefined") {
-                const match = mensajeServidor.match(/(?:Bienvenido,?\s+|Ya registrado:\s*)([^!]+)/);
-                nombreFinal = match ? match[1].trim() : mensajeServidor;
+            let nombreFinal = nombre;
+            if (!nombreFinal || nombreFinal === 'null') {
+                const match = mensaje?.match(/(?:Bienvenido,?\s+|Ya registrado:\s*)([^!]+)/);
+                nombreFinal = match ? match[1].trim() : mensaje;
             }
-
             newItem.className = estado;
             newItem.innerHTML = `<strong>${hora}</strong> — ${nombreFinal}`;
             list.prepend(newItem);
         }
 
-        setTimeout(() => html5QrcodeScanner.resume(), 2000);
+        // Disparar evento para kiosko
+        document.dispatchEvent(new CustomEvent('scan-result', {
+            detail: { estado, nombre: nombre || 'Desconocido', mensaje }
+        }));
+
+        setTimeout(() => {
+            if (html5QrcodeScanner) html5QrcodeScanner.resume();
+        }, 2000);
     })
     .catch(err => {
-        console.error("Fetch error:", err);
+        console.error('Fetch error:', err);
         playError();
-        resultDiv.style.display = 'block';
-        resultDiv.className = 'result-card error';
-        resultDiv.innerHTML = '❌ Sin conexión con el servidor';
+        if (resultDiv) {
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result-card error';
+            resultDiv.innerHTML = '❌ Sin conexión con el servidor';
+        }
         setTimeout(() => {
-            resultDiv.style.display = 'none';
-            html5QrcodeScanner.resume();
+            if (resultDiv) resultDiv.style.display = 'none';
+            if (html5QrcodeScanner) html5QrcodeScanner.resume();
         }, 3000);
     });
 }
 
-// Inicializar escáner
+// --- QR SCANNER ---
+function onScanSuccess(decodedText) {
+    handleScan(decodedText);
+}
+
 let html5QrcodeScanner = new Html5QrcodeScanner(
     "reader",
     {
@@ -144,26 +149,39 @@ let html5QrcodeScanner = new Html5QrcodeScanner(
         rememberLastUsedCamera: true
     }
 );
-
 html5QrcodeScanner.render(onScanSuccess);
 
-// Modo espejo solo en cámara frontal
+// --- MODO ESPEJO CÁMARA FRONTAL ---
 function checkMirror() {
     const video = document.querySelector('#reader video');
-    if (!video) return;
-    navigator.mediaDevices.enumerateDevices().then(devices => {
-        const videoDevices = devices.filter(d => d.kind === 'videoinput');
-        // La cámara frontal generalmente dice "front" o "user" en el label
-        const stream = video.srcObject;
-        if (!stream) return;
-        const trackLabel = stream.getVideoTracks()[0]?.label?.toLowerCase() || '';
-        if (trackLabel.includes('front') || trackLabel.includes('user') || trackLabel.includes('facetime')) {
-            video.classList.add('mirror');
-        } else {
-            video.classList.remove('mirror');
-        }
-    });
+    if (!video || !video.srcObject) return;
+    const label = video.srcObject.getVideoTracks()[0]?.label?.toLowerCase() || '';
+    if (label.includes('front') || label.includes('user') || label.includes('facetime')) {
+        video.classList.add('mirror');
+    } else {
+        video.classList.remove('mirror');
+    }
 }
-
-// Revisar cada vez que cambia la cámara
 setInterval(checkMirror, 1000);
+
+// --- NFC (Web NFC API — Chrome Android) ---
+async function initNFC() {
+    if (!('NDEFReader' in window)) return;
+    try {
+        const ndef = new NDEFReader();
+        await ndef.scan();
+        console.log('✅ NFC activo');
+
+        ndef.addEventListener('reading', ({ message }) => {
+            for (const record of message.records) {
+                const decoder = new TextDecoder(record.encoding || 'utf-8');
+                const raw  = decoder.decode(record.data).trim();
+                const code = raw.includes('?code=') ? raw.split('?code=')[1] : raw;
+                handleScan(code);
+            }
+        });
+    } catch(e) {
+        console.warn('NFC no disponible:', e.message);
+    }
+}
+initNFC();
