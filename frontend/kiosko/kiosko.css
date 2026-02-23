@@ -1,17 +1,15 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500&display=swap');
 
 :root {
-  --black:   #080808;
-  --dark:    #111111;
-  --card:    #161616;
-  --red:     #CC1616;
-  --red2:    #FF2020;
-  --gold:    #D4A017;
-  --gold2:   #F5C842;
-  --white:   #F0EDE8;
-  --gray:    #888888;
-  --green:   #2ecc71;
-  --orange:  #FF9900;
+  --black:  #080808;
+  --dark:   #111111;
+  --red:    #CC1616;
+  --red2:   #FF2020;
+  --gold:   #D4A017;
+  --white:  #F0EDE8;
+  --gray:   #888888;
+  --green:  #2ecc71;
+  --orange: #FF9900;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -27,7 +25,6 @@ html, body {
   -webkit-user-select: none;
 }
 
-/* noise overlay */
 body::before {
   content: '';
   position: fixed; inset: 0;
@@ -46,15 +43,14 @@ body::before {
 #flash-bg.warning { background: var(--orange); }
 #flash-bg.error   { background: var(--red2); }
 
-/* ── LAYOUT: 30% izquierda + 70% cámara ── */
-/* Moto G15 en horizontal: ~780px alto disponible (sin barra estado) × 2400px ancho */
+/* ── LAYOUT ── */
 .kiosko-layout {
   display: flex;
   width: 100vw;
-  height: 100vh;
+  height: calc(100vh - 40px); /* dejar espacio para historial */
 }
 
-/* ── PANEL IZQUIERDO (30%) ── */
+/* ── PANEL IZQUIERDO ── */
 .left-panel {
   width: 30%;
   height: 100%;
@@ -64,8 +60,8 @@ body::before {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 16px;
+  gap: 10px;
+  padding: 12px;
   position: relative;
   overflow: hidden;
 }
@@ -79,88 +75,69 @@ body::before {
 }
 
 .brand { text-align: center; line-height: 1; }
-
 .brand-logo {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: clamp(2rem, 6vh, 4rem);
+  font-size: clamp(1.8rem, 5vh, 3.5rem);
   color: var(--gold);
   letter-spacing: 3px;
-  text-shadow: 0 0 30px rgba(212,160,23,0.4);
+  text-shadow: 0 0 25px rgba(212,160,23,0.4);
 }
-
 .brand-name {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: clamp(0.9rem, 2vh, 1.4rem);
-  letter-spacing: 8px;
-  color: var(--white);
+  font-size: clamp(0.8rem, 1.8vh, 1.2rem);
+  letter-spacing: 8px; color: var(--white);
 }
-
 .brand-sub {
   font-family: 'Barlow Condensed', sans-serif;
-  font-size: clamp(0.5rem, 1vh, 0.7rem);
-  color: var(--gray);
-  letter-spacing: 4px;
-  text-transform: uppercase;
-  margin-top: 3px;
+  font-size: clamp(0.45rem, 0.9vh, 0.65rem);
+  color: var(--gray); letter-spacing: 4px;
+  text-transform: uppercase; margin-top: 2px;
 }
-
 .brand-divider {
-  width: 40px; height: 2px;
+  width: 36px; height: 2px;
   background: linear-gradient(90deg, var(--red), var(--gold));
   flex-shrink: 0;
 }
-
 .clock {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: clamp(2rem, 7vh, 4.5rem);
-  color: var(--white);
-  letter-spacing: 2px;
-  line-height: 1;
+  font-size: clamp(1.8rem, 6vh, 4rem);
+  color: var(--white); letter-spacing: 2px; line-height: 1;
 }
-
 .date {
   font-family: 'Barlow Condensed', sans-serif;
-  font-size: clamp(0.55rem, 1.2vh, 0.8rem);
-  color: var(--gray);
-  text-transform: uppercase;
-  letter-spacing: 3px;
+  font-size: clamp(0.5rem, 1.1vh, 0.75rem);
+  color: var(--gray); text-transform: uppercase; letter-spacing: 3px;
 }
-
 .status-idle {
   font-family: 'Barlow Condensed', sans-serif;
-  font-size: clamp(0.6rem, 1.4vh, 0.9rem);
-  color: var(--gold);
-  text-align: center;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  padding: 6px 14px;
+  font-size: clamp(0.55rem, 1.2vh, 0.82rem);
+  color: var(--gold); text-align: center;
+  letter-spacing: 2px; text-transform: uppercase;
+  padding: 5px 12px;
   border: 1px solid rgba(212,160,23,0.25);
   clip-path: polygon(6px 0%,100% 0%,calc(100% - 6px) 100%,0% 100%);
   background: rgba(212,160,23,0.06);
   animation: pulse-border 2.5s infinite;
   width: 90%;
-  text-align: center;
 }
-
 @keyframes pulse-border {
   0%,100% { border-color: rgba(212,160,23,0.2); }
   50%      { border-color: rgba(212,160,23,0.7); }
 }
-
 .nfc-indicator {
   display: flex; flex-direction: column;
-  align-items: center; gap: 4px;
+  align-items: center; gap: 3px;
   opacity: 0; transition: opacity 0.3s;
 }
 .nfc-indicator.visible { opacity: 1; }
-.nfc-icon { font-size: 1rem; }
+.nfc-icon { font-size: 0.9rem; }
 .nfc-label {
   font-family: 'Barlow Condensed', sans-serif;
-  font-size: 0.6rem; letter-spacing: 3px;
+  font-size: 0.55rem; letter-spacing: 3px;
   color: var(--gold); text-transform: uppercase;
 }
 
-/* ── PANEL DERECHO (70%) — cámara ── */
+/* ── PANEL DERECHO ── */
 .right-panel {
   width: 70%;
   height: 100%;
@@ -168,27 +145,25 @@ body::before {
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
 }
 
-/* 
-  Moto G15 horizontal: ~780px de alto real disponible
-  Queremos un cuadrado que ocupe ~85% del alto 
-  y esté centrado en el panel derecho
+/*
+  Moto G15 en horizontal con barra Chrome visible:
+  alto disponible ≈ 530px (1080 - barra estado - barra chrome - historial)
+  Queremos un cuadrado de ~500px centrado
 */
 .scanner-frame {
   position: relative;
-  /* Usar vh para que se ajuste al alto real de la pantalla */
-  width: calc(85vh - 44px);   /* 85% del alto menos historial */
-  height: calc(85vh - 44px);
-  max-width: 90%;              /* no salirse del panel */
-  max-height: calc(100vh - 44px);
+  width: 500px;
+  height: 500px;
+  max-width: 95%;
+  max-height: calc(100vh - 120px); /* barra chrome + historial */
 }
 
 /* Esquinas */
 .corner {
   position: absolute;
-  width: 28px; height: 28px;
+  width: 26px; height: 26px;
   border-style: solid; z-index: 10;
 }
 .corner.tl { top: -2px; left: -2px;   border-width: 3px 0 0 3px; border-color: var(--gold); }
@@ -196,14 +171,19 @@ body::before {
 .corner.bl { bottom: -2px; left: -2px;  border-width: 0 0 3px 3px; border-color: var(--red); }
 .corner.br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-color: var(--red); }
 
-/* Forzar que #reader y su video llenen el frame */
+/* 
+  CRÍTICO: html5-qrcode necesita dimensiones fijas en el contenedor
+  Si son 100% no arranca la cámara
+*/
 #reader {
-  width: 100% !important;
-  height: 100% !important;
-  background: #000;
+  width: 500px !important;
+  height: 500px !important;
+  max-width: 95vw !important;
+  max-height: calc(100vh - 120px) !important;
 }
 
-#reader > div {
+/* El div interno y el video también deben llenarlo */
+#reader > div:first-child {
   width: 100% !important;
   height: 100% !important;
 }
@@ -215,7 +195,7 @@ body::before {
   display: block;
 }
 
-/* Ocultar UI basura del lib */
+/* Ocultar basura del lib */
 #reader__header_message,
 #reader__status_span,
 #reader__dashboard_section_swaplink,
@@ -232,44 +212,35 @@ body::before {
   box-shadow: 0 0 8px var(--red2);
   pointer-events: none;
 }
-@keyframes scan {
-  0%   { top: 0%; }
-  50%  { top: 98%; }
-  100% { top: 0%; }
-}
+@keyframes scan { 0%,100% { top: 0%; } 50% { top: 98%; } }
 
-/* ── OVERLAY RESULTADO ── */
+/* ── OVERLAY ── */
 .result-overlay {
   position: fixed; inset: 0; z-index: 300;
   display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 12px;
+  align-items: center; justify-content: center; gap: 10px;
   opacity: 0; pointer-events: none; transition: opacity 0.2s;
-  background: rgba(8,8,8,0.88);
+  background: rgba(8,8,8,0.9);
 }
 .result-overlay.show { opacity: 1; }
-
-.result-icon { font-size: clamp(3rem, 12vh, 7rem); line-height: 1; }
-
+.result-icon { font-size: clamp(3rem, 10vh, 6rem); line-height: 1; }
 .result-name {
   font-family: 'Bebas Neue', sans-serif;
-  font-size: clamp(2rem, 8vh, 5rem);
+  font-size: clamp(2rem, 7vh, 4.5rem);
   letter-spacing: 4px; text-align: center;
 }
-
 .result-msg {
   font-family: 'Barlow Condensed', sans-serif;
-  font-size: clamp(0.8rem, 2vh, 1.1rem);
+  font-size: clamp(0.75rem, 1.8vh, 1rem);
   color: rgba(240,237,232,0.7);
   letter-spacing: 4px; text-transform: uppercase;
 }
-
 .result-progress {
   position: absolute; bottom: 0; left: 0;
   height: 4px; background: currentColor;
   animation: progress-bar 2.5s linear forwards;
 }
 @keyframes progress-bar { from { width: 100%; } to { width: 0%; } }
-
 .result-overlay.success .result-name     { color: var(--green); }
 .result-overlay.success .result-progress { color: var(--green); }
 .result-overlay.warning .result-name     { color: var(--orange); }
@@ -277,7 +248,7 @@ body::before {
 .result-overlay.error   .result-name     { color: var(--red2); }
 .result-overlay.error   .result-progress { color: var(--red2); }
 
-/* ── HISTORIAL INFERIOR ── */
+/* ── HISTORIAL ── */
 .history-strip {
   position: fixed;
   bottom: 0; left: 0; right: 0;
@@ -286,12 +257,11 @@ body::before {
   border-top: 1px solid rgba(212,160,23,0.12);
   display: flex; align-items: center;
   overflow: hidden; z-index: 150;
-  padding: 0 12px; gap: 0;
+  padding: 0 12px;
 }
-
 .history-item {
   display: flex; align-items: center; gap: 7px;
-  padding: 0 16px;
+  padding: 0 14px;
   border-right: 1px solid rgba(255,255,255,0.05);
   white-space: nowrap;
   font-family: 'Barlow Condensed', sans-serif;
@@ -299,15 +269,60 @@ body::before {
   animation: slide-in 0.3s ease;
   flex-shrink: 0;
 }
-.history-item .h-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.history-item .h-dot { width: 6px; height: 6px; border-radius: 50%; }
 .history-item.success .h-dot { background: var(--green); }
 .history-item.warning .h-dot { background: var(--orange); }
 .history-item .h-name { color: var(--white); font-weight: 700; }
 .history-item .h-time { color: var(--gray); font-size: 0.7rem; }
-
 @keyframes slide-in {
-  from { transform: translateX(-80px); opacity: 0; }
+  from { transform: translateX(-60px); opacity: 0; }
   to   { transform: translateX(0); opacity: 1; }
 }
 
 ::-webkit-scrollbar { display: none; }
+
+/* ── PANTALLA DE INICIO (toque para activar) ── */
+.start-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  cursor: pointer;
+  width: 100%;
+  height: 100%;
+  background: var(--dark);
+  border: 2px dashed rgba(212,160,23,0.3);
+  transition: border-color 0.3s, background 0.3s;
+}
+
+.start-screen:hover,
+.start-screen:active {
+  border-color: var(--gold);
+  background: rgba(212,160,23,0.05);
+}
+
+.start-icon {
+  font-size: 3.5rem;
+  animation: bounce-slow 2s ease-in-out infinite;
+}
+
+@keyframes bounce-slow {
+  0%,100% { transform: translateY(0); }
+  50%      { transform: translateY(-10px); }
+}
+
+.start-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(1.2rem, 3vh, 2rem);
+  letter-spacing: 4px;
+  color: var(--gold);
+}
+
+.start-sub {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: clamp(0.7rem, 1.5vh, 0.9rem);
+  color: var(--gray);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}

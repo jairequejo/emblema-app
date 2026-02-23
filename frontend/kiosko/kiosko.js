@@ -1,10 +1,9 @@
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//  JR Stars — Kiosko v3.0
-//  Reutiliza scanner.js completamente
-//  Agrega: reloj, historial, wake lock, back blocker
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Marca modo kiosko ANTES de que cargue scanner.js
+window._kioskMode = true;
 
-// ── BLOQUEAR BOTÓN ATRÁS ─────────────────
+// Kiosko v4 — inicia cámara con toque
+
+// ── BLOQUEAR ATRÁS ───────────────────────
 window.history.pushState(null, null, window.location.href);
 window.onpopstate = function() { window.history.go(1); };
 
@@ -24,7 +23,24 @@ function updateClock() {
 updateClock();
 setInterval(updateClock, 1000);
 
-// ── HISTORIAL (escucha evento de scanner.js) ──
+// ── INICIAR CÁMARA AL TOCAR ──────────────
+let scannerStarted = false;
+
+document.getElementById('right-panel').addEventListener('click', function() {
+    if (scannerStarted) return;
+    scannerStarted = true;
+
+    // Ocultar pantalla de inicio, mostrar frame
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('scanner-frame').style.display = 'block';
+
+    // Iniciar el scanner (scanner.js lo hace en window.onload pero aquí lo forzamos)
+    if (typeof startKioskoScanner === 'function') {
+        startKioskoScanner();
+    }
+});
+
+// ── HISTORIAL ────────────────────────────
 const historyItems = [];
 
 document.addEventListener('scan-result', (e) => {
@@ -46,21 +62,12 @@ document.addEventListener('scan-result', (e) => {
         </div>
     `).join('');
 
-    // Actualizar status text
     const statusEl = document.getElementById('status-text');
     if (statusEl) {
-        statusEl.textContent = estado === 'success'
-            ? `✓ ${nombre}`
-            : `◎ ${nombre} — ya registrado`;
+        statusEl.textContent = estado === 'success' ? `✓ ${nombre}` : `◎ ${nombre}`;
         setTimeout(() => { statusEl.textContent = 'Acerca tu medallón'; }, 2500);
     }
 });
-
-// ── OVERRIDE QRBOX — más grande para horizontal ──
-// Esto sobreescribe la config del scanner antes de que se inicialice
-// scanner.js usa Html5QrcodeScanner con qrbox:{250,250} — 
-// en kiosko queremos que sea dinámico según el panel derecho
-window._kioskMode = true;
 
 // ── WAKE LOCK ────────────────────────────
 async function requestWakeLock() {

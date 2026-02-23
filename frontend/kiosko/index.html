@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>JR Stars — Kiosko</title>
     <link rel="stylesheet" href="/static/kiosko/kiosko.css">
-    <link rel="icon" href="/static/favicon-admin.ico" type="image/x-icon">
+    <link rel="icon" href="/static/favicon-kiosko.ico" type="image/x-icon">
 </head>
 <body>
 
@@ -15,7 +15,7 @@
 
 <div class="kiosko-layout">
 
-    <!-- IZQUIERDA: marca + reloj + estado -->
+    <!-- IZQUIERDA -->
     <div class="left-panel">
         <div class="brand">
             <div class="brand-logo">JR★</div>
@@ -28,14 +28,23 @@
         <div class="brand-divider"></div>
         <div class="status-idle" id="status-text">Acerca tu medallón</div>
         <div class="nfc-indicator" id="nfc-indicator">
-            <div class="nfc-rings"><span class="nfc-icon">📡</span></div>
+            <div class="nfc-icon">📡</div>
             <span class="nfc-label">NFC Activo</span>
         </div>
     </div>
 
-    <!-- DERECHA: cámara QR -->
-    <div class="right-panel">
-        <div class="scanner-frame">
+    <!-- DERECHA -->
+    <div class="right-panel" id="right-panel">
+
+        <!-- PANTALLA DE INICIO — toque para activar cámara -->
+        <div class="start-screen" id="start-screen">
+            <div class="start-icon">📷</div>
+            <div class="start-title">TOCA PARA ACTIVAR</div>
+            <div class="start-sub">Se necesita permiso de cámara</div>
+        </div>
+
+        <!-- FRAME DEL SCANNER (oculto hasta que se active) -->
+        <div class="scanner-frame" id="scanner-frame" style="display:none">
             <div class="corner tl"></div>
             <div class="corner tr"></div>
             <div class="corner bl"></div>
@@ -43,25 +52,22 @@
             <div id="reader"></div>
             <div class="scan-line"></div>
         </div>
-    </div>
 
+    </div>
 </div>
 
-<!-- Resultado overlay -->
+<!-- Overlay resultado -->
 <div class="result-overlay" id="result-overlay">
     <div class="result-icon" id="result-icon"></div>
     <div class="result-name" id="result-name"></div>
     <div class="result-msg"  id="result-msg"></div>
 </div>
 
-<!-- Historial inferior -->
+<!-- Historial -->
 <div class="history-strip" id="history-strip"></div>
 
-<!-- 1. Librería QR -->
 <script src="https://unpkg.com/html5-qrcode"></script>
-<!-- 2. kiosko.js PRIMERO — registra listeners antes de scanner.js -->
 <script src="/static/kiosko/kiosko.js"></script>
-<!-- 3. scanner.js con toda la lógica de scan + NFC -->
 <script src="/static/scanner/scanner.js"></script>
 </body>
 </html>

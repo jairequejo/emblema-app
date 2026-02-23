@@ -1,8 +1,7 @@
-// scanner/scanner.js — v2.0 con NFC
+// scanner/scanner.js — v2.1 con NFC + función startKioskoScanner
 
 const API_URL = "https://emblema-app-production.up.railway.app";
 
-// --- SONIDOS ---
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 function playSuccess() {
@@ -44,7 +43,7 @@ function playError() {
     osc.stop(audioCtx.currentTime + 0.5);
 }
 
-// --- LÓGICA CENTRAL (expuesta globalmente para kiosko y NFC) ---
+// --- LÓGICA CENTRAL ---
 function handleScan(decodedText) {
     const code = decodedText.includes('?code=')
         ? decodedText.split('?code=')[1]
@@ -90,7 +89,6 @@ function handleScan(decodedText) {
         else if (estado === 'warning') playWarning();
         else playError();
 
-        // Vista scanner normal
         if (resultDiv) {
             resultDiv.style.display = 'block';
             resultDiv.className = `result-card ${estado}`;
@@ -98,7 +96,6 @@ function handleScan(decodedText) {
             setTimeout(() => { resultDiv.style.display = 'none'; }, 3000);
         }
 
-        // Lista scanner normal
         if (list && (estado === 'success' || estado === 'warning')) {
             const newItem = document.createElement('li');
             const hora = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -135,30 +132,55 @@ function handleScan(decodedText) {
     });
 }
 
-// --- QR SCANNER ---
-// Sin facingMode forzado — deja elegir cámara igual que admin scanner
-let html5QrcodeScanner = new Html5QrcodeScanner(
-    "reader",
-    {
-        fps: 15,
-        qrbox: { width: 250, height: 250 },
-        rememberLastUsedCamera: true
-    }
-);
-html5QrcodeScanner.render(handleScan);
+// --- INSTANCIA GLOBAL ---
+let html5QrcodeScanner = null;
 
-// --- MODO ESPEJO: solo en cámara frontal ---
-function checkMirror() {
-    const video = document.querySelector('#reader video');
-    if (!video || !video.srcObject) return;
-    const label = video.srcObject.getVideoTracks()[0]?.label?.toLowerCase() || '';
-    if (label.includes('front') || label.includes('user') || label.includes('facetime')) {
-        video.classList.add('mirror');
-    } else {
-        video.classList.remove('mirror');
-    }
+// startKioskoScanner: llamado desde kiosko.js al tocar la pantalla
+function startKioskoScanner() {
+    // Obtener tamaño real del frame
+    const frame = document.getElementById('scanner-frame');
+    const size  = frame ? Math.min(frame.clientWidth, frame.clientHeight) - 20 : 300;
+
+    html5QrcodeScanner = new Html5QrcodeScanner(
+        "reader",
+        {
+            fps: 15,
+            qrbox: { width: Math.floor(size * 0.85), height: Math.floor(size * 0.85) },
+            rememberLastUsedCamera: true
+        }
+    );
+    html5QrcodeScanner.render(handleScan);
+    startMirrorCheck();
+    initNFC();
 }
-setInterval(checkMirror, 1000);
+
+// Para el scanner normal (no kiosko) — arranca directo
+if (!window._kioskMode) {
+    html5QrcodeScanner = new Html5QrcodeScanner(
+        "reader",
+        {
+            fps: 15,
+            qrbox: { width: 250, height: 250 },
+            rememberLastUsedCamera: true
+        }
+    );
+    html5QrcodeScanner.render(handleScan);
+    initNFCWhenReady();
+}
+
+// --- MODO ESPEJO ---
+function startMirrorCheck() {
+    setInterval(() => {
+        const video = document.querySelector('#reader video');
+        if (!video || !video.srcObject) return;
+        const label = video.srcObject.getVideoTracks()[0]?.label?.toLowerCase() || '';
+        if (label.includes('front') || label.includes('user') || label.includes('facetime')) {
+            video.classList.add('mirror');
+        } else {
+            video.classList.remove('mirror');
+        }
+    }, 1000);
+}
 
 // --- NFC ---
 async function initNFC() {
@@ -166,12 +188,8 @@ async function initNFC() {
     try {
         const ndef = new NDEFReader();
         await ndef.scan();
-        console.log('✅ NFC activo');
-
-        // Mostrar indicador si existe en la página
         const nfcEl = document.getElementById('nfc-indicator');
         if (nfcEl) nfcEl.classList.add('visible');
-
         ndef.addEventListener('reading', ({ message }) => {
             for (const record of message.records) {
                 const decoder = new TextDecoder(record.encoding || 'utf-8');
@@ -181,7 +199,12 @@ async function initNFC() {
             }
         });
     } catch(e) {
-        console.warn('NFC no disponible:', e.message);
+        console.warn('NFC:', e.message);
     }
 }
-initNFC();
+
+function initNFCWhenReady() {
+    // En modo scanner normal inicia NFC directamente
+    initNFC();
+    startMirrorCheck();
+}
