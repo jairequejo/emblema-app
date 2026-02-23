@@ -160,6 +160,20 @@ body::before {
   max-height: calc(100vh - 120px); /* barra chrome + historial */
 }
 
+/* Horizontal: evitar superposición, ajustar a espacio disponible */
+@media (orientation: landscape) {
+  .scanner-frame {
+    max-width: min(95%, (100vw - 40px) * 0.68); /* 70% del panel derecho menos márgenes */
+    max-height: min(calc(100vh - 120px), 85vh);
+    width: min(500px, 95vw);
+    height: min(500px, calc(100vh - 120px));
+  }
+  #reader {
+    max-width: 100% !important;
+    max-height: 100% !important;
+  }
+}
+
 /* Esquinas */
 .corner {
   position: absolute;
@@ -180,19 +194,37 @@ body::before {
   height: 500px !important;
   max-width: 95vw !important;
   max-height: calc(100vh - 120px) !important;
+  position: relative !important;
+  overflow: hidden !important;
+  display: block !important;
 }
 
-/* El div interno y el video también deben llenarlo */
-#reader > div:first-child {
+/* Forzar que todo el contenido del reader se superponga (evitar vista arriba/abajo) */
+#reader > div {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+}
+
+#reader__scan_region,
+#reader__scan_region > div {
+  position: absolute !important;
+  inset: 0 !important;
   width: 100% !important;
   height: 100% !important;
 }
 
 #reader video {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
-  display: block;
+  display: block !important;
 }
 
 /* Modo espejo para cámara selfie en kiosko */
@@ -200,12 +232,13 @@ body::before {
   transform: scaleX(-1);
 }
 
-/* Ocultar basura del lib */
+/* Ocultar dashboard y controles que crean la segunda vista */
 #reader__header_message,
 #reader__status_span,
+#reader__dashboard,
 #reader__dashboard_section_swaplink,
-#reader__filescan_input,
-#reader__dashboard_section_csr > span:first-child { display: none !important; }
+#reader__dashboard_section_csr,
+#reader__filescan_input { display: none !important; }
 
 /* Línea de scan */
 .scan-line {
