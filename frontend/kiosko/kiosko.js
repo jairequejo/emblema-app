@@ -44,9 +44,33 @@ document.getElementById('right-panel').addEventListener('click', initKioskoScann
 
 // ── HISTORIAL ────────────────────────────
 const historyItems = [];
+const FLASH_DURATION = 3500; /* ms que dura el flash de pantalla completa */
 
 document.addEventListener('scan-result', (e) => {
-    const { estado, nombre } = e.detail;
+    const { estado, nombre, mensaje } = e.detail;
+
+    // Pantalla completa: verde (aceptado), rojo (rechazado), naranja (ya registrado)
+    const flashBg = document.getElementById('flash-bg');
+    const overlay = document.getElementById('result-overlay');
+    const nameEl = document.getElementById('result-name');
+    const msgEl = document.getElementById('result-msg');
+
+    if (flashBg && overlay && nameEl) {
+        flashBg.className = 'show ' + estado;
+        overlay.className = 'result-overlay show ' + estado;
+        nameEl.textContent = nombre || 'Desconocido';
+        if (msgEl) {
+            msgEl.textContent = estado === 'success' ? '¡Bienvenido!' :
+                estado === 'warning' ? 'Ya registrado' : 'Rechazado';
+        }
+
+        setTimeout(() => {
+            flashBg.className = '';
+            overlay.className = 'result-overlay';
+        }, FLASH_DURATION);
+    }
+
+    // Historial (solo success y warning)
     if (estado !== 'success' && estado !== 'warning') return;
 
     const strip = document.getElementById('history-strip');
@@ -67,7 +91,7 @@ document.addEventListener('scan-result', (e) => {
     const statusEl = document.getElementById('status-text');
     if (statusEl) {
         statusEl.textContent = estado === 'success' ? `✓ ${nombre}` : `◎ ${nombre}`;
-        setTimeout(() => { statusEl.textContent = 'Acerca tu medallón'; }, 2500);
+        setTimeout(() => { statusEl.textContent = 'Acerca tu medallón'; }, FLASH_DURATION);
     }
 });
 
