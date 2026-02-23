@@ -1,780 +1,12 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>JR Stars | Academia Deportiva</title>
   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet"/>
-  <style>
-    :root {
-      --black:  #080808;
-      --dark:   #111111;
-      --card:   #161616;
-      --red:    #CC1616;
-      --red2:   #FF2020;
-      --gold:   #D4A017;
-      --gold2:  #F5C842;
-      --white:  #F0EDE8;
-      --gray:   #888;
-    }
-
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html { scroll-behavior: smooth; }
-
-    body {
-      background: var(--black);
-      color: var(--white);
-      font-family: 'Barlow', sans-serif;
-      overflow-x: hidden;
-    }
-
-    /* ── NOISE OVERLAY ── */
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-      pointer-events: none;
-      z-index: 9999;
-      opacity: .4;
-    }
-
-    /* ── NAV ── */
-    nav {
-      position: fixed;
-      top: 0; left: 0; right: 0;
-      z-index: 100;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 1rem 2.5rem;
-      background: linear-gradient(to bottom, rgba(8,8,8,.97), transparent);
-      backdrop-filter: blur(6px);
-    }
-
-    .nav-brand {
-      display: flex;
-      align-items: center;
-      gap: .8rem;
-      text-decoration: none;
-    }
-
-    /* Logo image slot */
-    .nav-logo-img {
-      width: 46px;
-      height: 46px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2px solid var(--gold);
-      background: var(--card);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.4rem;
-      flex-shrink: 0;
-      overflow: hidden;
-    }
-    .nav-logo-img img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: none; /* se muestra cuando cargue el logo real */
-    }
-    .nav-logo-img img.loaded { display: block; }
-    .nav-logo-img .logo-fallback { display: block; }
-    .nav-logo-img img.loaded + .logo-fallback { display: none; }
-
-    .nav-logo {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.8rem;
-      letter-spacing: .12em;
-      color: var(--white);
-    }
-    .nav-logo span { color: var(--gold); }
-
-    .nav-links {
-      display: flex;
-      gap: 2rem;
-      list-style: none;
-    }
-    .nav-links a {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: .95rem;
-      font-weight: 600;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      color: var(--gray);
-      text-decoration: none;
-      transition: color .2s;
-    }
-    .nav-links a:hover { color: var(--gold); }
-
-    .nav-cta {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: .9rem;
-      font-weight: 700;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-      color: var(--black);
-      background: var(--gold);
-      padding: .5rem 1.4rem;
-      border: none;
-      cursor: pointer;
-      text-decoration: none;
-      clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
-      transition: background .2s, transform .15s;
-    }
-    .nav-cta:hover { background: var(--gold2); transform: scale(1.04); }
-
-    /* ── HERO ── */
-    .hero {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      position: relative;
-      padding: 6rem 2rem 4rem;
-      overflow: hidden;
-    }
-
-    /* diagonal red stripe */
-    .hero::after {
-      content: '';
-      position: absolute;
-      top: -10%;
-      right: -15%;
-      width: 55%;
-      height: 130%;
-      background: linear-gradient(135deg, var(--red) 0%, #7a0000 100%);
-      clip-path: polygon(30% 0%, 100% 0%, 100% 100%, 0% 100%);
-      opacity: .12;
-      pointer-events: none;
-    }
-
-    .hero-tag {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: .8rem;
-      font-weight: 700;
-      letter-spacing: .3em;
-      text-transform: uppercase;
-      color: var(--gold);
-      border: 1px solid rgba(212,160,23,.3);
-      padding: .35rem 1.2rem;
-      margin-bottom: 1.5rem;
-      display: inline-block;
-      opacity: 0;
-      animation: fadeUp .6s .2s forwards;
-    }
-
-    .hero h1 {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: clamp(5rem, 14vw, 12rem);
-      line-height: .9;
-      letter-spacing: .04em;
-      color: var(--white);
-      opacity: 0;
-      animation: fadeUp .7s .4s forwards;
-    }
-    .hero h1 .accent { color: var(--red2); }
-    .hero h1 .gold   { color: var(--gold); }
-
-    .hero-sub {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: clamp(1rem, 2.5vw, 1.4rem);
-      font-weight: 400;
-      letter-spacing: .15em;
-      text-transform: uppercase;
-      color: var(--gray);
-      margin-top: 1rem;
-      opacity: 0;
-      animation: fadeUp .7s .6s forwards;
-    }
-
-    .hero-btns {
-      display: flex;
-      gap: 1rem;
-      margin-top: 2.5rem;
-      flex-wrap: wrap;
-      justify-content: center;
-      opacity: 0;
-      animation: fadeUp .7s .8s forwards;
-    }
-
-    .btn-primary {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 1rem;
-      font-weight: 700;
-      letter-spacing: .15em;
-      text-transform: uppercase;
-      color: var(--black);
-      background: linear-gradient(135deg, var(--gold), var(--gold2));
-      padding: .85rem 2.2rem;
-      text-decoration: none;
-      clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
-      transition: transform .2s, filter .2s;
-      border: none;
-      cursor: pointer;
-    }
-    .btn-primary:hover { transform: translateY(-2px); filter: brightness(1.1); }
-
-    .btn-secondary {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 1rem;
-      font-weight: 700;
-      letter-spacing: .15em;
-      text-transform: uppercase;
-      color: var(--white);
-      background: transparent;
-      padding: .85rem 2.2rem;
-      text-decoration: none;
-      border: 1px solid rgba(240,237,232,.2);
-      clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
-      transition: border-color .2s, color .2s;
-    }
-    .btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
-
-    /* stats bar */
-    .hero-stats {
-      display: flex;
-      gap: 3rem;
-      margin-top: 4rem;
-      opacity: 0;
-      animation: fadeUp .7s 1s forwards;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-    .stat { text-align: center; }
-    .stat-num {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 2.8rem;
-      color: var(--gold);
-      line-height: 1;
-    }
-    .stat-label {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: .75rem;
-      letter-spacing: .2em;
-      text-transform: uppercase;
-      color: var(--gray);
-      margin-top: .2rem;
-    }
-
-    /* divider line */
-    .divider {
-      width: 60px;
-      height: 3px;
-      background: linear-gradient(90deg, var(--red), var(--gold));
-      margin: 0 auto 1.5rem;
-    }
-
-    /* ── SECTION BASE ── */
-    section {
-      padding: 6rem 2rem;
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-
-    .section-tag {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: .75rem;
-      font-weight: 700;
-      letter-spacing: .3em;
-      text-transform: uppercase;
-      color: var(--red);
-      margin-bottom: .8rem;
-      display: block;
-    }
-
-    .section-title {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: clamp(2.5rem, 6vw, 4.5rem);
-      line-height: 1;
-      letter-spacing: .04em;
-      margin-bottom: 1rem;
-    }
-
-    .section-desc {
-      color: var(--gray);
-      font-size: 1rem;
-      line-height: 1.7;
-      max-width: 520px;
-    }
-
-    /* ── FEATURES ── */
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-      gap: 1.5px;
-      margin-top: 3rem;
-      background: rgba(212,160,23,.08);
-    }
-
-    .feature-card {
-      background: var(--card);
-      padding: 2rem 1.8rem;
-      position: relative;
-      overflow: hidden;
-      transition: background .25s;
-    }
-    .feature-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0;
-      width: 3px;
-      height: 0;
-      background: linear-gradient(to bottom, var(--red), var(--gold));
-      transition: height .3s;
-    }
-    .feature-card:hover { background: #1a1a1a; }
-    .feature-card:hover::before { height: 100%; }
-
-    .feature-icon {
-      font-size: 2rem;
-      margin-bottom: 1rem;
-      display: block;
-    }
-    .feature-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 1.1rem;
-      font-weight: 700;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      margin-bottom: .5rem;
-      color: var(--white);
-    }
-    .feature-desc {
-      font-size: .9rem;
-      color: var(--gray);
-      line-height: 1.6;
-    }
-
-    /* ── ASISTENCIAS (dashboard preview) ── */
-    .dashboard-wrap {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 3rem;
-      align-items: center;
-      margin-top: 4rem;
-    }
-
-    @media (max-width: 700px) {
-      .dashboard-wrap { grid-template-columns: 1fr; }
-    }
-
-    .dashboard-mock {
-      background: var(--card);
-      border: 1px solid rgba(212,160,23,.12);
-      padding: 1.5rem;
-      font-family: 'Barlow Condensed', sans-serif;
-    }
-
-    .mock-header {
-      display: flex;
-      align-items: center;
-      gap: .6rem;
-      margin-bottom: 1.2rem;
-      padding-bottom: .8rem;
-      border-bottom: 1px solid rgba(255,255,255,.06);
-    }
-    .mock-dot { width: 10px; height: 10px; border-radius: 50%; }
-    .mock-dot.green  { background: #2ecc71; }
-    .mock-dot.yellow { background: var(--gold); }
-    .mock-dot.red    { background: var(--red); }
-
-    .mock-title {
-      font-size: .75rem;
-      letter-spacing: .2em;
-      text-transform: uppercase;
-      color: var(--gray);
-      margin-left: auto;
-    }
-
-    .mock-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: .55rem 0;
-      border-bottom: 1px solid rgba(255,255,255,.04);
-      font-size: .85rem;
-    }
-    .mock-row .name { color: var(--white); font-weight: 600; }
-    .mock-row .date { color: var(--gray); font-size: .78rem; }
-    .badge {
-      font-size: .7rem;
-      font-weight: 700;
-      letter-spacing: .1em;
-      padding: .2rem .6rem;
-      clip-path: polygon(4px 0%,100% 0%,calc(100% - 4px) 100%,0% 100%);
-    }
-    .badge.present { background: rgba(46,204,113,.15); color: #2ecc71; }
-    .badge.absent  { background: rgba(204,22,22,.15);  color: var(--red2); }
-
-    .mock-credits {
-      margin-top: 1rem;
-      background: rgba(212,160,23,.07);
-      border: 1px solid rgba(212,160,23,.2);
-      padding: .8rem 1rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .credits-label { font-size: .75rem; color: var(--gray); letter-spacing: .1em; text-transform: uppercase; }
-    .credits-num { font-family: 'Bebas Neue', sans-serif; font-size: 1.8rem; color: var(--gold); }
-
-    /* ── BATIDOS ── */
-    .batidos-section { background: var(--dark); }
-    .batidos-inner {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 6rem 2rem;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 4rem;
-      align-items: center;
-    }
-    @media (max-width: 700px) { .batidos-inner { grid-template-columns: 1fr; } }
-
-    .batido-cards {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 1rem;
-    }
-
-    .batido-card {
-      background: var(--card);
-      border: 1px solid rgba(212,160,23,.1);
-      padding: 1.4rem;
-      text-align: center;
-      transition: border-color .2s, transform .2s;
-    }
-    .batido-card:hover { border-color: var(--gold); transform: translateY(-3px); }
-    .batido-card .b-icon { font-size: 2rem; margin-bottom: .5rem; }
-    .batido-card .b-name {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 1rem;
-      font-weight: 700;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      color: var(--white);
-    }
-    .batido-card .b-credits {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.4rem;
-      color: var(--gold);
-      margin-top: .2rem;
-    }
-
-    /* ── CTA FINAL ── */
-    .cta-section {
-      background: linear-gradient(135deg, var(--red) 0%, #6b0000 50%, var(--black) 100%);
-      text-align: center;
-      padding: 6rem 2rem;
-      position: relative;
-      overflow: hidden;
-    }
-    .cta-section::before {
-      content: 'JR';
-      position: absolute;
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 30vw;
-      color: rgba(255,255,255,.03);
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      pointer-events: none;
-      letter-spacing: .1em;
-    }
-    .cta-section h2 {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: clamp(2.5rem, 7vw, 5rem);
-      letter-spacing: .06em;
-      margin-bottom: 1rem;
-    }
-    .cta-section p {
-      color: rgba(240,237,232,.7);
-      font-size: 1rem;
-      margin-bottom: 2rem;
-    }
-
-    /* ── NOTICIAS ── */
-    .noticias-section {
-      padding: 6rem 2rem;
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-
-    .noticias-grid {
-      display: grid;
-      grid-template-columns: 1.6fr 1fr;
-      gap: 1.5rem;
-      margin-top: 3rem;
-    }
-    @media (max-width: 750px) {
-      .noticias-grid { grid-template-columns: 1fr; }
-    }
-
-    /* noticia destacada */
-    .noticia-featured {
-      background: var(--card);
-      border: 1px solid rgba(212,160,23,.1);
-      overflow: hidden;
-      position: relative;
-      cursor: pointer;
-      transition: border-color .25s;
-    }
-    .noticia-featured:hover { border-color: var(--gold); }
-
-    .noticia-featured-img {
-      width: 100%;
-      height: 220px;
-      object-fit: cover;
-      display: block;
-      background: linear-gradient(135deg, #1a0a0a, #0a0a1a);
-      position: relative;
-    }
-
-    /* placeholder cuando no hay imagen */
-    .img-placeholder {
-      width: 100%;
-      height: 220px;
-      background: linear-gradient(135deg, rgba(204,22,22,.15), rgba(212,160,23,.08));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 3.5rem;
-    }
-
-    .noticia-featured-body {
-      padding: 1.5rem;
-    }
-
-    .noticia-cat {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: .7rem;
-      font-weight: 700;
-      letter-spacing: .25em;
-      text-transform: uppercase;
-      color: var(--red);
-      margin-bottom: .5rem;
-      display: block;
-    }
-
-    .noticia-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 1.3rem;
-      font-weight: 700;
-      line-height: 1.3;
-      color: var(--white);
-      margin-bottom: .5rem;
-    }
-
-    .noticia-desc {
-      font-size: .875rem;
-      color: var(--gray);
-      line-height: 1.6;
-      margin-bottom: 1rem;
-    }
-
-    .noticia-meta {
-      display: flex;
-      align-items: center;
-      gap: .8rem;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: .75rem;
-      color: var(--gray);
-      letter-spacing: .06em;
-    }
-    .noticia-meta span { color: var(--gold); }
-
-    /* lista de noticias secundarias */
-    .noticias-list {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-
-    .noticia-item {
-      background: var(--card);
-      border: 1px solid rgba(255,255,255,.05);
-      padding: 1.2rem;
-      display: flex;
-      gap: 1rem;
-      align-items: flex-start;
-      cursor: pointer;
-      transition: border-color .2s, background .2s;
-      position: relative;
-      overflow: hidden;
-    }
-    .noticia-item::before {
-      content: '';
-      position: absolute;
-      left: 0; top: 0; bottom: 0;
-      width: 3px;
-      background: linear-gradient(to bottom, var(--red), var(--gold));
-      transform: scaleY(0);
-      transition: transform .3s;
-    }
-    .noticia-item:hover { background: #1c1c1c; border-color: rgba(212,160,23,.2); }
-    .noticia-item:hover::before { transform: scaleY(1); }
-
-    .noticia-item-icon {
-      width: 44px;
-      height: 44px;
-      background: rgba(204,22,22,.12);
-      border: 1px solid rgba(204,22,22,.2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.3rem;
-      flex-shrink: 0;
-    }
-
-    .noticia-item-body { flex: 1; }
-    .noticia-item-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--white);
-      margin-bottom: .3rem;
-      line-height: 1.3;
-    }
-    .noticia-item-date {
-      font-size: .75rem;
-      color: var(--gray);
-      font-family: 'Barlow Condensed', sans-serif;
-      letter-spacing: .06em;
-    }
-
-    /* ── GALERÍA DE FOTOS ── */
-    .galeria-section {
-      background: var(--dark);
-      padding: 6rem 2rem;
-    }
-    .galeria-inner {
-      max-width: 1100px;
-      margin: 0 auto;
-    }
-
-    .galeria-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: .6rem;
-      margin-top: 3rem;
-    }
-    @media (max-width: 700px) {
-      .galeria-grid { grid-template-columns: repeat(2, 1fr); }
-    }
-
-    .galeria-item {
-      aspect-ratio: 1;
-      overflow: hidden;
-      position: relative;
-      cursor: pointer;
-      background: var(--card);
-    }
-
-    .galeria-item img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      transition: transform .4s;
-      display: block;
-    }
-    .galeria-item:hover img { transform: scale(1.08); }
-
-    /* placeholder foto */
-    .galeria-placeholder {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: .4rem;
-      background: linear-gradient(135deg, var(--card), #1e1010);
-      font-size: 2rem;
-      transition: background .3s;
-    }
-    .galeria-item:hover .galeria-placeholder {
-      background: linear-gradient(135deg, #2a1010, #1a1a2e);
-    }
-    .galeria-placeholder span {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: .65rem;
-      letter-spacing: .15em;
-      color: var(--gray);
-      text-transform: uppercase;
-    }
-
-    .galeria-overlay {
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(to top, rgba(8,8,8,.8), transparent);
-      opacity: 0;
-      transition: opacity .3s;
-      display: flex;
-      align-items: flex-end;
-      padding: .8rem;
-    }
-    .galeria-item:hover .galeria-overlay { opacity: 1; }
-    .galeria-overlay-text {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: .75rem;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      color: var(--gold);
-    }
-
-    /* item grande (ocupa 2 cols) */
-    .galeria-item.wide { grid-column: span 2; }
-
-    /* ── FOOTER ── */
-    footer {
-      background: #050505;
-      padding: 2.5rem 2rem;
-      text-align: center;
-      border-top: 1px solid rgba(255,255,255,.05);
-    }
-    .footer-logo {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: 1.6rem;
-      letter-spacing: .12em;
-      color: var(--white);
-      margin-bottom: .4rem;
-    }
-    .footer-logo span { color: var(--gold); }
-    footer p {
-      font-size: .8rem;
-      color: var(--gray);
-      letter-spacing: .08em;
-    }
-
-    /* ── SCROLL REVEAL ── */
-    .reveal {
-      opacity: 0;
-      transform: translateY(30px);
-      transition: opacity .7s ease, transform .7s ease;
-    }
-    .reveal.visible {
-      opacity: 1;
-      transform: translateY(0);
-    }
-
-    @keyframes fadeUp {
-      to { opacity: 1; transform: translateY(0); }
-      from { opacity: 0; transform: translateY(25px); }
-    }
-
-    /* mobile nav */
-    @media (max-width: 600px) {
-      .nav-links { display: none; }
-      nav { padding: 1rem 1.5rem; }
-    }
-  </style>
+  <link rel="stylesheet" href="/static/home/home.css">
 </head>
 <body>
 
@@ -782,7 +14,6 @@
 <nav>
   <a href="/" class="nav-brand">
     <div class="nav-logo-img">
-      <!-- Reemplaza src con la ruta real de tu logo, ej: /static/img/logo.png -->
       <img src="/static/img/logo.png" alt="JR Stars Logo" onload="this.classList.add('loaded')">
       <span class="logo-fallback">⭐</span>
     </div>
@@ -800,10 +31,7 @@
 <!-- HERO -->
 <div class="hero">
   <span class="hero-tag">⭐ Academia Deportiva · Cajamarca</span>
-  <h1>
-    <span class="accent">JR</span><br>
-    <span class="gold">STARS</span>
-  </h1>
+  <h1><span class="accent">JR</span><br><span class="gold">STARS</span></h1>
   <p class="hero-sub">Forjamos campeones desde el primer día</p>
   <div class="hero-btns">
     <a href="/dashboard" class="btn-primary">Ver Asistencias</a>
@@ -837,12 +65,12 @@
     <div class="feature-card">
       <span class="feature-icon">📱</span>
       <div class="feature-title">Asistencia por NFC</div>
-      <div class="feature-desc">El medallón de tu hijo registra su entrada automáticamente al acercarse al lector. Sin papeles, sin filas.</div>
+      <div class="feature-desc">El medallón registra la entrada automáticamente al acercarse al lector. Sin papeles, sin filas.</div>
     </div>
     <div class="feature-card">
       <span class="feature-icon">📊</span>
       <div class="feature-title">Dashboard en tiempo real</div>
-      <div class="feature-desc">Consulta las asistencias de tu hijo desde cualquier dispositivo, en cualquier momento.</div>
+      <div class="feature-desc">Consulta las asistencias desde cualquier dispositivo, en cualquier momento.</div>
     </div>
     <div class="feature-card">
       <span class="feature-icon">🥤</span>
@@ -864,9 +92,9 @@
       <span class="section-tag">// Para los padres</span>
       <h2 class="section-title">Seguimiento<br><span style="color:var(--gold)">completo</span></h2>
       <div class="divider"></div>
-      <p class="section-desc">Ingresa con el DNI de tu hijo y ve su historial de asistencias, puntualidad y saldo de batidos disponible al instante.</p>
+      <p class="section-desc">Ve el historial de asistencias, puntualidad y saldo de batidos disponible al instante.</p>
       <br>
-      <a href="/dashboard" class="btn-primary" style="display:inline-block; margin-top:1rem;">Consultar ahora</a>
+      <a href="/dashboard" class="btn-primary" style="display:inline-block;margin-top:1rem;">Consultar ahora</a>
     </div>
     <div class="dashboard-mock reveal">
       <div class="mock-header">
@@ -875,26 +103,10 @@
         <div class="mock-dot red"></div>
         <span class="mock-title">Dashboard · JR Stars</span>
       </div>
-      <div class="mock-row">
-        <span class="name">Carlos Quispe</span>
-        <span class="date">Hoy 08:02 am</span>
-        <span class="badge present">Presente</span>
-      </div>
-      <div class="mock-row">
-        <span class="name">Carlos Quispe</span>
-        <span class="date">Ayer 07:55 am</span>
-        <span class="badge present">Presente</span>
-      </div>
-      <div class="mock-row">
-        <span class="name">Carlos Quispe</span>
-        <span class="date">Lun 08:10 am</span>
-        <span class="badge present">Presente</span>
-      </div>
-      <div class="mock-row">
-        <span class="name">Carlos Quispe</span>
-        <span class="date">Vie 08:00 am</span>
-        <span class="badge absent">Faltó</span>
-      </div>
+      <div class="mock-row"><span class="name">Carlos Quispe</span><span class="date">Hoy 08:02 am</span><span class="badge present">Presente</span></div>
+      <div class="mock-row"><span class="name">Carlos Quispe</span><span class="date">Ayer 07:55 am</span><span class="badge present">Presente</span></div>
+      <div class="mock-row"><span class="name">Carlos Quispe</span><span class="date">Lun 08:10 am</span><span class="badge present">Presente</span></div>
+      <div class="mock-row"><span class="name">Carlos Quispe</span><span class="date">Vie 08:00 am</span><span class="badge absent">Faltó</span></div>
       <div class="mock-credits">
         <span class="credits-label">🥤 Créditos de batido</span>
         <span class="credits-num">4</span>
@@ -903,68 +115,39 @@
   </div>
 </section>
 
-<!-- NOTICIAS -->
+<!-- NOTICIAS — se rellena dinámicamente desde Supabase via home.js -->
 <section class="noticias-section" id="noticias">
   <div class="reveal">
     <span class="section-tag">// Últimas novedades</span>
     <h2 class="section-title">Noticias<br><span style="color:var(--gold)">& Avisos</span></h2>
     <div class="divider"></div>
-    <p class="section-desc">Mantente al día con todo lo que pasa en JR Stars: torneos, logros y comunicados importantes.</p>
+    <p class="section-desc">Torneos, logros y comunicados importantes de JR Stars.</p>
   </div>
   <div class="noticias-grid reveal">
-    <!-- Noticia destacada -->
-    <div class="noticia-featured">
-      <div class="img-placeholder">🏆</div>
-      <!--
-        Cuando tengas una foto real, reemplaza el div.img-placeholder por:
-        <img src="/static/noticias/torneo.jpg" class="noticia-featured-img" alt="Torneo">
-      -->
+    <!-- Noticia destacada: se llena desde JS, fallback estático si falla -->
+    <div class="noticia-featured" id="noticia-featured">
+      <div class="img-placeholder">📢</div>
       <div class="noticia-featured-body">
-        <span class="noticia-cat">🏆 Torneo</span>
-        <div class="noticia-title">¡JR Stars clasificó al torneo regional de Cajamarca 2026!</div>
-        <p class="noticia-desc">Nuestros atletas demostraron su nivel y aseguraron un lugar en la competencia regional. Entrenamiento extra los sábados a partir de la próxima semana.</p>
-        <div class="noticia-meta">
-          <span>📅 22 Feb 2026</span>
-          · Por el entrenador JR
-        </div>
+        <span class="noticia-cat">📢 Aviso</span>
+        <div class="noticia-title">Bienvenidos a JR Stars 2026</div>
+        <p class="noticia-desc">Estamos mejorando cada día para ofrecerte la mejor experiencia deportiva en Cajamarca.</p>
+        <div class="noticia-meta"><span>📅 2026</span> · Por el entrenador JR</div>
       </div>
     </div>
-
-    <!-- Noticias secundarias -->
-    <div class="noticias-list">
-      <div class="noticia-item">
-        <div class="noticia-item-icon">📢</div>
-        <div class="noticia-item-body">
-          <div class="noticia-item-title">Nuevo horario de entrenamientos desde marzo</div>
-          <div class="noticia-item-date">📅 20 Feb 2026</div>
-        </div>
-      </div>
-      <div class="noticia-item">
-        <div class="noticia-item-icon">🥤</div>
-        <div class="noticia-item-body">
-          <div class="noticia-item-title">Nuevo sabor disponible: Batido de maracuyá con proteína</div>
-          <div class="noticia-item-date">📅 18 Feb 2026</div>
-        </div>
-      </div>
-      <div class="noticia-item">
-        <div class="noticia-item-icon">💳</div>
-        <div class="noticia-item-body">
-          <div class="noticia-item-title">Recuerda recargar tus créditos de batido por Yape</div>
-          <div class="noticia-item-date">📅 15 Feb 2026</div>
-        </div>
-      </div>
+    <!-- Lista secundaria: se llena desde JS -->
+    <div class="noticias-list" id="noticias-list">
       <div class="noticia-item">
         <div class="noticia-item-icon">⭐</div>
         <div class="noticia-item-body">
-          <div class="noticia-item-title">Atleta del mes: ¡Felicitaciones a Carlos Quispe!</div>
-          <div class="noticia-item-date">📅 01 Feb 2026</div>
+          <div class="noticia-item-title">Próximamente más noticias...</div>
+          <div class="noticia-item-date">📅 JR Stars 2026</div>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- GALERÍA DE FOTOS -->
+<!-- GALERÍA — se rellena dinámicamente desde Supabase via home.js -->
 <div class="galeria-section">
   <div class="galeria-inner">
     <div class="reveal">
@@ -973,37 +156,14 @@
       <div class="divider"></div>
       <p class="section-desc">Cada entrenamiento, cada logro, cada momento memorable de nuestra academia.</p>
     </div>
-    <div class="galeria-grid reveal">
-      <!--
-        Para agregar fotos reales reemplaza cada .galeria-placeholder por:
-        <img src="/static/fotos/foto1.jpg" alt="descripción">
-        
-        Las fotos las subes a: frontend/static/fotos/
-      -->
-      <div class="galeria-item wide">
-        <div class="galeria-placeholder">🏋️<span>Entrenamiento</span></div>
-        <div class="galeria-overlay"><span class="galeria-overlay-text">Sesión grupal · Ene 2026</span></div>
-      </div>
-      <div class="galeria-item">
-        <div class="galeria-placeholder">🏆<span>Torneo</span></div>
-        <div class="galeria-overlay"><span class="galeria-overlay-text">Clasificatorio regional</span></div>
-      </div>
-      <div class="galeria-item">
-        <div class="galeria-placeholder">⭐<span>Logro</span></div>
-        <div class="galeria-overlay"><span class="galeria-overlay-text">Atleta del mes</span></div>
-      </div>
-      <div class="galeria-item">
-        <div class="galeria-placeholder">🥤<span>Batidos</span></div>
-        <div class="galeria-overlay"><span class="galeria-overlay-text">Post-entreno</span></div>
-      </div>
-      <div class="galeria-item">
-        <div class="galeria-placeholder">💪<span>Fuerza</span></div>
-        <div class="galeria-overlay"><span class="galeria-overlay-text">Circuito de fuerza</span></div>
-      </div>
-      <div class="galeria-item wide">
-        <div class="galeria-placeholder">🎯<span>Competencia</span></div>
-        <div class="galeria-overlay"><span class="galeria-overlay-text">Copa Cajamarca 2025</span></div>
-      </div>
+    <!-- Grid: se llena desde JS, fallback placeholders si no hay fotos -->
+    <div class="galeria-grid reveal" id="galeria-grid">
+      <div class="galeria-item wide"><div class="galeria-placeholder">🏋️<span>Entrenamiento</span></div><div class="galeria-overlay"><span class="galeria-overlay-text">Sesión grupal</span></div></div>
+      <div class="galeria-item"><div class="galeria-placeholder">🏆<span>Torneo</span></div><div class="galeria-overlay"><span class="galeria-overlay-text">Clasificatorio</span></div></div>
+      <div class="galeria-item"><div class="galeria-placeholder">⭐<span>Logro</span></div><div class="galeria-overlay"><span class="galeria-overlay-text">Atleta del mes</span></div></div>
+      <div class="galeria-item"><div class="galeria-placeholder">🥤<span>Batidos</span></div><div class="galeria-overlay"><span class="galeria-overlay-text">Post-entreno</span></div></div>
+      <div class="galeria-item"><div class="galeria-placeholder">💪<span>Fuerza</span></div><div class="galeria-overlay"><span class="galeria-overlay-text">Circuito</span></div></div>
+      <div class="galeria-item wide"><div class="galeria-placeholder">🎯<span>Competencia</span></div><div class="galeria-overlay"><span class="galeria-overlay-text">Copa Cajamarca</span></div></div>
     </div>
   </div>
 </div>
@@ -1015,31 +175,15 @@
       <span class="section-tag">// Nutrición post-entreno</span>
       <h2 class="section-title">Los<br><span style="color:var(--gold)">Batidos</span></h2>
       <div class="divider"></div>
-      <p class="section-desc">Recarga créditos por Yape o Plin y tu hijo los canjea al salir del entrenamiento. Rápido, simple, sin efectivo.</p>
+      <p class="section-desc">Recarga créditos por Yape o Plin y tu hijo los canjea al salir del entrenamiento.</p>
       <br>
-      <a href="/batidos" class="btn-secondary" style="display:inline-block; margin-top:1rem;">Ver menú completo</a>
+      <a href="/batidos" class="btn-secondary" style="display:inline-block;margin-top:1rem;">Ver menú completo</a>
     </div>
     <div class="batido-cards reveal">
-      <div class="batido-card">
-        <div class="b-icon">🍓</div>
-        <div class="b-name">Fresa</div>
-        <div class="b-credits">1 crédito</div>
-      </div>
-      <div class="batido-card">
-        <div class="b-icon">🍌</div>
-        <div class="b-name">Plátano</div>
-        <div class="b-credits">1 crédito</div>
-      </div>
-      <div class="batido-card">
-        <div class="b-icon">💪</div>
-        <div class="b-name">Proteína</div>
-        <div class="b-credits">2 créditos</div>
-      </div>
-      <div class="batido-card">
-        <div class="b-icon">🌿</div>
-        <div class="b-name">Verde</div>
-        <div class="b-credits">1 crédito</div>
-      </div>
+      <div class="batido-card"><div class="b-icon">🍓</div><div class="b-name">Fresa</div><div class="b-credits">1 crédito</div></div>
+      <div class="batido-card"><div class="b-icon">🍌</div><div class="b-name">Plátano</div><div class="b-credits">1 crédito</div></div>
+      <div class="batido-card"><div class="b-icon">💪</div><div class="b-name">Proteína</div><div class="b-credits">2 créditos</div></div>
+      <div class="batido-card"><div class="b-icon">🌿</div><div class="b-name">Verde</div><div class="b-credits">1 crédito</div></div>
     </div>
   </div>
 </div>
@@ -1057,40 +201,6 @@
   <p>Academia Deportiva · Cajamarca, Perú</p>
 </footer>
 
-<script>
-  // ── Scroll reveal ──
-  const reveals = document.querySelectorAll('.reveal');
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting) { e.target.classList.add('visible'); observer.unobserve(e.target); }
-    });
-  }, { threshold: 0.15 });
-  reveals.forEach(r => observer.observe(r));
-
-  // ── Contador animado ──
-  function animateCount(el, target, duration = 1800) {
-    let start = null;
-    const step = (ts) => {
-      if (!start) start = ts;
-      const progress = Math.min((ts - start) / duration, 1);
-      el.textContent = Math.floor(progress * target);
-      if (progress < 1) requestAnimationFrame(step);
-      else el.textContent = target;
-    };
-    requestAnimationFrame(step);
-  }
-
-  const statsObserver = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting) {
-        animateCount(document.getElementById('cnt-alumnos'), 48);
-        animateCount(document.getElementById('cnt-sesiones'), 312);
-        animateCount(document.getElementById('cnt-años'), 3);
-        statsObserver.disconnect();
-      }
-    });
-  }, { threshold: 0.5 });
-  statsObserver.observe(document.querySelector('.hero-stats'));
-</script>
+<script src="/static/home/home.js"></script>
 </body>
 </html>
