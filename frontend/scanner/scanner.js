@@ -146,7 +146,8 @@ function startKioskoScanner() {
         {
             fps: 15,
             qrbox: { width: Math.floor(size * 0.85), height: Math.floor(size * 0.85) },
-            rememberLastUsedCamera: true
+            rememberLastUsedCamera: true,
+            videoConstraints: { facingMode: { exact: "user" } }  /* Cámara selfie */
         }
     );
     html5QrcodeScanner.render(handleScan);

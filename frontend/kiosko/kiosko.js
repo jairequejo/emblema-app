@@ -23,22 +23,24 @@ function updateClock() {
 updateClock();
 setInterval(updateClock, 1000);
 
-// ── INICIAR CÁMARA AL TOCAR ──────────────
+// ── INICIAR CÁMARA AUTOMÁTICAMENTE ───────
 let scannerStarted = false;
 
-document.getElementById('right-panel').addEventListener('click', function() {
+function initKioskoScanner() {
     if (scannerStarted) return;
     scannerStarted = true;
-
-    // Ocultar pantalla de inicio, mostrar frame
     document.getElementById('start-screen').style.display = 'none';
     document.getElementById('scanner-frame').style.display = 'block';
-
-    // Iniciar el scanner (scanner.js lo hace en window.onload pero aquí lo forzamos)
     if (typeof startKioskoScanner === 'function') {
         startKioskoScanner();
     }
-});
+}
+
+// Auto-iniciar al cargar (scanner.js se carga después)
+window.addEventListener('load', initKioskoScanner);
+
+// Fallback: toque por si falla el permiso la primera vez
+document.getElementById('right-panel').addEventListener('click', initKioskoScanner);
 
 // ── HISTORIAL ────────────────────────────
 const historyItems = [];
