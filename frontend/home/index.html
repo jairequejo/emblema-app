@@ -10,7 +10,6 @@
 </head>
 <body>
 
-<!-- NAV -->
 <nav>
   <a href="/" class="nav-brand">
     <div class="nav-logo-img">
@@ -23,12 +22,11 @@
     <li><a href="#nosotros">Academia</a></li>
     <li><a href="#noticias">Noticias</a></li>
     <li><a href="#asistencias">Asistencias</a></li>
-    <li><a href="#batidos">Batidos</a></li>
+    <li><a href="#kiosko">Kiosko</a></li>
   </ul>
   <a href="/dashboard" class="nav-cta">Ver Asistencias</a>
 </nav>
 
-<!-- HERO -->
 <div class="hero">
   <span class="hero-tag">⭐ Academia Deportiva · Cajamarca</span>
   <h1><span class="accent">JR</span><br><span class="gold">STARS</span></h1>
@@ -53,7 +51,6 @@
   </div>
 </div>
 
-<!-- FEATURES -->
 <section id="nosotros">
   <div class="reveal">
     <span class="section-tag">// Lo que ofrecemos</span>
@@ -74,7 +71,7 @@
     </div>
     <div class="feature-card">
       <span class="feature-icon">🥤</span>
-      <div class="feature-title">Créditos de batidos</div>
+      <div class="feature-title">Créditos de kiosko</div>
       <div class="feature-desc">Recarga créditos vía Yape y tu hijo los canjea por su batido favorito después de entrenar.</div>
     </div>
     <div class="feature-card">
@@ -85,14 +82,13 @@
   </div>
 </section>
 
-<!-- ASISTENCIAS PREVIEW -->
 <section id="asistencias">
   <div class="dashboard-wrap">
     <div class="reveal">
       <span class="section-tag">// Para los padres</span>
       <h2 class="section-title">Seguimiento<br><span style="color:var(--gold)">completo</span></h2>
       <div class="divider"></div>
-      <p class="section-desc">Ve el historial de asistencias, puntualidad y saldo de batidos disponible al instante.</p>
+      <p class="section-desc">Ve el historial de asistencias, puntualidad y saldo del kiosko disponible al instante.</p>
       <br>
       <a href="/dashboard" class="btn-primary" style="display:inline-block;margin-top:1rem;">Consultar ahora</a>
     </div>
@@ -108,14 +104,13 @@
       <div class="mock-row"><span class="name">Carlos Quispe</span><span class="date">Lun 08:10 am</span><span class="badge present">Presente</span></div>
       <div class="mock-row"><span class="name">Carlos Quispe</span><span class="date">Vie 08:00 am</span><span class="badge absent">Faltó</span></div>
       <div class="mock-credits">
-        <span class="credits-label">🥤 Créditos de batido</span>
+        <span class="credits-label">🥤 Créditos de Kiosko</span>
         <span class="credits-num">4</span>
       </div>
     </div>
   </div>
 </section>
 
-<!-- NOTICIAS — se rellena dinámicamente desde Supabase via home.js -->
 <section class="noticias-section" id="noticias">
   <div class="reveal">
     <span class="section-tag">// Últimas novedades</span>
@@ -124,7 +119,6 @@
     <p class="section-desc">Torneos, logros y comunicados importantes de JR Stars.</p>
   </div>
   <div class="noticias-grid reveal">
-    <!-- Noticia destacada: se llena desde JS, fallback estático si falla -->
     <div class="noticia-featured" id="noticia-featured">
       <div class="img-placeholder">📢</div>
       <div class="noticia-featured-body">
@@ -134,7 +128,6 @@
         <div class="noticia-meta"><span>📅 2026</span> · Por el entrenador JR</div>
       </div>
     </div>
-    <!-- Lista secundaria: se llena desde JS -->
     <div class="noticias-list" id="noticias-list">
       <div class="noticia-item">
         <div class="noticia-item-icon">⭐</div>
@@ -147,7 +140,6 @@
   </div>
 </section>
 
-<!-- GALERÍA — se rellena dinámicamente desde Supabase via home.js -->
 <div class="galeria-section">
   <div class="galeria-inner">
     <div class="reveal">
@@ -156,28 +148,26 @@
       <div class="divider"></div>
       <p class="section-desc">Cada entrenamiento, cada logro, cada momento memorable de nuestra academia.</p>
     </div>
-    <!-- Grid: se llena desde JS, fallback placeholders si no hay fotos -->
     <div class="galeria-grid reveal" id="galeria-grid">
       <div class="galeria-item wide"><div class="galeria-placeholder">🏋️<span>Entrenamiento</span></div><div class="galeria-overlay"><span class="galeria-overlay-text">Sesión grupal</span></div></div>
       <div class="galeria-item"><div class="galeria-placeholder">🏆<span>Torneo</span></div><div class="galeria-overlay"><span class="galeria-overlay-text">Clasificatorio</span></div></div>
       <div class="galeria-item"><div class="galeria-placeholder">⭐<span>Logro</span></div><div class="galeria-overlay"><span class="galeria-overlay-text">Atleta del mes</span></div></div>
-      <div class="galeria-item"><div class="galeria-placeholder">🥤<span>Batidos</span></div><div class="galeria-overlay"><span class="galeria-overlay-text">Post-entreno</span></div></div>
+      <div class="galeria-item"><div class="galeria-placeholder">🥤<span>Kiosko</span></div><div class="galeria-overlay"><span class="galeria-overlay-text">Post-entreno</span></div></div>
       <div class="galeria-item"><div class="galeria-placeholder">💪<span>Fuerza</span></div><div class="galeria-overlay"><span class="galeria-overlay-text">Circuito</span></div></div>
       <div class="galeria-item wide"><div class="galeria-placeholder">🎯<span>Competencia</span></div><div class="galeria-overlay"><span class="galeria-overlay-text">Copa Cajamarca</span></div></div>
     </div>
   </div>
 </div>
 
-<!-- BATIDOS -->
 <div class="batidos-section">
-  <div class="batidos-inner" id="batidos">
+  <div class="batidos-inner" id="kiosko">
     <div class="reveal">
       <span class="section-tag">// Nutrición post-entreno</span>
-      <h2 class="section-title">Los<br><span style="color:var(--gold)">Batidos</span></h2>
+      <h2 class="section-title">El<br><span style="color:var(--gold)">Kiosko</span></h2>
       <div class="divider"></div>
       <p class="section-desc">Recarga créditos por Yape o Plin y tu hijo los canjea al salir del entrenamiento.</p>
       <br>
-      <a href="/batidos" class="btn-secondary" style="display:inline-block;margin-top:1rem;">Ver menú completo</a>
+      <a href="/kiosko" class="btn-secondary" style="display:inline-block;margin-top:1rem;">Ver menú completo</a>
     </div>
     <div class="batido-cards reveal">
       <div class="batido-card"><div class="b-icon">🍓</div><div class="b-name">Fresa</div><div class="b-credits">1 crédito</div></div>
@@ -188,14 +178,12 @@
   </div>
 </div>
 
-<!-- CTA -->
 <div class="cta-section">
   <h2>¿Listo para<br>ver la asistencia?</h2>
   <p>Consulta el historial de tu hijo en segundos</p>
   <a href="/dashboard" class="btn-primary">Entrar al dashboard</a>
 </div>
 
-<!-- FOOTER -->
 <footer>
   <div class="footer-logo">JR <span>STARS</span></div>
   <p>Academia Deportiva · Cajamarca, Perú</p>

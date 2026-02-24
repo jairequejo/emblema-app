@@ -1,0 +1,35 @@
+/* frontend/caja/caja.css */
+body { margin: 0; background: #080808; color: #F0EDE8; font-family: 'Barlow', sans-serif; user-select: none; }
+.pin-screen { position: fixed; inset: 0; background: #080808; z-index: 999; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.pin-title { font-family: 'Bebas Neue', sans-serif; font-size: 3rem; color: #D4A017; letter-spacing: 2px; margin-bottom: 2rem; }
+.pin-dots { display: flex; gap: 15px; margin-bottom: 2rem; }
+.pin-dot { width: 20px; height: 20px; border-radius: 50%; border: 2px solid #555; }
+.pin-dot.filled { background: #D4A017; border-color: #D4A017; }
+.pin-pad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; }
+.pin-btn { width: 70px; height: 70px; border-radius: 50%; background: #111; border: 1px solid #333; color: white; font-size: 2rem; font-family: 'Barlow Condensed'; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.pin-btn:active { background: #D4A017; color: black; }
+
+.caja-layout { display: none; padding: 1rem; max-width: 600px; margin: 0 auto; }
+.caja-header { text-align: center; border-bottom: 1px solid #333; padding-bottom: 1rem; margin-bottom: 1rem; }
+.status-nfc { font-family: 'Barlow Condensed'; color: #D4A017; font-size: 1.2rem; animation: pulse 2s infinite; }
+
+.cliente-box { background: #111; border: 1px solid #D4A017; border-radius: 12px; padding: 1.5rem; text-align: center; margin-bottom: 2rem; display: none; }
+.cliente-box.active { display: block; }
+.c-nombre { font-family: 'Bebas Neue'; font-size: 2.5rem; color: white; line-height: 1; margin-bottom: 0.5rem; }
+.c-creditos { font-family: 'Barlow Condensed'; font-size: 1.5rem; color: #888; }
+.c-num { font-size: 3rem; font-weight: bold; color: #D4A017; }
+
+.menu-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; opacity: 0.3; pointer-events: none; transition: 0.3s; }
+.menu-grid.active { opacity: 1; pointer-events: all; }
+.item-btn { background: #1a1a1a; border: 1px solid #333; border-radius: 12px; padding: 1rem; text-align: center; cursor: pointer; }
+.item-btn:active { transform: scale(0.95); background: #333; }
+.i-emoji { font-size: 3rem; display: block; margin-bottom: 0.5rem; }
+.i-name { font-family: 'Barlow Condensed'; font-size: 1.2rem; font-weight: bold; }
+.i-cost { color: #CC1616; font-weight: bold; }
+/* Estilos para la cámara QR en la Caja */
+#reader-container { background: #000; border-radius: 12px; overflow: hidden; margin-bottom: 1rem; border: 1px solid #333; }
+#reader { width: 100%; max-width: 300px; margin: 0 auto; }
+#reader button { background: #D4A017; color: #000; border: none; padding: 5px 10px; border-radius: 5px; font-family: 'Barlow Condensed'; font-weight: bold; margin: 5px; cursor: pointer; }
+#reader a { color: #D4A017; text-decoration: none; }
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }

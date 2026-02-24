@@ -1,7 +1,38 @@
-// scanner/scanner.js — v2.1 con NFC + función startKioskoScanner
+// scanner/scanner.js — v3.0 unificado
+// Este archivo ES el kiosko. No necesita kiosko.js separado.
 
-const API_URL = "https://emblema-app-production.up.railway.app";
+// ── BLOQUEAR BOTÓN ATRÁS ──────────────────────────────
+window.history.pushState(null, null, window.location.href);
+window.onpopstate = function() { window.history.go(1); };
 
+// ── WAKE LOCK (pantalla no se apaga) ─────────────────
+async function requestWakeLock() {
+    if ('wakeLock' in navigator) {
+        try { await navigator.wakeLock.request('screen'); } catch(e) {}
+    }
+}
+requestWakeLock();
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') requestWakeLock();
+});
+
+// ── RELOJ ─────────────────────────────────────────────
+const DIAS  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+function updateClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2,'0');
+    const m = String(now.getMinutes()).padStart(2,'0');
+    const clockEl = document.getElementById('clock');
+    const dateEl  = document.getElementById('date-display');
+    if (clockEl) clockEl.textContent = `${h}:${m}`;
+    if (dateEl)  dateEl.textContent  = `${DIAS[now.getDay()]} ${now.getDate()} ${MESES[now.getMonth()]}`;
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ── AUDIO ─────────────────────────────────────────────
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
 function playSuccess() {
@@ -9,11 +40,11 @@ function playSuccess() {
     const gain = audioCtx.createGain();
     osc.connect(gain); gain.connect(audioCtx.destination);
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(660, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1);
     gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-    osc.start(audioCtx.currentTime);
-    osc.stop(audioCtx.currentTime + 0.4);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.4);
 }
 
 function playWarning() {
@@ -39,26 +70,85 @@ function playError() {
     osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.5);
     gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
-    osc.start(audioCtx.currentTime);
-    osc.stop(audioCtx.currentTime + 0.5);
+    osc.start(); osc.stop(audioCtx.currentTime + 0.5);
 }
 
-// --- LÓGICA CENTRAL ---
+// ── FLASH DE PANTALLA ─────────────────────────────────
+const FLASH_DURATION = 3500;
+
+function showFlash(estado, nombre, mensaje) {
+    const flashBg = document.getElementById('flash-bg');
+    const overlay = document.getElementById('result-overlay');
+    const nameEl  = document.getElementById('result-name');
+    const msgEl   = document.getElementById('result-msg');
+
+    if (!flashBg || !overlay || !nameEl) return;
+
+    flashBg.className = `show ${estado}`;
+    overlay.className = `result-overlay show ${estado}`;
+    nameEl.textContent = nombre || 'Desconocido';
+    if (msgEl) {
+        msgEl.textContent = estado === 'success' ? '¡BIENVENIDO!' :
+                            estado === 'warning'  ? 'YA REGISTRADO' : 'RECHAZADO';
+    }
+
+    // Barra de progreso: recrear el elemento para reiniciar la animación
+    const oldBar = overlay.querySelector('.result-progress');
+    if (oldBar) oldBar.remove();
+    const bar = document.createElement('div');
+    bar.className = 'result-progress';
+    overlay.appendChild(bar);
+
+    setTimeout(() => {
+        flashBg.className = '';
+        overlay.className = 'result-overlay';
+        const statusEl = document.getElementById('status-text');
+        if (statusEl) statusEl.textContent = 'Acerca tu medallón';
+    }, FLASH_DURATION);
+}
+
+// ── HISTORIAL ─────────────────────────────────────────
+const historyItems = [];
+
+function addHistory(estado, nombre) {
+    const strip = document.getElementById('history-strip');
+    if (!strip) return;
+
+    const hora = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    historyItems.unshift({ type: estado, name: nombre, hora });
+    if (historyItems.length > 15) historyItems.pop();
+
+    strip.innerHTML = historyItems.map(item => `
+        <div class="history-item ${item.type}">
+            <div class="h-dot"></div>
+            <span class="h-name">${item.name}</span>
+            <span class="h-time">${item.hora}</span>
+        </div>
+    `).join('');
+}
+
+// ── LÓGICA CENTRAL DE SCAN ────────────────────────────
+let html5QrcodeScanner = null;
+let isProcessing = false;
+
 function handleScan(decodedText) {
+    if (isProcessing) return;
+    isProcessing = true;
+
     const code = decodedText.includes('?code=')
         ? decodedText.split('?code=')[1]
         : decodedText;
 
-    const resultDiv = document.getElementById('result');
-    const list      = document.getElementById('attendance-list');
-
     if (html5QrcodeScanner) html5QrcodeScanner.pause();
 
-    fetch(`${API_URL}/attendance/scan`, {
+    // Actualizar status
+    const statusEl = document.getElementById('status-text');
+    if (statusEl) statusEl.textContent = 'Procesando...';
+
+    fetch('/attendance/scan', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': 'true',
             'Accept': 'application/json'
         },
         body: JSON.stringify({ code })
@@ -69,75 +159,47 @@ function handleScan(decodedText) {
         try { data = JSON.parse(rawText); }
         catch(e) {
             playError();
-            if (resultDiv) {
-                resultDiv.style.display = 'block';
-                resultDiv.className = 'result-card error';
-                resultDiv.innerHTML = '❌ Error de conexión';
-            }
-            setTimeout(() => {
-                if (resultDiv) resultDiv.style.display = 'none';
-                if (html5QrcodeScanner) html5QrcodeScanner.resume();
-            }, 4000);
-            return;
+            showFlash('error', 'ERROR', 'Conexión fallida');
+            resume(); return;
         }
 
-        const nombre  = data.student_name;
-        const mensaje = data.message;
-        const estado  = data.status;
+        const nombre = data.student_name || 'Desconocido';
+        const estado = data.status || 'error';
 
-        if (estado === 'success') playSuccess();
+        if (estado === 'success')      playSuccess();
         else if (estado === 'warning') playWarning();
-        else playError();
+        else                           playError();
 
-        if (resultDiv) {
-            resultDiv.style.display = 'block';
-            resultDiv.className = `result-card ${estado}`;
-            resultDiv.innerHTML = mensaje;
-            setTimeout(() => { resultDiv.style.display = 'none'; }, 3000);
-        }
+        showFlash(estado, nombre, data.message);
 
-        if (list && (estado === 'success' || estado === 'warning')) {
-            const newItem = document.createElement('li');
-            const hora = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            let nombreFinal = nombre;
-            if (!nombreFinal || nombreFinal === 'null') {
-                const match = mensaje?.match(/(?:Bienvenido,?\s+|Ya registrado:\s*)([^!]+)/);
-                nombreFinal = match ? match[1].trim() : mensaje;
-            }
-            newItem.className = estado;
-            newItem.innerHTML = `<strong>${hora}</strong> — ${nombreFinal}`;
-            list.prepend(newItem);
-        }
-
-        // Evento para kiosko
-        document.dispatchEvent(new CustomEvent('scan-result', {
-            detail: { estado, nombre: nombre || 'Desconocido', mensaje }
-        }));
-
-        setTimeout(() => {
-            if (html5QrcodeScanner) html5QrcodeScanner.resume();
-        }, 2000);
+        if (estado !== 'error') addHistory(estado, nombre);
     })
     .catch(() => {
         playError();
-        if (resultDiv) {
-            resultDiv.style.display = 'block';
-            resultDiv.className = 'result-card error';
-            resultDiv.innerHTML = '❌ Sin conexión con el servidor';
-        }
-        setTimeout(() => {
-            if (resultDiv) resultDiv.style.display = 'none';
-            if (html5QrcodeScanner) html5QrcodeScanner.resume();
-        }, 3000);
+        showFlash('error', 'SIN CONEXIÓN', '');
+        resume();
     });
 }
 
-// --- INSTANCIA GLOBAL ---
-let html5QrcodeScanner = null;
+function resume() {
+    setTimeout(() => {
+        isProcessing = false;
+        if (html5QrcodeScanner) html5QrcodeScanner.resume();
+        const statusEl = document.getElementById('status-text');
+        if (statusEl) statusEl.textContent = 'Acerca tu medallón';
+    }, FLASH_DURATION);
+}
 
-// startKioskoScanner: llamado desde kiosko.js al tocar la pantalla
-function startKioskoScanner() {
-    // Obtener tamaño real del frame
+// ── INICIAR CÁMARA (al tocar la pantalla) ────────────
+let scannerStarted = false;
+
+function initScanner() {
+    if (scannerStarted) return;
+    scannerStarted = true;
+
+    document.getElementById('start-screen').style.display = 'none';
+    document.getElementById('scanner-frame').style.display = 'block';
+
     const frame = document.getElementById('scanner-frame');
     const size  = frame ? Math.min(frame.clientWidth, frame.clientHeight) - 20 : 300;
 
@@ -146,30 +208,35 @@ function startKioskoScanner() {
         {
             fps: 15,
             qrbox: { width: Math.floor(size * 0.85), height: Math.floor(size * 0.85) },
-            rememberLastUsedCamera: true,
-            videoConstraints: { facingMode: { exact: "user" } }  /* Cámara selfie */
+            rememberLastUsedCamera: true,     // recuerda la cámara elegida
+            showTorchButtonIfSupported: true  // linterna si disponible
+            // Sin facingMode forzado: el usuario elige la primera vez,
+            // rememberLastUsedCamera la guarda para siempre
         }
     );
-    html5QrcodeScanner.render(handleScan);
+
+    html5QrcodeScanner.render(
+        (decoded) => {
+            handleScan(decoded);
+            // Resumir después del flash
+            setTimeout(() => {
+                isProcessing = false;
+                if (html5QrcodeScanner) html5QrcodeScanner.resume();
+            }, FLASH_DURATION + 200);
+        },
+        (err) => { /* errores de lectura normales, ignorar */ }
+    );
+
     startMirrorCheck();
     initNFC();
 }
 
-// Para el scanner normal (no kiosko) — arranca directo
-if (!window._kioskMode) {
-    html5QrcodeScanner = new Html5QrcodeScanner(
-        "reader",
-        {
-            fps: 15,
-            qrbox: { width: 250, height: 250 },
-            rememberLastUsedCamera: true
-        }
-    );
-    html5QrcodeScanner.render(handleScan);
-    initNFCWhenReady();
-}
+// Toque en pantalla derecha para activar
+document.getElementById('right-panel').addEventListener('click', initScanner);
+// Auto-iniciar al cargar (si ya tiene permisos guardados)
+window.addEventListener('load', () => setTimeout(initScanner, 300));
 
-// --- MODO ESPEJO ---
+// ── MODO ESPEJO (cámara selfie) ──────────────────────
 function startMirrorCheck() {
     setInterval(() => {
         const video = document.querySelector('#reader video');
@@ -183,7 +250,7 @@ function startMirrorCheck() {
     }, 1000);
 }
 
-// --- NFC ---
+// ── NFC ───────────────────────────────────────────────
 async function initNFC() {
     if (!('NDEFReader' in window)) return;
     try {
@@ -200,12 +267,6 @@ async function initNFC() {
             }
         });
     } catch(e) {
-        console.warn('NFC:', e.message);
+        console.warn('NFC no disponible:', e.message);
     }
-}
-
-function initNFCWhenReady() {
-    // En modo scanner normal inicia NFC directamente
-    initNFC();
-    startMirrorCheck();
 }

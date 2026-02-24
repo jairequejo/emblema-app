@@ -1,73 +1,185 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <title>JR Stars — Kiosko</title>
-    <link rel="stylesheet" href="/static/kiosko/kiosko.css">
-    <link rel="icon" href="/static/favicon-kiosko.ico" type="image/x-icon">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>JR Stars — Kiosko</title>
+  <link rel="stylesheet" href="/static/theme.css">
+  <link rel="stylesheet" href="/static/kiosko/kiosko.css">
+  <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
 </head>
 <body>
 
-<div id="flash-bg"></div>
-
-<div class="kiosko-layout">
-
-    <!-- IZQUIERDA -->
-    <div class="left-panel">
-        <div class="brand">
-            <div class="brand-logo">JR★</div>
-            <div class="brand-name">STARS</div>
-            <div class="brand-sub">Academia</div>
-        </div>
-        <div class="brand-divider"></div>
-        <div class="clock" id="clock">00:00</div>
-        <div class="date" id="date-display"></div>
-        <div class="brand-divider"></div>
-        <div class="status-idle" id="status-text">Acerca tu medallón</div>
-        <div class="nfc-indicator" id="nfc-indicator">
-            <div class="nfc-icon">📡</div>
-            <span class="nfc-label">NFC Activo</span>
-        </div>
+<div class="topbar">
+  <a href="/" class="topbar-brand">
+    <div class="topbar-logo-circle">
+      <span class="logo-fallback">⭐</span>
     </div>
-
-    <!-- DERECHA -->
-    <div class="right-panel" id="right-panel">
-
-        <!-- PANTALLA DE INICIO — toque para activar cámara -->
-        <div class="start-screen" id="start-screen">
-            <div class="start-icon">📷</div>
-            <div class="start-title">TOCA PARA ACTIVAR</div>
-            <div class="start-sub">Se necesita permiso de cámara</div>
-        </div>
-
-        <!-- FRAME DEL SCANNER (oculto hasta que se active) -->
-        <div class="scanner-frame" id="scanner-frame" style="display:none">
-            <div class="corner tl"></div>
-            <div class="corner tr"></div>
-            <div class="corner bl"></div>
-            <div class="corner br"></div>
-            <div id="reader"></div>
-            <div class="scan-line"></div>
-        </div>
-
-    </div>
+    <span class="topbar-name">JR <span>STARS</span></span>
+  </a>
+  <div class="topbar-right">
+    <a href="/dashboard" class="btn btn-outline">📊 Asistencias</a>
+    <a href="/" class="btn btn-outline">← Inicio</a>
+  </div>
 </div>
 
-<!-- Overlay resultado -->
-<div class="result-overlay" id="result-overlay">
-    <div class="result-icon" id="result-icon"></div>
-    <div class="result-name" id="result-name"></div>
-    <div class="result-msg"  id="result-msg"></div>
+<div class="batidos-hero">
+  <span class="section-tag">// Kiosko Virtual</span>
+  <h1 class="section-title">KIOSKO <span style="color:var(--gold)">JR</span></h1>
+  <div class="section-divider" style="margin:1rem auto;"></div>
+  <p>Nutrición para campeones · Consulta tu saldo</p>
 </div>
 
-<!-- Historial -->
-<div class="history-strip" id="history-strip"></div>
+<div class="saldo-bar">
+  <span class="saldo-label">🔍 Consultar saldo:</span>
+  <input class="input-jr" id="dni-input" type="text"
+    placeholder="DNI del atleta" style="max-width:160px;"
+    maxlength="8" oninput="this.value=this.value.replace(/\D/g,'')">
+  <button class="btn btn-gold" onclick="consultarSaldo()">Consultar</button>
+  <div class="saldo-result" id="saldo-result">
+    <span class="saldo-name" id="saldo-name"></span>
+    <span>·</span>
+    <span id="saldo-num">0</span> créditos disponibles
+  </div>
+</div>
 
-<script src="https://unpkg.com/html5-qrcode"></script>
-<script src="/static/kiosko/kiosko.js"></script>
-<script src="/static/scanner/scanner.js"></script>
+<div class="menu-wrap">
+
+  <div class="menu-section-title">🥤 Clásicos</div>
+  <div class="menu-grid">
+    <div class="batido-card" onclick="avisoCompra()">
+      <span class="batido-emoji">🍓</span>
+      <div class="batido-name">Fresa</div>
+      <div class="batido-desc">Fresa natural con leche fresca. El favorito de los atletas.</div>
+      <div class="batido-credits">1</div>
+      <div class="batido-credits-label">crédito</div>
+    </div>
+    <div class="batido-card" onclick="avisoCompra()">
+      <span class="batido-emoji">🍌</span>
+      <div class="batido-name">Plátano</div>
+      <div class="batido-desc">Energía pura. Plátano con miel y leche entera.</div>
+      <div class="batido-credits">1</div>
+      <div class="batido-credits-label">crédito</div>
+    </div>
+    <div class="batido-card" onclick="avisoCompra()">
+      <span class="batido-emoji">🌿</span>
+      <div class="batido-name">Verde</div>
+      <div class="batido-desc">Espinaca, manzana y pepino. Detox y recuperación.</div>
+      <div class="batido-credits">1</div>
+      <div class="batido-credits-label">crédito</div>
+    </div>
+    <div class="batido-card" onclick="avisoCompra()">
+      <span class="batido-emoji">🍊</span>
+      <div class="batido-name">Maracuyá</div>
+      <div class="batido-desc">Tropical y refrescante. Rico en vitamina C.</div>
+      <div class="batido-credits">1</div>
+      <div class="batido-credits-label">crédito</div>
+    </div>
+  </div>
+
+  <div class="menu-section-title">💪 Premium</div>
+  <div class="menu-grid">
+    <div class="batido-card" onclick="avisoCompra()">
+      <span class="batido-emoji">💪</span>
+      <div class="batido-name">Proteína</div>
+      <div class="batido-desc">Whey protein + plátano + avena. Máxima recuperación.</div>
+      <div class="batido-credits">2</div>
+      <div class="batido-credits-label">créditos</div>
+      <span class="batido-tag"><span class="badge badge-gold">Premium</span></span>
+    </div>
+    <div class="batido-card" onclick="avisoCompra()">
+      <span class="batido-emoji">🏆</span>
+      <div class="batido-name">Campeón</div>
+      <div class="batido-desc">Cacao, plátano, maní y proteína. El batido élite.</div>
+      <div class="batido-credits">2</div>
+      <div class="batido-credits-label">créditos</div>
+      <span class="batido-tag"><span class="badge badge-gold">Premium</span></span>
+    </div>
+    <div class="batido-card" onclick="avisoCompra()">
+      <span class="batido-emoji">⚡</span>
+      <div class="batido-name">Energía Total</div>
+      <div class="batido-desc">Avena, miel, canela y leche. Pre o post entreno.</div>
+      <div class="batido-credits">2</div>
+      <div class="batido-credits-label">créditos</div>
+      <span class="batido-tag"><span class="badge badge-gold">Premium</span></span>
+    </div>
+  </div>
+
+  <div class="recarga-box">
+    <div class="recarga-title">¿Cómo recargar créditos?</div>
+    <p style="font-family:var(--font-cond);font-size:.9rem;color:var(--gray);">
+      Habla con el entrenador o escríbenos. El proceso es simple:
+    </p>
+    <div class="recarga-steps">
+      <div class="recarga-step">
+        <div class="recarga-step-num">1</div>
+        <div class="recarga-step-text">Transfiere por <strong style="color:var(--white)">Yape o Plin</strong></div>
+      </div>
+      <div class="recarga-step">
+        <div class="recarga-step-num">2</div>
+        <div class="recarga-step-text">Envía el <strong style="color:var(--white)">screenshot</strong> al entrenador</div>
+      </div>
+      <div class="recarga-step">
+        <div class="recarga-step-num">3</div>
+        <div class="recarga-step-text">¡Listo! Créditos acreditados al instante</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="menu-section-title">📋 Últimos canjes</div>
+  <ul class="canjes-list" id="canjes-list">
+    <li class="empty-canjes">Consulta un DNI para ver el historial</li>
+  </ul>
+
+</div>
+
+<script>
+  let alumnoActual = null;
+
+  async function consultarSaldo() {
+    const dni = document.getElementById('dni-input').value.trim();
+    if (dni.length < 7) return;
+    try {
+      const res = await fetch(`/students/by-dni/${dni}`);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      alumnoActual = data;
+      document.getElementById('saldo-name').textContent = data.name || data.nombre || 'Atleta';
+      document.getElementById('saldo-num').textContent = data.batido_credits ?? 0;
+      document.getElementById('saldo-result').classList.add('visible');
+      cargarCanjes(data.id);
+    } catch {
+      document.getElementById('saldo-result').classList.remove('visible');
+      alumnoActual = null;
+      alert('DNI no encontrado.');
+    }
+  }
+
+  async function cargarCanjes(studentId) {
+    try {
+      const res = await fetch(`/batidos/history/${studentId}`);
+      const data = await res.json();
+      const list = document.getElementById('canjes-list');
+      if (!data.length) {
+        list.innerHTML = '<li class="empty-canjes">Sin canjes registrados aún</li>';
+        return;
+      }
+      list.innerHTML = data.slice(0,8).map(c => `
+        <li class="canje-item">
+          <span class="canje-emoji">${c.emoji || '🥤'}</span>
+          <div class="canje-info">
+            <div class="canje-name">${c.batido_name}</div>
+            <div class="canje-date">${new Date(c.created_at).toLocaleDateString('es-PE',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+          </div>
+          <span class="canje-cost">-${c.credits_used} cr.</span>
+        </li>
+      `).join('');
+    } catch {}
+  }
+
+  function avisoCompra() {
+    alert("Para comprar este producto, acerca tu medallón NFC en la Caja de la academia.");
+  }
+</script>
 </body>
 </html>

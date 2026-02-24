@@ -43,13 +43,13 @@ def scanner():
 def dashboard():
     return FileResponse("frontend/dashboard/index.html")
 
-@app.get("/batidos")
-def batidos_page():
-    return FileResponse("frontend/batidos/index.html")
-
 @app.get("/kiosko")
-def kiosko():
+def kiosko_page():
     return FileResponse("frontend/kiosko/index.html")
+
+@app.get("/caja")
+def caja_page():
+    return FileResponse("frontend/caja/index.html")
 
 @app.get("/admin/login")
 def admin_login_page():
