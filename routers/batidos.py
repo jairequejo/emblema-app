@@ -86,4 +86,16 @@ def canjear_batido(body: CanjeRequest):
 
     # 3. Registrar el canje en el historial
     supabase.table("batido_canjes").insert({
-        "student_
+        "student_id": body.student_id,
+        "batido_name": body.batido_name,
+        "credits_used": body.credits_used,
+        "emoji": body.emoji,
+    }).execute()
+
+    return {
+        "ok": True,
+        "alumno": alumno["full_name"],
+        "batido": body.batido_name,
+        "creditos_usados": body.credits_used,
+        "saldo_restante": nuevo_saldo,
+    }
