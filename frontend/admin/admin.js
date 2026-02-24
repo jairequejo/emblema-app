@@ -88,7 +88,7 @@ function initScanner() {
   });
 }
 
-// ── ALUMNOS ───────────────────────────────────────────
+// ── ALUMNOS (Registro + Cobro Inicial y Tabla Semáforo) ──
 async function loadAlumnos() {
   const res = await fetch('/admin/alumnos', { headers: H });
   if (res.status === 401) { logout(); return; }
@@ -96,55 +96,105 @@ async function loadAlumnos() {
   const container = document.getElementById('alumnos-list');
   if (!data.length) { container.innerHTML = '<p style="color:var(--gray);font-family:var(--font-cond)">No hay alumnos aún.</p>'; return; }
 
+  const hoy = new Date();
+  
   container.innerHTML = `
     <table class="admin-table">
       <thead><tr>
-        <th>Nombre</th><th>Horario</th><th>Turno</th><th>Sede</th><th>Créditos</th><th>Acciones</th>
+        <th>Nombre</th><th>Estado</th><th>Vence</th><th>Horario</th><th>Acciones</th>
       </tr></thead>
       <tbody>
-        ${data.map(a => `
-          <tr>
-            <td><strong>${a.full_name}</strong></td>
+        ${data.map(a => {
+          // Lógica Antifrágil Visual
+          let estadoColor = 'var(--red2)';
+          let estadoTexto = 'Inactivo';
+          let vencimiento = '—';
+          
+          if (a.is_active) {
+              if (a.valid_until) {
+                  const fechaVence = new Date(a.valid_until);
+                  fechaVence.setMinutes(fechaVence.getMinutes() + fechaVence.getTimezoneOffset());
+                  vencimiento = fechaVence.toLocaleDateString('es-PE');
+                  
+                  if (fechaVence >= hoy) {
+                      estadoColor = '#00ff88';
+                      estadoTexto = 'Al Día';
+                  } else {
+                      estadoColor = 'var(--gold)';
+                      estadoTexto = 'Vencido';
+                  }
+              } else {
+                  estadoColor = 'var(--gold)';
+                  estadoTexto = 'Sin Pago';
+              }
+          }
+
+          return `
+          <tr style="opacity: ${a.is_active ? '1' : '0.5'}">
+            <td><strong>${a.full_name}</strong><br><span style="font-size:0.75rem; color:var(--gray)">DNI: ${a.dni || '—'}</span></td>
+            <td><span style="color:${estadoColor}; font-weight:bold; font-size:0.85rem">${estadoTexto}</span></td>
+            <td style="font-family:var(--font-mono); font-size:0.85rem">${vencimiento}</td>
             <td><span class="badge badge-gold">${a.horario || 'LMV'}</span></td>
-            <td>${a.turno || '—'}</td>
-            <td>${a.sede || '—'}</td>
-            <td><span style="font-family:var(--font-display);color:var(--gold)">${a.batido_credits ?? 0}</span></td>
             <td>
-              <button class="btn btn-outline" style="font-size:.75rem;padding:.3rem .7rem"
-                onclick="verQR('${a.id}')">QR</button>
-              <button class="btn btn-red" style="font-size:.75rem;padding:.3rem .7rem;margin-left:.3rem"
-                onclick="eliminarAlumno('${a.id}','${a.full_name.replace(/'/g, "\\'")}')">✕</button>
+              <button class="btn btn-outline" style="font-size:.75rem;padding:.3rem .7rem" onclick="verQR('${a.id}')">QR</button>
+              ${a.is_active 
+                ? `<button class="btn btn-red" style="font-size:.75rem;padding:.3rem .7rem;margin-left:.3rem" onclick="toggleEstadoAlumno('${a.id}','${a.full_name.replace(/'/g, "\\'")}', false)">Desactivar</button>`
+                : `<button class="btn btn-outline" style="font-size:.75rem;padding:.3rem .7rem;margin-left:.3rem; border-color:#00ff88; color:#00ff88" onclick="toggleEstadoAlumno('${a.id}','${a.full_name.replace(/'/g, "\\'")}', true)">Reactivar</button>`
+              }
             </td>
           </tr>
-        `).join('')}
+        `}).join('')}
       </tbody>
     </table>`;
 }
 
 async function crearAlumno() {
   const nombre = document.getElementById('a-nombre').value.trim();
-  if (!nombre) return;
+  const dni = document.getElementById('a-dni').value.trim();
+  const apoderado = document.getElementById('a-apoderado').value.trim(); // NUEVO
+  const telefono = document.getElementById('a-telefono').value.trim();   // NUEVO
+  const pagoMes = parseFloat(document.getElementById('a-pago-mes').value) || 0;
+  const pagoMat = parseFloat(document.getElementById('a-pago-mat').value) || 0;
+  const metodo = document.getElementById('a-metodo').value;
+
+  if (!nombre) return showToast('El nombre es obligatorio', 'error');
+
   const res = await fetch('/admin/alumnos', {
     method: 'POST',
     headers: H,
     body: JSON.stringify({
       full_name: nombre,
+      dni: dni || null,
+      parent_name: apoderado || null, // Enviamos el dato
+      parent_phone: telefono || null, // Enviamos el dato
       horario: document.getElementById('a-horario').value,
-      turno: document.getElementById('a-turno').value || null,
-      sede: document.getElementById('a-sede').value || null,
+      turno: document.getElementById('a-turno')?.value || null,
+      sede: null, 
+      pago_mensualidad: pagoMes,
+      pago_matricula: pagoMat,
+      metodo_pago: metodo
     })
   });
+  
   if (res.ok) {
     document.getElementById('a-nombre').value = '';
-    showToast('✅ Alumno agregado');
+    document.getElementById('a-dni').value = '';
+    document.getElementById('a-apoderado').value = ''; // Limpiamos
+    document.getElementById('a-telefono').value = '';  // Limpiamos
+    showToast('✅ Alumno inscrito. Cobro registrado.');
     loadAlumnos();
-  } else showToast('❌ Error al agregar', 'error');
+  } else {
+    showToast('❌ Error. ¿DNI duplicado?', 'error');
+  }
 }
 
-async function eliminarAlumno(id, nombre) {
-  if (!confirm(`¿Desactivar a ${nombre}?`)) return;
-  await fetch(`/admin/alumnos/${id}`, { method: 'DELETE', headers: H });
-  showToast('✅ Alumno desactivado');
+async function toggleEstadoAlumno(id, nombre, reactivar) {
+  const accion = reactivar ? 'Reactivar' : 'Desactivar';
+  if (!confirm(`¿${accion} a ${nombre}?`)) return;
+  
+  await fetch(`/admin/alumnos/${id}`, { method: 'DELETE', headers: H }); 
+  
+  showToast(`✅ Alumno actualizado`);
   loadAlumnos();
 }
 
@@ -159,7 +209,7 @@ async function verQR(studentId) {
   }
 }
 
-// ── CRÉDITOS / BATIDOS ─────────────────────────────────
+// ── CAJA FUERTE / BATIDOS (Renovaciones) ───────────────
 function loadCreditos() {
   const container = document.getElementById('creditos-result');
   if (!container) return;
@@ -187,12 +237,27 @@ async function buscarAlumnoPorDni() {
       return;
     }
     const a = await res.json();
+    
+    // Lógica visual Antifrágil
+    const dias = a.dias_restantes || 0;
+    const estadoMensualidad = dias > 0 
+      ? `<span style="color:#00ff88; font-weight:bold;">ACTIVO (${dias} días)</span>` 
+      : `<span style="color:var(--red2); font-weight:bold;">VENCIDO</span>`;
+
     container.innerHTML = `
       <div class="form-card">
         <div class="form-card-title">👤 ${a.full_name}</div>
-        <p style="font-family:var(--font-cond);color:var(--gray);font-size:.9rem;margin-bottom:1rem">DNI: ${a.dni || '—'}</p>
+        <p style="font-family:var(--font-cond);color:var(--gray);font-size:.9rem;margin-bottom:1rem">
+          DNI: ${a.dni || '—'} | Estado: ${estadoMensualidad}
+        </p>
+        
+        <div class="credit-row" style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">
+          <span class="credit-name" style="color:var(--gold); font-weight:bold;">Mensualidad (S/ 80)</span>
+          <button class="btn btn-outline" style="border-color:var(--gold); color:var(--gold);" onclick="pagarMensualidad('${a.id}')">💵 Cobrar Mes</button>
+        </div>
+
         <div class="credit-row">
-          <span class="credit-name">Créditos actuales</span>
+          <span class="credit-name">Créditos de Batido</span>
           <span class="credit-bal">${a.batido_credits ?? 0} cr.</span>
           <input class="input-jr credit-input" type="number" min="1" max="20" value="4" id="cr-${a.id}">
           <button class="btn btn-gold" onclick="recargar('${a.id}')">+ Recargar</button>
@@ -200,6 +265,28 @@ async function buscarAlumnoPorDni() {
       </div>`;
   } catch {
     container.innerHTML = '<p style="color:var(--red2)">Error de conexión.</p>';
+  }
+}
+
+async function pagarMensualidad(id) {
+  const confirmacion = confirm('¿Confirmar el cobro de S/ 80 por 1 mes de entrenamiento?');
+  if (!confirmacion) return;
+  
+  let metodo = prompt("¿Cómo pagó? (Escribe: Efectivo, Yape o Plin):", "Efectivo");
+  if (!metodo) return;
+
+  const res = await fetch('/admin/mensualidades/pagar', {
+    method: 'POST',
+    headers: H,
+    body: JSON.stringify({ student_id: id, monto: 80.00, metodo: metodo })
+  });
+  
+  if (res.ok) {
+    const d = await res.json();
+    showToast(`✅ Pago registrado. Vence el: ${d.nueva_fecha_vencimiento}`);
+    buscarAlumnoPorDni(); 
+  } else {
+    showToast('❌ Error al procesar el pago', 'error');
   }
 }
 

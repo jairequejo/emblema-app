@@ -10,7 +10,6 @@
     <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
-<!-- TOPBAR -->
 <div class="topbar">
   <a href="/" class="topbar-brand">
     <div class="topbar-logo-circle">
@@ -25,10 +24,8 @@
   </div>
 </div>
 
-<!-- LAYOUT -->
 <div class="admin-layout">
 
-  <!-- SIDEBAR -->
   <nav class="sidebar">
     <div class="sidebar-section">Principal</div>
     <div class="sidebar-item active" onclick="goTo('stats', event)">
@@ -43,7 +40,7 @@
       <span class="sidebar-icon">👥</span> Alumnos
     </div>
     <div class="sidebar-item" onclick="goTo('batidos', event)">
-      <span class="sidebar-icon">🥤</span> Batidos
+      <span class="sidebar-icon">💰</span> Caja / Pagos
     </div>
 
     <div class="sidebar-section">Contenido</div>
@@ -61,10 +58,8 @@
     </div>
   </nav>
 
-  <!-- MAIN -->
   <main class="main-content">
 
-    <!-- ── STATS ── -->
     <div class="page active" id="page-stats">
       <div class="page-header">
         <div class="page-title">Panel <span>Admin</span></div>
@@ -81,7 +76,6 @@
       </div>
     </div>
 
-    <!-- ── SCANNER ── -->
     <div class="page" id="page-scanner">
       <div class="page-header">
         <div class="page-title">📷 <span>Scanner</span></div>
@@ -100,19 +94,32 @@
       </div>
     </div>
 
-    <!-- ── ALUMNOS ── -->
     <div class="page" id="page-alumnos">
       <div class="page-header">
         <div class="page-title">👥 <span>Alumnos</span></div>
       </div>
 
-      <!-- Formulario nuevo alumno -->
       <div class="form-card">
-        <div class="form-card-title">+ Nuevo alumno</div>
+        <div class="form-card-title">+ Nuevo alumno (Inscripción y Pago)</div>
+        <p style="font-family:var(--font-cond);font-size:.85rem;color:var(--gray);margin-bottom:1rem">
+          Registrar al niño aquí le otorgará automáticamente 30 días de acceso y registrará el pago inicial.
+        </p>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Nombre completo</label>
             <input class="input-jr" id="a-nombre" placeholder="Nombre Apellido">
+          </div>
+          <div class="form-group">
+            <label class="form-label">DNI</label>
+            <input class="input-jr" id="a-dni" placeholder="12345678" type="number">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nombre del Apoderado</label>
+            <input class="input-jr" id="a-apoderado" placeholder="Ej: Carlos Pérez">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Teléfono (WhatsApp)</label>
+            <input class="input-jr" id="a-telefono" placeholder="987654321" type="tel">
           </div>
           <div class="form-group">
             <label class="form-label">Horario</label>
@@ -129,27 +136,42 @@
               <option value="tarde">Tarde</option>
             </select>
           </div>
+        </div>
+        
+        <div class="form-row" style="background: rgba(255, 215, 0, 0.05); padding: 1rem; border-radius: 8px; margin-top: 1rem; border: 1px solid rgba(255, 215, 0, 0.2);">
           <div class="form-group">
-            <label class="form-label">Sede</label>
-            <input class="input-jr" id="a-sede" placeholder="Sede (opcional)">
+            <label class="form-label" style="color:var(--gold)">Pago Mensualidad (S/)</label>
+            <input class="input-jr" id="a-pago-mes" type="number" value="80.00">
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="color:var(--gold)">Matrícula (S/) [Opcional]</label>
+            <input class="input-jr" id="a-pago-mat" type="number" value="0.00">
+          </div>
+          <div class="form-group">
+            <label class="form-label" style="color:var(--gold)">Método de Pago</label>
+            <select class="select-jr" id="a-metodo">
+              <option value="Efectivo">Efectivo</option>
+              <option value="Yape">Yape</option>
+              <option value="Plin">Plin</option>
+            </select>
           </div>
         </div>
-        <button class="btn btn-gold" onclick="crearAlumno()">+ Agregar alumno</button>
+
+        <button class="btn btn-gold" style="margin-top: 1rem;" onclick="crearAlumno()">✅ Inscribir y Cobrar</button>
       </div>
 
-      <!-- Lista alumnos -->
+      <div class="form-card-title" style="margin-top: 2rem; margin-bottom: 1rem;">📋 Directorio de Alumnos</div>
       <div id="alumnos-list"></div>
     </div>
 
-    <!-- ── BATIDOS / CRÉDITOS ── -->
     <div class="page" id="page-batidos">
       <div class="page-header">
-        <div class="page-title">🥤 <span>Créditos</span></div>
+        <div class="page-title">💰 <span>Caja & Mensualidades</span></div>
       </div>
       <div class="form-card" style="margin-bottom:1.5rem;">
-        <div class="form-card-title">💡 Buscar alumno por DNI</div>
+        <div class="form-card-title">💡 Buscar alumno para cobrar</div>
         <p style="font-family:var(--font-cond);font-size:.9rem;color:var(--gray);line-height:1.6;margin-bottom:1rem">
-          Ingresa el DNI del niño para ver sus créditos o recargar. El padre paga por Yape/Plin → buscas por DNI → recargas.
+          Ingresa el DNI del niño para cobrar la mensualidad (S/ 80) o recargar créditos de batidos.
         </p>
         <div class="form-row">
           <div class="form-group" style="max-width:200px">
@@ -164,7 +186,6 @@
       <div id="creditos-result"></div>
     </div>
 
-    <!-- ── NOTICIAS ── -->
     <div class="page" id="page-noticias">
       <div class="page-header">
         <div class="page-title">📢 <span>Noticias</span></div>
@@ -208,7 +229,6 @@
       <div id="noticias-list"></div>
     </div>
 
-    <!-- ── GALERÍA ── -->
     <div class="page" id="page-fotos">
       <div class="page-header">
         <div class="page-title">🖼️ <span>Galería</span></div>
@@ -236,7 +256,6 @@
   </main>
 </div>
 
-<!-- TOAST -->
 <div class="toast" id="toast"></div>
 
 <script src="/static/admin/admin.js"></script>
