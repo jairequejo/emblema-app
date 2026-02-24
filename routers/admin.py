@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from typing import Optional
 from database import supabase
 from datetime import datetime, timedelta, timezone
+import secrets
+import string
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -101,7 +103,7 @@ def crear_alumno(body: AlumnoCreate, admin=Depends(verify_admin)):
     hoy_date = datetime.now(timezone.utc).date()
     fecha_vencimiento_str = (hoy_date + timedelta(days=30)).strftime("%Y-%m-%d")
 
-    # 1. Crear el alumno con los datos del padre
+    # 1. Crear el alumno
     res = supabase.table("students").insert({
         "full_name": body.full_name,
         "dni": body.dni,
@@ -111,13 +113,27 @@ def crear_alumno(body: AlumnoCreate, admin=Depends(verify_admin)):
         "is_active": True,
         "batido_credits": 0,
         "valid_until": fecha_vencimiento_str,
-        "parent_name": body.parent_name,   # Guardamos el padre
-        "parent_phone": body.parent_phone  # Guardamos el teléfono
+        "parent_name": body.parent_name,
+        "parent_phone": body.parent_phone
     }).execute()
     
     nuevo_alumno = res.data[0]
     
-    # 2. Registrar el cobro inicial
+    # 2. Generar el código de credencial automáticamente
+    try:
+        alphabet = string.ascii_uppercase + string.digits
+        codigo_qr = f"STU-{''.join(secrets.choice(alphabet) for _ in range(8))}"
+        
+        supabase.table("credentials").insert({
+            "student_id": nuevo_alumno["id"],
+            "code": codigo_qr,
+            "type": "qr",
+            "is_active": True
+        }).execute()
+    except Exception as e:
+        print(f"Error generando credencial automática: {e}")
+
+    # 3. Registrar el cobro inicial
     try:
         if body.pago_mensualidad > 0:
             supabase.table("mensualidades").insert({
@@ -128,7 +144,7 @@ def crear_alumno(body: AlumnoCreate, admin=Depends(verify_admin)):
                 "fecha_vencimiento": fecha_vencimiento_str
             }).execute()
     except Exception as e:
-        print(f"Error guardando el pago inicial: {e}")
+        print(f"Error guardando el pago: {e}")
 
     return nuevo_alumno
 

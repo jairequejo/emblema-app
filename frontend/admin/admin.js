@@ -199,13 +199,33 @@ async function toggleEstadoAlumno(id, nombre, reactivar) {
 }
 
 async function verQR(studentId) {
-  const res = await fetch(`/credentials/${studentId}`, { headers: H });
-  const data = await res.json();
-  if (data.length) window.open(`/qrs/${data[0].code}.png`, '_blank');
-  else {
-    const gen = await fetch(`/credentials/generate/${studentId}`, { method: 'POST', headers: H });
-    const d = await gen.json();
-    window.open(d.qr_url, '_blank');
+  try {
+    // 1. Buscamos el código en la base de datos eterna (Supabase)
+    const res = await fetch(`/credentials/${studentId}`, { headers: H });
+    const data = await res.json();
+    
+    let codeStr = "";
+    
+    if (data.length > 0) {
+      // Si ya existe, tomamos el texto
+      codeStr = data[0].code;
+    } else {
+      // Si no existe, le decimos al backend que lo genere y nos devuelva el texto
+      showToast('Generando nuevo QR...', 'ok');
+      const gen = await fetch(`/credentials/generate/${studentId}`, { method: 'POST', headers: H });
+      const d = await gen.json();
+      codeStr = d.code;
+    }
+    
+    // Usamos una herramienta pública y gratuita 
+    // para dibujar el QR en pantalla al instante, sin usar el disco de Railway.
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${codeStr}`;
+    
+    // Abrimos la imagen gigante lista para imprimir
+    window.open(qrImageUrl, '_blank');
+    
+  } catch (error) {
+    showToast('❌ Error al obtener el QR.', 'error');
   }
 }
 
