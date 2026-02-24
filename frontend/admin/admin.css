@@ -1,0 +1,271 @@
+/* admin/admin.css — Panel de administración JR Stars */
+
+body { display: flex; flex-direction: column; min-height: 100vh; }
+
+/* ── SIDEBAR + MAIN ── */
+.admin-layout {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  flex: 1;
+  min-height: calc(100vh - 57px);
+}
+@media(max-width:750px){
+  .admin-layout { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .sidebar.open { display: flex; position: fixed; inset: 0; z-index: 200; width: 220px; }
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  background: var(--dark);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0;
+}
+.sidebar-section {
+  font-family: var(--font-cond);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--gray2);
+  padding: 0.8rem 1.2rem 0.3rem;
+}
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.65rem 1.2rem;
+  font-family: var(--font-cond);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--gray);
+  cursor: pointer;
+  transition: color 0.2s, background 0.2s;
+  border-left: 3px solid transparent;
+}
+.sidebar-item:hover { color: var(--white); background: rgba(255,255,255,0.03); }
+.sidebar-item.active {
+  color: var(--gold);
+  border-left-color: var(--gold);
+  background: rgba(212,160,23,0.06);
+}
+.sidebar-icon { font-size: 1.1rem; width: 22px; text-align: center; }
+
+.sidebar-logout {
+  margin-top: auto;
+  border-top: 1px solid var(--border);
+  padding-top: 0.5rem;
+}
+
+/* ── MAIN CONTENT ── */
+.main-content {
+  overflow-y: auto;
+  background: var(--black);
+}
+
+.page { display: none; padding: 2rem; }
+.page.active { display: block; }
+
+.page-header {
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.page-title {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  letter-spacing: 0.06em;
+}
+.page-title span { color: var(--gold); }
+
+/* ── STATS GRID ── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1px;
+  background: var(--border);
+  margin-bottom: 2rem;
+}
+
+/* ── TABLA ADMIN ── */
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-cond);
+  font-size: 0.9rem;
+}
+.admin-table th {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gray);
+  background: var(--dark);
+  padding: 0.7rem 1rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.admin-table td {
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  color: var(--white);
+}
+.admin-table tr:hover td { background: rgba(212,160,23,0.03); }
+
+/* ── FORM CARD ── */
+.form-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+}
+.form-card-title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  letter-spacing: 0.06em;
+  margin-bottom: 1.2rem;
+  color: var(--gold);
+}
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.form-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.form-label {
+  font-family: var(--font-cond);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gray);
+}
+
+/* ── SCANNER ADMIN ── */
+.scanner-admin-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+@media(max-width:700px){ .scanner-admin-wrap { grid-template-columns: 1fr; } }
+
+#admin-reader {
+  border: 2px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+#admin-reader::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 3px solid var(--gold);
+  pointer-events: none;
+  z-index: 10;
+  animation: scan-border 2s ease-in-out infinite;
+}
+@keyframes scan-border {
+  0%,100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+.scan-result {
+  padding: 1.2rem 1.5rem;
+  border: 1px solid var(--border);
+  background: var(--card);
+  margin-top: 1rem;
+  display: none;
+  animation: fadeUp 0.3s ease;
+}
+.scan-result.success { border-color: var(--green); background: var(--green-bg); }
+.scan-result.error { border-color: var(--red2); background: var(--red-bg); }
+.scan-result.warning { border-color: var(--gold); background: var(--gold-bg); }
+
+/* NOTICIA CARD */
+.noticia-admin-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  padding: 1.2rem;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 0.6rem;
+}
+.noticia-admin-card .emoji { font-size: 1.8rem; flex-shrink: 0; }
+.noticia-admin-card .info { flex: 1; }
+.noticia-admin-card .titulo {
+  font-family: var(--font-cond);
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--white);
+  margin-bottom: 0.2rem;
+}
+.noticia-admin-card .desc {
+  font-size: 0.82rem;
+  color: var(--gray);
+  line-height: 1.5;
+}
+.noticia-admin-card .meta {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--gray2);
+  margin-top: 0.3rem;
+}
+
+/* CRÉDITOS ROW */
+.credit-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.credit-row.hidden { display: none; }
+.credit-name {
+  font-family: var(--font-cond);
+  font-weight: 700;
+  flex: 1;
+  min-width: 120px;
+}
+.credit-dni {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--gray);
+  min-width: 80px;
+}
+.credit-bal {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  color: var(--gold);
+  min-width: 50px;
+  text-align: right;
+}
+.credit-input { width: 70px; }
+
+/* NOTIF TOAST */
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  z-index: 999;
+  background: var(--card);
+  border: 1px solid var(--green);
+  padding: 0.8rem 1.4rem;
+  font-family: var(--font-cond);
+  font-size: 0.9rem;
+  color: var(--green);
+  letter-spacing: 0.06em;
+  animation: fadeUp 0.3s ease;
+  display: none;
+}
+.toast.visible { display: block; }
+.toast.error { border-color: var(--red2); color: var(--red2); }
