@@ -56,6 +56,8 @@
     }
     .login-logo img { width:100%; height:100%; object-fit:cover; display:none; }
     .login-logo img.loaded { display:block; }
+    .login-logo .logo-fallback { display:block; }
+    .login-logo img.loaded ~ .logo-fallback { display:none; }
     .login-title {
       font-family: var(--font-display);
       font-size: 1.8rem; letter-spacing: .1em;
@@ -112,8 +114,8 @@
   <div class="login-box">
     <div class="login-brand">
       <div class="login-logo">
-        <img src="/static/img/logo.png" alt="logo" onload="this.classList.add('loaded')">
-        <span>⭐</span>
+        <img src="/static/img/logo.png" alt="logo" onload="this.classList.add('loaded')" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+        <span class="logo-fallback">⭐</span>
       </div>
       <div class="login-title">JR <span>STARS</span></div>
     </div>

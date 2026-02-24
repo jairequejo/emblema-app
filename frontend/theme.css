@@ -79,6 +79,8 @@ body::before {
 }
 .topbar-logo-circle img { width:100%; height:100%; object-fit:cover; display:none; }
 .topbar-logo-circle img.loaded { display:block; }
+.topbar-logo-circle .logo-fallback { display:block; }
+.topbar-logo-circle img.loaded ~ .logo-fallback { display:none; }
 .topbar-name {
   font-family: var(--font-display);
   font-size: 1.5rem;

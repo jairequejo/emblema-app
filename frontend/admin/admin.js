@@ -20,7 +20,6 @@ function logout() {
 
 // ── NAVEGACIÓN ────────────────────────────────────────
 let scannerInit = false;
-let allCreditosData = [];
 
 function goTo(page, ev) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -161,58 +160,63 @@ async function verQR(studentId) {
 }
 
 // ── CRÉDITOS / BATIDOS ─────────────────────────────────
-async function loadCreditos() {
-  const res = await fetch('/admin/alumnos', { headers: H });
-  if (res.status === 401) { logout(); return; }
-  const data = await res.json();
-  allCreditosData = data;
-
-  renderCreditosList(data);
-
+function loadCreditos() {
+  const container = document.getElementById('creditos-result');
+  if (!container) return;
+  container.innerHTML = '<p style="color:var(--gray);font-family:var(--font-cond)">Ingresa el DNI y haz clic en Buscar.</p>';
   const dniInput = document.getElementById('batidos-dni-search');
   if (dniInput) {
-    dniInput.oninput = () => filterCreditosByDni(dniInput.value.trim());
     dniInput.value = '';
+    dniInput.onkeypress = (e) => { if (e.key === 'Enter') buscarAlumnoPorDni(); };
   }
 }
 
-function filterCreditosByDni(dni) {
-  if (!dni) {
-    renderCreditosList(allCreditosData);
+async function buscarAlumnoPorDni() {
+  const dni = document.getElementById('batidos-dni-search')?.value?.trim();
+  if (!dni || dni.length < 6) {
+    showToast('Ingresa un DNI válido (mín. 6 dígitos)', 'error');
     return;
   }
-  const filtered = allCreditosData.filter(a =>
-    (a.dni && String(a.dni).includes(dni)) ||
-    (a.full_name && a.full_name.toLowerCase().includes(dni.toLowerCase()))
-  );
-  renderCreditosList(filtered);
-}
-
-function renderCreditosList(data) {
-  const container = document.getElementById('creditos-list');
-  container.innerHTML = data.map(a => `
-    <div class="credit-row" data-student-id="${a.id}">
-      <span class="credit-name">${a.full_name}</span>
-      <span class="credit-dni">${a.dni ? `DNI ${a.dni}` : '—'}</span>
-      <span class="credit-bal">${a.batido_credits ?? 0} cr.</span>
-      <input class="input-jr credit-input" type="number" min="1" max="20"
-        value="4" id="cr-${a.id}">
-      <button class="btn btn-gold" style="padding:.4rem 1rem;font-size:.85rem"
-        onclick="recargar('${a.id}')">+ Recargar</button>
-    </div>
-  `).join('') || '<p style="color:var(--gray);font-family:var(--font-cond)">No hay alumnos con ese DNI.</p>';
+  const container = document.getElementById('creditos-result');
+  container.innerHTML = '<p style="color:var(--gray)">Buscando…</p>';
+  try {
+    const res = await fetch(`/admin/alumnos/by-dni/${encodeURIComponent(dni)}`, { headers: H });
+    if (res.status === 401) { logout(); return; }
+    if (res.status === 404) {
+      container.innerHTML = '<p style="color:var(--red2);font-family:var(--font-cond)">Alumno no encontrado. Verifica el DNI.</p>';
+      return;
+    }
+    const a = await res.json();
+    container.innerHTML = `
+      <div class="form-card">
+        <div class="form-card-title">👤 ${a.full_name}</div>
+        <p style="font-family:var(--font-cond);color:var(--gray);font-size:.9rem;margin-bottom:1rem">DNI: ${a.dni || '—'}</p>
+        <div class="credit-row">
+          <span class="credit-name">Créditos actuales</span>
+          <span class="credit-bal">${a.batido_credits ?? 0} cr.</span>
+          <input class="input-jr credit-input" type="number" min="1" max="20" value="4" id="cr-${a.id}">
+          <button class="btn btn-gold" onclick="recargar('${a.id}')">+ Recargar</button>
+        </div>
+      </div>`;
+  } catch {
+    container.innerHTML = '<p style="color:var(--red2)">Error de conexión.</p>';
+  }
 }
 
 async function recargar(id) {
-  const cantidad = parseInt(document.getElementById(`cr-${id}`).value) || 4;
+  const cantidad = parseInt(document.getElementById(`cr-${id}`)?.value) || 4;
   const res = await fetch('/admin/batidos/recargar', {
     method: 'POST',
     headers: H,
     body: JSON.stringify({ student_id: id, cantidad, motivo: 'Recarga Yape/Plin' })
   });
   const d = await res.json();
-  if (res.ok) { showToast(`✅ ${d.alumno}: ahora tiene ${d.creditos_nuevos} cr.`); loadCreditos(); }
-  else showToast('❌ Error al recargar', 'error');
+  if (res.ok) {
+    showToast(`✅ ${d.alumno}: ahora tiene ${d.creditos_nuevos} cr.`);
+    buscarAlumnoPorDni();
+  } else {
+    showToast('❌ Error al recargar', 'error');
+  }
 }
 
 // ── NOTICIAS ───────────────────────────────────────────

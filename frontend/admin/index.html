@@ -14,8 +14,8 @@
 <div class="topbar">
   <a href="/" class="topbar-brand">
     <div class="topbar-logo-circle">
-      <img src="/static/img/logo.png" alt="logo" onload="this.classList.add('loaded')">
-      <span>⭐</span>
+      <img src="/static/img/logo.png" alt="logo" onload="this.classList.add('loaded')" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+      <span class="logo-fallback">⭐</span>
     </div>
     <span class="topbar-name">JR <span>STARS</span></span>
   </a>
@@ -147,12 +147,21 @@
         <div class="page-title">🥤 <span>Créditos</span></div>
       </div>
       <div class="form-card" style="margin-bottom:1.5rem;">
-        <div class="form-card-title">💡 Cómo recargar</div>
-        <p style="font-family:var(--font-cond);font-size:.9rem;color:var(--gray);line-height:1.6">
-          El padre paga por Yape/Plin → tú buscas al alumno abajo → ingresas la cantidad de créditos y das clic en <strong style="color:var(--gold)">Recargar</strong>.
+        <div class="form-card-title">💡 Buscar alumno por DNI</div>
+        <p style="font-family:var(--font-cond);font-size:.9rem;color:var(--gray);line-height:1.6;margin-bottom:1rem">
+          Ingresa el DNI del niño para ver sus créditos o recargar. El padre paga por Yape/Plin → buscas por DNI → recargas.
         </p>
+        <div class="form-row">
+          <div class="form-group" style="max-width:200px">
+            <label class="form-label">DNI del niño</label>
+            <input class="input-jr" id="batidos-dni-search" type="text" placeholder="12345678">
+          </div>
+          <div class="form-group" style="align-self:flex-end">
+            <button class="btn btn-gold" onclick="buscarAlumnoPorDni()">🔍 Buscar</button>
+          </div>
+        </div>
       </div>
-      <div id="creditos-list"></div>
+      <div id="creditos-result"></div>
     </div>
 
     <!-- ── NOTICIAS ── -->

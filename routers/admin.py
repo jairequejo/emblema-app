@@ -108,6 +108,16 @@ def eliminar_alumno(student_id: str, admin=Depends(verify_admin)):
     return {"ok": True}
 
 
+@router.get("/alumnos/by-dni/{dni}")
+def get_alumno_by_dni(dni: str, admin=Depends(verify_admin)):
+    """Busca un alumno por DNI para gestión de créditos."""
+    res = supabase.table("students").select("id, full_name, dni, batido_credits") \
+        .eq("dni", dni).eq("is_active", True).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Alumno no encontrado")
+    return res.data[0]
+
+
 # ── CRÉDITOS DE BATIDOS ───────────────────────────────────
 @router.post("/batidos/recargar")
 def recargar_creditos(body: CreditoUpdate, admin=Depends(verify_admin)):
