@@ -86,37 +86,24 @@ let alumnoActual = null;
 
 async function consultarAtleta(code) {
   try {
-    // Parche Antifrágil: Usamos la ruta de asistencia que sabemos que escanea sin fallar
-    const res = await fetch('/attendance/scan', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('jr_admin_token') || ''}` },
-      body: JSON.stringify({ code: code })
-    });
-
-    if (!res.ok) throw new Error("Código no encontrado o error de servidor");
-    const d = await res.json();
+    // 1. Volvemos a tu ruta original, que SÍ funciona para QRs sanos.
+    const res = await fetch(`/batidos/nfc/${code}`);
     
-    if (d.status === 'ok' || d.status === 'warning') {
-        // Encontramos sus créditos pidiendo la lista
-        const resAlumno = await fetch('/admin/alumnos', { headers: { 'Authorization': `Bearer ${localStorage.getItem('jr_admin_token') || ''}` } });
-        const todosLosAlumnos = await resAlumno.json();
-        
-        const data = todosLosAlumnos.find(a => a.id === d.student_id);
-        if(!data) throw new Error("Alumno no encontrado en la base de datos");
-
-        alumnoActual = data;
-        document.getElementById('c-nombre').textContent = data.full_name || data.name;
-        document.getElementById('c-num').textContent = data.batido_credits ?? 0;
-        
-        document.getElementById('cliente-box').classList.add('active');
-        document.getElementById('menu-grid').classList.add('active');
-        document.getElementById('status-nfc').innerHTML = "✅ Listo para cobrar";
-    } else {
-        throw new Error("QR inválido o Vencido severo");
-    }
+    if (!res.ok) throw new Error("Código no encontrado en el Kiosko");
+    
+    const data = await res.json();
+    
+    alumnoActual = data;
+    // Adaptamos el nombre por si el backend devuelve 'name' o 'full_name'
+    document.getElementById('c-nombre').textContent = data.name || data.full_name;
+    document.getElementById('c-num').textContent = data.batido_credits ?? 0;
+    
+    document.getElementById('cliente-box').classList.add('active');
+    document.getElementById('menu-grid').classList.add('active');
+    document.getElementById('status-nfc').innerHTML = "✅ Listo para cobrar";
 
   } catch (error) {
-    console.log(error);
+    console.log("Error en Caja:", error);
     playBeep('error');
     document.getElementById('status-nfc').innerHTML = "❌ Código no registrado o Vencido";
     setTimeout(resetCaja, 2000);
