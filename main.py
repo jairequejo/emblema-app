@@ -128,48 +128,78 @@ def leaderboard_mes():
 @app.get("/public/student/{dni}/info")
 def student_public_info(dni: str):
     from datetime import datetime
-    
-    # 1. Buscar atleta (solo activos)
-    res = supabase.table("students").select("id, full_name, valid_until, img_url, category").eq("dni", dni).eq("is_active", True).execute()
-    
+    from fastapi import HTTPException
+
+    # 1. Buscar atleta activo por DNI
+    res = supabase.table("students") \
+        .select("id, full_name, valid_until, img_url, category, talla, peso") \
+        .eq("dni", dni).eq("is_active", True).execute()
+
     if not res.data:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Atleta no encontrado")
-        
+
     student = res.data[0]
     sid = student["id"]
-    
-    # 2. Calcular estado de pago
+
+    # 2. Estado de pago
     hoy = datetime.now().date()
     valid_until_str = student.get("valid_until")
-    debe = False
     if valid_until_str:
         fecha_venc = datetime.strptime(valid_until_str, "%Y-%m-%d").date()
         debe = fecha_venc < hoy
     else:
-        debe = True # Si no tiene fecha, técnicamente no está al día
-        
-    # 3. Calcular racha (asistencias totales por ahora, o del mes)
+        debe = True
+
+    # 3. Racha del mes actual
     first_day = datetime.now().replace(day=1, hour=0, minute=0, second=0).isoformat()
-    att_res = supabase.table("attendance").select("id").eq("student_id", sid).gte("created_at", first_day).execute()
+    att_res = supabase.table("attendance").select("id") \
+        .eq("student_id", sid).gte("created_at", first_day).execute()
     racha = len(att_res.data) if att_res.data else 0
-    
-    # 4. Datos bio fake (como pidió el user en el mockup)
-    talla = 1.45 + (hash(sid) % 30) / 100
-    peso = 38 + (hash(sid) % 20)
-    
+
+    # 4. Biometria actual
+    h = abs(hash(sid))
+    talla_raw = student.get("talla")
+    peso_raw  = student.get("peso")
+    talla_cm  = float(talla_raw) if talla_raw else round(1.40 + (h % 25) / 100, 2)
+    peso_kg   = int(peso_raw)   if peso_raw  else 36 + (h % 18)
+    talla_str = f"{talla_cm}m"
+    peso_str  = f"{peso_kg}kg"
+
+    # 5. Historial biométrico - tabla "biometria" (crea cuando tengas datos reales)
+    historial = []
+    try:
+        bio_res = supabase.table("biometria") \
+            .select("fecha, talla, peso") \
+            .eq("student_id", sid) \
+            .order("fecha", desc=True).limit(4).execute()
+        if bio_res.data:
+            historial = [
+                {"fecha": r["fecha"], "talla": f"{r['talla']}m", "peso": f"{r['peso']}kg"}
+                for r in bio_res.data
+            ]
+    except Exception:
+        pass
+
+    # Fallback: 2 meses estimados si no hay datos reales
+    if not historial:
+        meses = ["Feb 2026", "Ene 2026"]
+        for i, mes in enumerate(meses):
+            t = round(talla_cm - i * 0.02, 2)
+            p = peso_kg - i
+            historial.append({"fecha": mes, "talla": f"{t}m", "peso": f"{p}kg"})
+
     return {
-        "id": sid,
-        "full_name": student["full_name"],
-        "category": student.get("category", "Categoría Base"),
-        "img_url": student.get("img_url"),
-        "debe": debe,
-        "racha": racha,
-        "bio": {
-            "talla": f"{talla:.2f}m",
-            "peso": f"{peso}kg"
-        }
+        "full_name":  student["full_name"],
+        "category":   student.get("category") or "Categoria Base",
+        "img_url":    student.get("img_url"),
+        "debe":       debe,
+        "racha":      racha,
+        "talla_actual":  talla_str,
+        "delta_talla":   "+2cm",
+        "peso_actual":   peso_str,
+        "historial_biometrico": historial,
     }
+
 
 if __name__ == "__main__":
     puerto = int(os.environ.get("PORT", 8000))

@@ -3,69 +3,62 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-  <title>JR Stars | Academia Deportiva · Cajamarca</title>
-  <meta name="description" content="Consulta el estatus de tu atleta en JR Stars Academia Deportiva.">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+  <title>JR Stars | Portal del Atleta</title>
+  <meta name="description"
+    content="Consulta el estatus y evolución física de tu atleta en JR Stars Academia Deportiva, Cajamarca.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link
     href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap"
     rel="stylesheet">
   <style>
-    /* ═══════════════════════════════════════════════════════════════
-   RESET & ROOT
-═══════════════════════════════════════════════════════════════ */
+    /* ═══════════════════════════════════════════
+   RESET & TOKENS
+═══════════════════════════════════════════ */
     *,
     *::before,
     *::after {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
-      -webkit-tap-highlight-color: transparent;
+      -webkit-tap-highlight-color: transparent
     }
 
     html {
       scroll-behavior: smooth;
+      font-size: 16px
     }
 
     :root {
-      /* Paleta JR Stars */
       --black: #0a0a0a;
       --dark: #111;
       --card: #181818;
-      --border: rgba(255, 255, 255, 0.07);
+      --border: rgba(255, 255, 255, .07);
       --red: #CC1616;
-      /* carmesí logo */
       --red2: #e60000;
-      --red-gl: rgba(204, 22, 22, 0.18);
+      --red-gl: rgba(204, 22, 22, .15);
       --gold: #D4A017;
-      /* dorado estrella */
       --gold2: #F5C842;
-      --gold-gl: rgba(212, 160, 23, 0.15);
+      --gold-gl: rgba(212, 160, 23, .14);
       --neon: #ccff00;
-      /* acento neón para énfasis */
       --green: #25D366;
-      /* WhatsApp */
       --white: #F0EDE8;
       --gray: #888;
       --gray2: #444;
-
-      --ff-display: 'Bebas Neue', sans-serif;
-      --ff-cond: 'Barlow Condensed', sans-serif;
-      --ff-body: 'Barlow', sans-serif;
-
+      --ff-h: 'Bebas Neue', sans-serif;
+      --ff-c: 'Barlow Condensed', sans-serif;
+      --ff-b: 'Barlow', sans-serif;
       --clip: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
-      --radius: 2px;
     }
 
     body {
-      font-family: var(--ff-body);
+      font-family: var(--ff-b);
       background: var(--black);
       color: var(--white);
       overflow-x: hidden;
-      min-height: 100vh;
+      min-height: 100dvh
     }
 
-    /* Noise texture */
     body::after {
       content: '';
       position: fixed;
@@ -73,332 +66,301 @@
       background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
       pointer-events: none;
       z-index: 9999;
-      opacity: .3;
+      opacity: .3
     }
 
-    /* ── UTILIDADES ── */
     .hidden {
-      display: none !important;
+      display: none !important
     }
 
-    .gold {
-      color: var(--gold);
-    }
-
-    .red {
-      color: var(--red);
-    }
-
-    .neon {
-      color: var(--neon);
-    }
-
-    /* ── LAYOUT PANELES ── */
-    .panel {
-      width: 100%;
-    }
-
-    .panel--hero {
-      min-height: 100dvh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* ═══════════════════════════════════════════════════════════════
-   TOPBAR COMPACTO
-═══════════════════════════════════════════════════════════════ */
+    /* ── TOPBAR ── */
     .topbar {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: .7rem;
-      padding: .8rem 1.5rem;
-      background: rgba(10, 10, 10, 0.95);
+      gap: .6rem;
+      padding: .7rem 1.5rem;
+      background: rgba(10, 10, 10, .96);
       border-bottom: 1px solid var(--border);
       backdrop-filter: blur(8px);
       position: sticky;
       top: 0;
-      z-index: 50;
+      z-index: 50
     }
 
-    .topbar-logo {
-      width: 36px;
-      height: 36px;
+    .tl {
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
       border: 2px solid var(--gold);
       overflow: hidden;
-      flex-shrink: 0;
+      flex-shrink: 0
     }
 
-    .topbar-logo img {
+    .tl img {
       width: 100%;
       height: 100%;
       object-fit: cover;
-      display: block;
+      display: block
     }
 
-    .topbar-name {
-      font-family: var(--ff-display);
+    .tn {
+      font-family: var(--ff-h);
       font-size: 1.8rem;
-      letter-spacing: .12em;
-      color: var(--white);
+      letter-spacing: .1em
     }
 
-    .topbar-name span {
-      color: var(--gold);
+    .tn span {
+      color: var(--gold)
     }
 
-    /* ═══════════════════════════════════════════════════════════════
-   PANEL 1 — BÚSQUEDA (Hero 100vh)
-═══════════════════════════════════════════════════════════════ */
-    #panel-search {
-      flex: 1;
+    /* ═══ PANEL 1 — HERO / BÚSQUEDA ═══ */
+    #p1 {
+      min-height: calc(100dvh - 50px);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       padding: 3rem 1.5rem 4rem;
       text-align: center;
-      gap: 1.6rem;
+      gap: 1.4rem
     }
 
     .hero-logo {
-      width: 120px;
-      height: 120px;
+      width: 110px;
+      height: 110px;
       object-fit: contain;
-      filter: drop-shadow(0 0 20px rgba(204, 22, 22, .5));
-      animation: float 4s ease-in-out infinite;
+      filter: drop-shadow(0 0 18px rgba(204, 22, 22, .5));
+      animation: float 4s ease-in-out infinite
     }
 
     @keyframes float {
 
       0%,
       100% {
-        transform: translateY(0);
+        transform: translateY(0)
       }
 
       50% {
-        transform: translateY(-8px);
+        transform: translateY(-8px)
       }
     }
 
-    .hero-divider {
-      width: 70px;
+    .divider-rg {
+      width: 60px;
       height: 3px;
-      background: linear-gradient(90deg, var(--red), var(--gold));
+      background: linear-gradient(90deg, var(--red), var(--gold))
     }
 
-    .hero-head {
-      font-family: var(--ff-display);
-      font-size: clamp(2.6rem, 9vw, 5rem);
-      letter-spacing: .06em;
-      line-height: .95;
+    .hero-h {
+      font-family: var(--ff-h);
+      font-size: clamp(2.4rem, 8vw, 4.8rem);
+      line-height: .92;
+      letter-spacing: .05em
     }
 
-    .hero-head span {
+    .hero-h span {
       color: var(--gold);
-      display: block;
+      display: block
     }
 
     .hero-sub {
-      font-family: var(--ff-cond);
-      font-size: .8rem;
+      font-family: var(--ff-c);
+      font-size: .78rem;
       letter-spacing: .35em;
       text-transform: uppercase;
-      color: var(--gray);
+      color: var(--gray)
     }
 
     /* Input + Botón */
-    .search-box {
+    .sbox {
       width: 100%;
       max-width: 420px;
       display: flex;
       flex-direction: column;
-      gap: .9rem;
+      gap: .85rem
     }
 
-    .dni-input {
-      font-family: var(--ff-display);
-      font-size: 2.2rem;
-      letter-spacing: 8px;
+    .dni-in {
+      font-family: var(--ff-h);
+      font-size: 2rem;
+      letter-spacing: 7px;
       text-align: center;
       background: var(--card);
       color: var(--white);
       border: 1px solid var(--border);
       border-bottom: 3px solid var(--gold);
-      padding: .9rem 1rem;
+      padding: .85rem 1rem;
       outline: none;
       width: 100%;
-      transition: border-color .2s, box-shadow .2s;
+      transition: border-color .2s, box-shadow .2s
     }
 
-    .dni-input:focus {
+    .dni-in:focus {
       border-color: var(--gold);
-      box-shadow: 0 4px 24px rgba(212, 160, 23, .15);
+      box-shadow: 0 4px 20px rgba(212, 160, 23, .14)
     }
 
-    .dni-input::placeholder {
+    .dni-in::placeholder {
       color: var(--gray2);
-      font-size: 1.4rem;
-      letter-spacing: 4px;
+      font-size: 1.3rem;
+      letter-spacing: 3px
     }
 
-    .btn-consultar {
-      font-family: var(--ff-cond);
+    .btn-cta {
+      font-family: var(--ff-c);
       font-weight: 800;
-      font-size: 1.4rem;
-      letter-spacing: .15em;
+      font-size: 1.35rem;
+      letter-spacing: .14em;
       text-transform: uppercase;
-      background: linear-gradient(135deg, var(--red) 0%, #8b0000 100%);
+      background: linear-gradient(135deg, var(--red) 0%, #7a0000 100%);
       color: var(--white);
       border: none;
       cursor: pointer;
-      padding: 1rem;
+      padding: .95rem;
       width: 100%;
       clip-path: var(--clip);
       transition: filter .2s, transform .15s;
       position: relative;
-      overflow: hidden;
+      overflow: hidden
     }
 
-    .btn-consultar::before {
+    .btn-cta::before {
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(135deg, rgba(212, 160, 23, .15), transparent);
+      background: linear-gradient(135deg, rgba(212, 160, 23, .12), transparent);
       opacity: 0;
-      transition: opacity .2s;
+      transition: opacity .2s
     }
 
-    .btn-consultar:hover::before {
-      opacity: 1;
+    .btn-cta:hover::before {
+      opacity: 1
     }
 
-    .btn-consultar:hover {
-      filter: brightness(1.12);
+    .btn-cta:hover {
+      filter: brightness(1.12)
     }
 
-    .btn-consultar:active {
-      transform: scale(.98);
+    .btn-cta:active {
+      transform: scale(.98)
     }
 
     /* Loader */
-    .loader-row {
+    .ld-row {
       display: flex;
       align-items: center;
       justify-content: center;
       gap: .8rem;
-      font-family: var(--ff-cond);
-      letter-spacing: .2em;
+      font-family: var(--ff-c);
+      letter-spacing: .18em;
       color: var(--gray);
+      font-size: .95rem
     }
 
-    .spinner {
-      width: 22px;
-      height: 22px;
-      border: 3px solid var(--card);
+    .sp {
+      width: 20px;
+      height: 20px;
+      border: 3px solid var(--dark);
       border-top-color: var(--gold);
       border-radius: 50%;
       animation: spin .7s linear infinite;
-      flex-shrink: 0;
+      flex-shrink: 0
     }
 
     @keyframes spin {
       to {
-        transform: rotate(360deg);
+        transform: rotate(360deg)
       }
     }
 
-    /* ── Cisne Negro ─────────────────────────────────────────────── */
-    .error-card {
+    /* Error / Cisne Negro */
+    .err-card {
       width: 100%;
       max-width: 420px;
       background: var(--red-gl);
       border: 1px solid rgba(204, 22, 22, .5);
-      padding: 1.6rem;
-      animation: shake .4s;
+      padding: 1.5rem;
+      animation: shake .4s
     }
 
-    .error-tag {
-      font-family: var(--ff-cond);
-      font-size: .7rem;
+    .err-tag {
+      font-family: var(--ff-c);
+      font-size: .68rem;
       letter-spacing: .35em;
       text-transform: uppercase;
       color: var(--red);
-      margin-bottom: .4rem;
+      margin-bottom: .4rem
     }
 
-    .error-title {
-      font-family: var(--ff-display);
-      font-size: clamp(2rem, 7vw, 3.5rem);
-      line-height: .95;
-      color: var(--white);
-      margin-bottom: .6rem;
+    .err-h {
+      font-family: var(--ff-h);
+      font-size: clamp(1.9rem, 6vw, 3rem);
+      line-height: .93;
+      margin-bottom: .6rem
     }
 
-    .error-hook {
-      font-size: .9rem;
+    .err-p {
+      font-size: .88rem;
       color: #ccc;
       line-height: 1.5;
-      margin-bottom: 1.4rem;
-    }
-
-    .btn-wa {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: .6rem;
-      width: 100%;
-      padding: .9rem;
-      background: var(--green);
-      color: #000;
-      font-family: var(--ff-cond);
-      font-weight: 800;
-      font-size: 1.2rem;
-      letter-spacing: .1em;
-      text-transform: uppercase;
-      text-decoration: none;
-      clip-path: var(--clip);
-      transition: filter .2s;
-    }
-
-    .btn-wa:hover {
-      filter: brightness(1.08);
+      margin-bottom: 1.3rem
     }
 
     @keyframes shake {
 
       0%,
       100% {
-        transform: translateX(0);
+        transform: translateX(0)
       }
 
       20%,
       60% {
-        transform: translateX(-6px);
+        transform: translateX(-5px)
       }
 
       40%,
       80% {
-        transform: translateX(6px);
+        transform: translateX(5px)
       }
     }
 
-    /* ═══════════════════════════════════════════════════════════════
-   PANEL 2 — FICHA FUT
-═══════════════════════════════════════════════════════════════ */
-    #panel-ficha {
-      padding: 0 1.2rem 3rem;
-      max-width: 600px;
-      margin: 0 auto;
+    .btn-wa {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .5rem;
       width: 100%;
+      padding: .9rem;
+      background: var(--green);
+      color: #000;
+      font-family: var(--ff-c);
+      font-weight: 800;
+      font-size: 1.15rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      text-decoration: none;
+      clip-path: var(--clip);
+      transition: filter .2s
+    }
+
+    .btn-wa:hover {
+      filter: brightness(1.08)
+    }
+
+    /* ═══ PANEL 2 — FICHA FUT ═══ */
+    #p2 {
+      padding: 0 1.2rem 2rem;
+      max-width: 560px;
+      margin: 0 auto;
+      width: 100%
     }
 
     .back-btn {
-      font-family: var(--ff-cond);
+      font-family: var(--ff-c);
       font-size: .9rem;
       font-weight: 700;
-      letter-spacing: .2em;
+      letter-spacing: .18em;
       text-transform: uppercase;
       color: var(--gray);
       background: none;
@@ -407,54 +369,53 @@
       padding: .8rem 0;
       display: flex;
       align-items: center;
-      gap: .4rem;
-      transition: color .15s;
+      gap: .3rem;
+      transition: color .15s
     }
 
     .back-btn:hover {
-      color: var(--white);
+      color: var(--white)
     }
 
-    /* La Carta — Glassmorphism */
+    /* FUT Card — Glassmorphism */
     .fut-card {
-      width: 100%;
-      border-radius: 4px;
+      border-radius: 3px;
       overflow: hidden;
       position: relative;
-      background: rgba(24, 24, 24, 0.75);
-      backdrop-filter: blur(16px) saturate(1.2);
-      -webkit-backdrop-filter: blur(16px) saturate(1.2);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
-      animation: cardIn .45s cubic-bezier(.22, 1, .36, 1) forwards;
+      background: rgba(20, 20, 20, .78);
+      backdrop-filter: blur(12px) saturate(1.3);
+      -webkit-backdrop-filter: blur(12px) saturate(1.3);
+      border: 1px solid rgba(255, 255, 255, .08);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, .65);
+      animation: cardIn .4s cubic-bezier(.22, 1, .36, 1)
     }
 
     @keyframes cardIn {
       from {
         opacity: 0;
-        transform: translateY(24px) scale(.97);
+        transform: translateY(20px) scale(.97)
       }
 
       to {
         opacity: 1;
-        transform: translateY(0) scale(1);
+        transform: translateY(0) scale(1)
       }
     }
 
     .card-stripe {
-      height: 5px;
-      background: linear-gradient(90deg, var(--red), var(--gold));
+      height: 4px;
+      background: linear-gradient(90deg, var(--red), var(--gold))
     }
 
-    /* ─── Estado: AL DÍA ──────────────────────────────────────── */
-    .fut-card.al-dia {
-      box-shadow: 0 0 0 1px rgba(212, 160, 23, .4), 0 16px 40px rgba(212, 160, 23, .12), 0 4px 12px rgba(0, 0, 0, .5);
+    /* Estado AL DÍA */
+    .fut-card.ok {
+      box-shadow: 0 0 0 1px rgba(212, 160, 23, .45), 0 16px 40px rgba(212, 160, 23, .12), 0 4px 12px rgba(0, 0, 0, .5)
     }
 
-    .fut-card.al-dia .card-stripe {
+    .fut-card.ok .card-stripe {
       background: linear-gradient(90deg, var(--gold), var(--gold2), var(--gold));
       background-size: 200%;
-      animation: shimmer 2.5s linear infinite;
+      animation: shimmer 2.5s linear infinite
     }
 
     @keyframes shimmer {
@@ -467,227 +428,275 @@
       }
     }
 
-    .card-header {
+    .c-header {
       display: flex;
       align-items: center;
-      gap: 1.1rem;
-      padding: 1.3rem 1.3rem .9rem;
-      border-bottom: 1px solid var(--border);
+      gap: 1rem;
+      padding: 1.2rem;
+      border-bottom: 1px solid var(--border)
     }
 
-    .athlete-avatar {
-      width: 74px;
-      height: 74px;
+    .avatar {
+      width: 70px;
+      height: 70px;
       border-radius: 50%;
-      border: 3px solid var(--gold);
+      border: 2.5px solid var(--gold);
       background: var(--dark);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: var(--ff-display);
-      font-size: 2.2rem;
+      font-family: var(--ff-h);
+      font-size: 2rem;
       color: var(--gold);
       overflow: hidden;
-      flex-shrink: 0;
+      flex-shrink: 0
     }
 
-    .athlete-avatar img {
+    .avatar img {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: cover
     }
 
-    .athlete-meta h2 {
-      font-family: var(--ff-display);
-      font-size: clamp(1.6rem, 5vw, 2.4rem);
-      letter-spacing: .04em;
+    .c-name {
+      font-family: var(--ff-h);
+      font-size: clamp(1.5rem, 5vw, 2.2rem);
       color: var(--gold);
       line-height: 1;
+      letter-spacing: .04em
     }
 
-    .athlete-cat {
-      font-family: var(--ff-cond);
-      font-size: .78rem;
-      letter-spacing: .25em;
+    .c-cat {
+      font-family: var(--ff-c);
+      font-size: .76rem;
+      letter-spacing: .22em;
       text-transform: uppercase;
       color: var(--gray);
-      margin-top: .25rem;
+      margin-top: .2rem
     }
 
     /* Racha */
-    .racha-block {
-      padding: 1.4rem 1.3rem;
+    .racha-blk {
+      padding: 1.3rem 1.2rem;
       border-bottom: 1px solid var(--border);
-      text-align: center;
+      text-align: center
     }
 
-    .racha-label {
-      font-family: var(--ff-cond);
-      font-size: .7rem;
-      letter-spacing: .35em;
+    .racha-tag {
+      font-family: var(--ff-c);
+      font-size: .68rem;
+      letter-spacing: .32em;
       text-transform: uppercase;
       color: var(--gray);
       display: block;
-      margin-bottom: .4rem;
+      margin-bottom: .4rem
     }
 
     .racha-num {
-      font-family: var(--ff-display);
-      font-size: clamp(2.6rem, 9vw, 4rem);
+      font-family: var(--ff-h);
+      font-size: clamp(2.4rem, 8vw, 3.8rem);
       color: var(--white);
       letter-spacing: .04em;
-      text-shadow: 0 0 20px rgba(255, 87, 34, .4);
+      text-shadow: 0 0 18px rgba(255, 87, 34, .4);
+      line-height: 1
     }
 
-    .racha-num .fire {
-      color: #ff5722;
+    .fire {
+      color: #ff5722
     }
 
-    /* Bio */
-    .bio-grid {
+    /* Bio actual */
+    .bio-row {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid var(--border)
     }
 
     .bio-cell {
-      padding: 1rem 1.3rem;
-      text-align: center;
+      padding: .9rem 1.2rem;
+      text-align: center
     }
 
     .bio-cell+.bio-cell {
-      border-left: 1px solid var(--border);
+      border-left: 1px solid var(--border)
     }
 
     .bio-val {
-      font-family: var(--ff-display);
+      font-family: var(--ff-h);
       font-size: 1.8rem;
       color: var(--white);
-      line-height: 1;
+      line-height: 1
     }
 
     .bio-delta {
-      font-size: .72rem;
+      font-size: .7rem;
       color: #2ecc71;
-      margin-left: .3rem;
+      margin-left: .25rem;
+      font-family: var(--ff-c)
     }
 
     .bio-label {
-      font-family: var(--ff-cond);
-      font-size: .72rem;
+      font-family: var(--ff-c);
+      font-size: .7rem;
       letter-spacing: .2em;
       text-transform: uppercase;
       color: var(--gray);
-      margin-top: .2rem;
+      margin-top: .2rem
+    }
+
+    /* Historial Biométrico */
+    .bio-hist {
+      padding: 1rem 1.2rem;
+      border-bottom: 1px solid var(--border)
+    }
+
+    .hist-title {
+      font-family: var(--ff-c);
+      font-size: .68rem;
+      letter-spacing: .3em;
+      text-transform: uppercase;
+      color: var(--gold);
+      margin-bottom: .7rem
+    }
+
+    .hist-table {
+      width: 100%;
+      border-collapse: collapse
+    }
+
+    .hist-table th {
+      font-family: var(--ff-c);
+      font-size: .7rem;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--gray);
+      padding: .35rem .5rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border)
+    }
+
+    .hist-table td {
+      font-family: var(--ff-c);
+      font-size: .9rem;
+      font-weight: 600;
+      padding: .4rem .5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, .04);
+      color: var(--white)
+    }
+
+    .hist-table tr:last-child td {
+      border-bottom: none
+    }
+
+    .hist-table td.fecha {
+      color: var(--gray);
+      font-size: .82rem
     }
 
     /* Radar futuro */
-    .radar-block {
-      padding: 1.2rem 1.3rem;
+    .radar-blk {
+      padding: 1.1rem 1.2rem;
       border-bottom: 1px solid var(--border);
-      background: rgba(0, 0, 0, .25);
+      background: rgba(0, 0, 0, .22);
       display: flex;
       align-items: center;
-      gap: 1rem;
+      gap: .9rem
     }
 
     .radar-hex {
-      width: 52px;
-      height: 52px;
+      width: 46px;
+      height: 46px;
       flex-shrink: 0;
-      opacity: .3;
+      opacity: .28;
       background: conic-gradient(from 0deg, var(--gray2), var(--gray) 60deg, var(--gray2));
-      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)
     }
 
     .radar-txt {
-      font-family: var(--ff-cond);
-      font-size: .85rem;
+      font-family: var(--ff-c);
+      font-size: .84rem;
       color: var(--gray);
-      line-height: 1.4;
+      line-height: 1.4
     }
 
     .radar-txt strong {
       color: var(--neon);
-      font-size: .8rem;
+      font-size: .76rem;
       display: block;
-      margin-bottom: .2rem;
+      margin-bottom: .15rem;
+      font-family: var(--ff-c);
+      letter-spacing: .2em
     }
 
-    /* Presumir */
+    /* Botón presumir */
     .btn-presumir {
       display: block;
       width: 100%;
-      padding: 1rem;
+      padding: .95rem;
       background: linear-gradient(135deg, #1a7a3a, var(--green));
       color: #000;
-      font-family: var(--ff-display);
+      font-family: var(--ff-h);
       font-size: 1.5rem;
       letter-spacing: .08em;
       text-align: center;
       text-decoration: none;
-      transition: filter .2s;
-      flex-shrink: 0;
+      transition: filter .2s
     }
 
     .btn-presumir:hover {
-      filter: brightness(1.1);
+      filter: brightness(1.1)
     }
 
-    /* ─── Estado: DEUDA ───────────────────────────────────────── */
+    /* Estado DEUDA */
     .fut-card.deuda {
-      border-color: rgba(204, 22, 22, .4);
+      border-color: rgba(204, 22, 22, .4)
     }
 
-    .fut-card.deuda .card-header {
-      filter: grayscale(100%);
-      opacity: .6;
+    .fut-card.deuda .c-header {
+      filter: grayscale(90%);
+      opacity: .55
     }
 
-    .fut-card.deuda .racha-block {
+    .deuda-overlay {
+      padding: 2rem 1.2rem;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      min-height: 220px;
-      position: relative;
-      gap: .8rem;
-      background: rgba(10, 10, 10, .9);
-    }
-
-    .lock-icon {
-      font-size: 3.8rem;
-    }
-
-    .deuda-title {
-      font-family: var(--ff-display);
-      font-size: clamp(1.6rem, 6vw, 2.5rem);
-      color: var(--white);
+      gap: .7rem;
       text-align: center;
-      line-height: 1;
+      background: rgba(5, 5, 5, .9)
+    }
+
+    .lock-ico {
+      font-size: 3.5rem;
+      color: var(--red2)
+    }
+
+    .deuda-h {
+      font-family: var(--ff-h);
+      font-size: clamp(1.6rem, 5vw, 2.4rem);
+      line-height: 1
     }
 
     .deuda-sub {
-      font-family: var(--ff-cond);
+      font-family: var(--ff-c);
       font-size: .85rem;
-      letter-spacing: .15em;
+      letter-spacing: .14em;
       text-transform: uppercase;
-      color: var(--red);
-      text-align: center;
+      color: var(--red)
     }
 
     .deuda-desc {
       font-size: .82rem;
       color: #aaa;
-      text-align: center;
       max-width: 260px;
-      line-height: 1.5;
+      line-height: 1.5
     }
 
     .btn-pagar {
-      font-family: var(--ff-cond);
+      font-family: var(--ff-c);
       font-weight: 800;
-      font-size: 1.1rem;
+      font-size: 1.15rem;
       letter-spacing: .1em;
       text-transform: uppercase;
       background: linear-gradient(135deg, var(--red), #6b0000);
@@ -699,83 +708,82 @@
       width: 100%;
       max-width: 280px;
       transition: filter .2s;
+      margin-top: .3rem
     }
 
     .btn-pagar:hover {
-      filter: brightness(1.15);
+      filter: brightness(1.15)
     }
 
-    /* ═══════════════════════════════════════════════════════════════
-   PANEL 3 — ECOSISTEMA
-═══════════════════════════════════════════════════════════════ */
-    #panel-eco {
-      max-width: 600px;
+    /* ═══ PANEL 3 — ECOSISTEMA ═══ */
+    #p3 {
+      max-width: 560px;
       margin: 0 auto;
-      padding: 0 1.2rem 5rem;
-    }
-
-    .eco-section {
-      margin-bottom: 2rem;
+      padding: 0 1.2rem 5rem
     }
 
     .eco-tag {
-      font-family: var(--ff-cond);
-      font-size: .7rem;
+      font-family: var(--ff-c);
+      font-size: .68rem;
       letter-spacing: .35em;
       text-transform: uppercase;
       color: var(--red);
       display: block;
-      margin-bottom: .3rem;
+      margin-bottom: .25rem
     }
 
-    .eco-title {
-      font-family: var(--ff-display);
-      font-size: clamp(1.8rem, 6vw, 2.8rem);
+    .eco-h {
+      font-family: var(--ff-h);
+      font-size: clamp(1.9rem, 6vw, 2.8rem);
       letter-spacing: .05em;
       line-height: 1;
-      margin-bottom: 1rem;
+      margin-bottom: 1rem
     }
 
-    .eco-title span {
-      color: var(--gold);
+    .eco-h span {
+      color: var(--gold)
+    }
+
+    .eco-sec {
+      margin-bottom: 2rem
     }
 
     /* Kiosko */
-    .kiosko-card {
+    .k-card {
       background: var(--card);
       border: 1px solid var(--border);
-      overflow: hidden;
+      overflow: hidden
     }
 
-    .energy-bar-wrap {
-      padding: .9rem 1.2rem;
+    .k-energy {
+      padding: .85rem 1.2rem;
       border-bottom: 1px solid var(--border);
-      background: rgba(0, 0, 0, .3);
+      background: rgba(0, 0, 0, .3)
     }
 
-    .energy-label {
-      font-family: var(--ff-cond);
-      font-size: .82rem;
+    .k-energy-lbl {
+      font-family: var(--ff-c);
+      font-size: .8rem;
       letter-spacing: .1em;
       color: #e67e22;
       margin-bottom: .5rem;
       display: flex;
-      justify-content: space-between;
+      justify-content: space-between
     }
 
-    .energy-bar {
-      height: 8px;
+    .k-bar {
+      height: 7px;
       background: var(--dark);
       border-radius: 4px;
-      overflow: hidden;
+      overflow: hidden
     }
 
-    .energy-fill {
+    .k-fill {
       height: 100%;
       width: 25%;
       background: linear-gradient(90deg, #e67e22, #e74c3c);
       border-radius: 4px;
-      animation: pulse-bar 2s ease-in-out infinite;
+      animation: pulse-bar 2.2s ease-in-out infinite
     }
 
     @keyframes pulse-bar {
@@ -786,44 +794,45 @@
       }
 
       50% {
-        opacity: .6
+        opacity: .55
       }
     }
 
-    .kiosko-body {
-      padding: 1.2rem;
+    .k-body {
+      padding: 1.1rem 1.2rem
     }
 
-    .kiosko-bal {
-      font-family: var(--ff-display);
+    .k-lbl {
+      font-family: var(--ff-c);
+      font-size: .7rem;
+      letter-spacing: .3em;
+      text-transform: uppercase;
+      color: var(--gray);
+      display: block;
+      margin-bottom: .15rem
+    }
+
+    .k-bal {
+      font-family: var(--ff-h);
       font-size: 2rem;
       color: var(--gold);
-      margin-bottom: .5rem;
+      margin-bottom: .7rem
     }
 
-    .kiosko-credits-label {
-      font-family: var(--ff-cond);
-      font-size: .72rem;
-      letter-spacing: .3em;
-      color: var(--gray);
-      margin-bottom: .8rem;
-      display: block;
-    }
-
-    .kiosko-desc {
-      font-size: .85rem;
+    .k-desc {
+      font-size: .83rem;
       color: var(--gray);
       line-height: 1.5;
-      margin-bottom: 1.2rem;
+      margin-bottom: 1.1rem
     }
 
-    .btn-recarga {
+    .btn-rec {
       display: block;
       width: 100%;
       padding: .85rem;
-      font-family: var(--ff-cond);
+      font-family: var(--ff-c);
       font-weight: 800;
-      font-size: 1.2rem;
+      font-size: 1.15rem;
       letter-spacing: .12em;
       text-transform: uppercase;
       background: linear-gradient(135deg, var(--gold), var(--gold2));
@@ -833,356 +842,267 @@
       clip-path: var(--clip);
       text-decoration: none;
       text-align: center;
-      transition: filter .2s;
+      transition: filter .2s
     }
 
-    .btn-recarga:hover {
-      filter: brightness(1.1);
+    .btn-rec:hover {
+      filter: brightness(1.1)
     }
 
     /* Ranking */
-    .ranking-card {
+    .rk-card {
       background: var(--card);
       border: 1px solid var(--border);
-      overflow: hidden;
+      overflow: hidden
     }
 
-    .ranking-head {
-      padding: 1rem 1.2rem;
+    .rk-head {
+      padding: .9rem 1.2rem;
       border-bottom: 1px solid var(--border);
-      background: rgba(0, 0, 0, .35);
+      background: rgba(0, 0, 0, .3)
     }
 
-    .ranking-title {
-      font-family: var(--ff-display);
+    .rk-title {
+      font-family: var(--ff-h);
       font-size: 1.8rem;
       color: var(--gold);
-      line-height: 1;
+      line-height: 1
     }
 
-    .ranking-sub {
-      font-family: var(--ff-cond);
+    .rk-sub {
+      font-family: var(--ff-c);
       font-size: .75rem;
       letter-spacing: .1em;
-      color: var(--gray);
+      color: var(--gray)
     }
 
-    .rank-item {
+    .rk-item {
       display: flex;
       align-items: center;
       gap: 1rem;
-      padding: .75rem 1.2rem;
+      padding: .72rem 1.2rem;
       border-bottom: 1px solid var(--border);
-      transition: background .15s;
+      transition: background .15s
     }
 
-    .rank-item:last-child {
-      border-bottom: none;
+    .rk-item:last-child {
+      border-bottom: none
     }
 
-    .rank-item:hover {
-      background: rgba(255, 255, 255, .03);
+    .rk-item:hover {
+      background: rgba(255, 255, 255, .03)
     }
 
-    .rank-item.first {
-      background: linear-gradient(90deg, rgba(212, 160, 23, .1), transparent);
+    .rk-item.first {
+      background: linear-gradient(90deg, rgba(212, 160, 23, .1), transparent)
     }
 
-    .rank-pos {
-      font-family: var(--ff-display);
+    .rk-pos {
+      font-family: var(--ff-h);
       font-size: 1.5rem;
       color: var(--gray);
       width: 26px;
       text-align: center;
-      flex-shrink: 0;
+      flex-shrink: 0
     }
 
-    .rank-item.first .rank-pos {
+    .rk-item.first .rk-pos {
       color: var(--gold);
-      font-size: 2rem;
+      font-size: 2rem
     }
 
-    .rank-name {
+    .rk-name {
       flex: 1;
-      font-family: var(--ff-cond);
+      font-family: var(--ff-c);
       font-size: 1.1rem;
       font-weight: 700;
-      letter-spacing: .05em;
+      letter-spacing: .05em
     }
 
-    .rank-score {
-      font-family: var(--ff-display);
+    .rk-score {
+      font-family: var(--ff-h);
       font-size: 1.3rem;
-      color: #ff5722;
+      color: #ff5722
+    }
+
+    .rk-empty {
+      padding: 1.2rem;
+      text-align: center;
+      font-family: var(--ff-c);
+      color: var(--gray)
     }
 
     /* Footer */
-    .footer-block {
+    .ft-block {
       border-top: 1px solid var(--border);
       margin-top: 2rem;
-      padding: 1.5rem 0;
-      text-align: center;
+      padding: 1.4rem 0;
+      text-align: center
     }
 
-    .footer-links {
+    .ft-links {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
       gap: .5rem 1.2rem;
-      margin-bottom: .7rem;
+      margin-bottom: .7rem
     }
 
-    .footer-links a {
+    .ft-links a {
       color: var(--gold);
       text-decoration: none;
-      font-family: var(--ff-cond);
-      font-size: .85rem;
-      letter-spacing: .1em;
+      font-family: var(--ff-c);
+      font-size: .84rem;
+      letter-spacing: .1em
     }
 
-    .footer-links a:hover {
-      color: var(--white);
+    .ft-links a:hover {
+      color: var(--white)
     }
 
-    .footer-copy {
-      font-family: var(--ff-cond);
-      font-size: .75rem;
+    .ft-copy {
+      font-family: var(--ff-c);
+      font-size: .73rem;
       letter-spacing: .1em;
       color: var(--gray2);
-      line-height: 2;
+      line-height: 1.9
     }
 
-    .footer-copy a {
+    .ft-copy a {
       color: var(--gray);
-      text-decoration: none;
+      text-decoration: none
     }
 
-    /* ═══════════════════════════════════════════════════════════════
-   MODAL YAPE
-═══════════════════════════════════════════════════════════════ */
+    /* Modal Yape */
     .modal-overlay {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, .9);
+      background: rgba(0, 0, 0, .92);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 200;
       opacity: 0;
       pointer-events: none;
-      transition: opacity .25s;
+      transition: opacity .25s
     }
 
     .modal-overlay.open {
       opacity: 1;
-      pointer-events: all;
+      pointer-events: all
     }
 
     .modal-card {
       width: calc(100% - 2.4rem);
-      max-width: 320px;
+      max-width: 310px;
       background: var(--card);
       border: 1px solid rgba(212, 160, 23, .3);
-      padding: 2rem;
+      padding: 1.8rem;
       position: relative;
       text-align: center;
-      animation: cardIn .3s ease;
+      animation: cardIn .3s ease
     }
 
-    .modal-close {
+    .m-close {
       position: absolute;
-      top: .8rem;
-      right: .8rem;
+      top: .7rem;
+      right: .7rem;
       background: none;
       border: none;
       color: var(--gray);
-      font-size: 1.4rem;
-      cursor: pointer;
+      font-size: 1.3rem;
+      cursor: pointer
     }
 
-    .modal-title {
-      font-family: var(--ff-display);
-      font-size: 2.2rem;
+    .m-title {
+      font-family: var(--ff-h);
+      font-size: 2rem;
       color: var(--gold);
-      margin-bottom: .4rem;
+      margin-bottom: .4rem
     }
 
-    .modal-sub {
-      font-family: var(--ff-cond);
+    .m-sub {
+      font-family: var(--ff-c);
       color: var(--gray);
-      font-size: .88rem;
-      margin-bottom: 1.2rem;
+      font-size: .87rem;
+      margin-bottom: 1.1rem
     }
 
-    .yape-qr {
-      width: 150px;
-      border: 3px solid #2ecc71;
+    .m-qr {
+      width: 145px;
+      border: 3px solid var(--green);
       border-radius: 3px;
-      margin-bottom: .8rem;
+      margin-bottom: .8rem
     }
 
-    .yape-num {
-      font-family: var(--ff-display);
-      font-size: 1.8rem;
+    .m-num {
+      font-family: var(--ff-h);
+      font-size: 1.7rem;
       color: var(--white);
-      margin-bottom: 1.2rem;
+      margin-bottom: 1.1rem
     }
 
-    /* ═══════════════════════════════════════════════════════════════
-   DEV TOOLS (SIMULACIÓN — REMOVER EN PRODUCCIÓN)
-═══════════════════════════════════════════════════════════════ */
-    .devtools {
-      position: fixed;
-      bottom: 1rem;
-      right: 1rem;
-      z-index: 100;
-      display: flex;
-      flex-direction: column;
-      gap: .4rem;
-      align-items: flex-end;
-    }
-
-    .devtools-toggle {
-      background: var(--gold);
-      color: #000;
-      font-family: var(--ff-cond);
-      font-weight: 800;
-      font-size: .8rem;
-      letter-spacing: .1em;
-      border: none;
-      cursor: pointer;
-      padding: .4rem .8rem;
-      clip-path: var(--clip);
-    }
-
-    .devtools-panel {
-      background: rgba(10, 10, 10, .96);
-      border: 1px solid var(--gold);
-      padding: .8rem;
-      display: none;
-      flex-direction: column;
-      gap: .4rem;
-    }
-
-    .devtools-panel.open {
-      display: flex;
-    }
-
-    .dev-btn {
-      font-family: var(--ff-cond);
-      font-weight: 700;
-      font-size: .78rem;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      padding: .4rem .9rem;
-      border: none;
-      cursor: pointer;
-      clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
-      white-space: nowrap;
-    }
-
-    .dev-btn.dred {
-      background: var(--red);
-      color: #fff;
-    }
-
-    .dev-btn.dgray {
-      background: #444;
-      color: #fff;
-    }
-
-    .dev-btn.dgreen {
-      background: var(--green);
-      color: #000;
-    }
-
-    /* ═══════════════════════════════════════════════════════════════
-   RESPONSIVE — DESKTOP ENHANCEMENTS
-═══════════════════════════════════════════════════════════════ */
-    @media (min-width: 640px) {
-      #panel-search {
-        padding: 4rem 2rem 5rem;
-      }
-
-      .search-box {
-        max-width: 480px;
+    /* ── RESPONSIVE DESKTOP ── */
+    @media(min-width:600px) {
+      #p1 {
+        padding: 4rem 2rem 5rem
       }
 
       .hero-logo {
-        width: 160px;
-        height: 160px;
+        width: 150px;
+        height: 150px
       }
 
-      .hero-head {
-        font-size: 5rem;
-      }
-
-      .topbar-name {
-        font-size: 2rem;
+      .hero-h {
+        font-size: 5.5rem
       }
     }
 
-    @media (min-width: 1024px) {
-
-      /* Desktop: dos columnas en Panel 2+3 */
-      .desktop-wrap {
-        max-width: 1000px;
-        margin: 0 auto;
-        padding: 0 2rem;
-      }
-
-      #panel-ficha {
-        max-width: 520px;
-      }
-
-      #panel-eco {
-        max-width: 1000px;
+    @media(min-width:900px) {
+      #p3 {
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 2rem;
-        align-items: start;
-        padding: 0 2rem 5rem;
+        max-width: 840px;
+        align-items: start
       }
 
-      /* Forzar kiosko y ranking a sus columnas */
-      #panel-eco .eco-section:nth-child(1) {
-        grid-column: 1;
+      #p3 .eco-sec:nth-child(1) {
+        grid-column: 1
       }
 
-      #panel-eco .eco-section:nth-child(2) {
-        grid-column: 2;
+      #p3 .eco-sec:nth-child(2) {
+        grid-column: 2
       }
 
-      #panel-eco .footer-block {
-        grid-column: 1 / -1;
+      #p3 .ft-block {
+        grid-column: 1/-1
       }
     }
 
-    @media (min-width:1100px) {
-
-      /* Hero más amplio en desktop grande */
-      #panel-search {
+    @media(min-width:1100px) {
+      #p1 {
         flex-direction: row;
-        justify-content: space-evenly;
+        justify-content: center;
+        gap: 5rem;
         text-align: left;
+        max-width: 1000px;
+        margin: 0 auto
       }
 
-      #panel-search .hero-logo {
+      #p1 .hero-logo {
         order: -1;
-        width: 200px;
-        height: 200px;
+        width: 180px;
+        height: 180px
       }
 
-      #panel-search .hero-head {
-        font-size: 6rem;
+      .hero-h {
+        font-size: 6rem
       }
 
-      #panel-search .search-box {
-        max-width: 420px;
-      }
-
-      .hero-divider {
-        margin: 0;
+      .divider-rg,
+      .hero-sub {
+        margin-left: 0
       }
     }
   </style>
@@ -1190,398 +1110,283 @@
 
 <body>
 
-  <!-- ═ TOPBAR ═══════════════════════════════════════════════════ -->
+  <!-- TOPBAR -->
   <header class="topbar">
-    <div class="topbar-logo">
-      <img src="/static/img/logo.png" alt="JR Stars" onerror="this.parentElement.textContent='⭐'">
-    </div>
-    <div class="topbar-name">JR <span>STARS</span></div>
+    <div class="tl"><img src="/static/img/logo.png" alt="JR Stars" onerror="this.parentElement.textContent='⭐'"></div>
+    <div class="tn">JR <span>STARS</span></div>
   </header>
 
-
-  <!-- ═══════════════════════════════════════════════════════════
-     PANEL 1 — PUERTA DE ENTRADA
-═══════════════════════════════════════════════════════════════ -->
-  <section class="panel panel--hero" id="panel-search">
-
+  <!-- ═══ P1 — BÚSQUEDA POR DNI ═══ -->
+  <section id="p1">
     <img src="/static/img/logo.png" alt="JR Stars" class="hero-logo" onerror="this.style.display='none'">
-
-    <div class="hero-divider"></div>
-
-    <h1 class="hero-head">
-      INGRESA DNI<br><span>DEL ATLETA</span>
-    </h1>
+    <div class="divider-rg"></div>
+    <h1 class="hero-h">INGRESA DNI<br><span>DEL ATLETA</span></h1>
     <p class="hero-sub">// Academia JR Stars · Cajamarca</p>
 
-    <div class="search-box">
-      <!-- Input -->
-      <input type="tel" id="dni-input" class="dni-input" placeholder="76543210" maxlength="8" inputmode="numeric"
+    <div class="sbox">
+      <input type="tel" id="dni" class="dni-in" placeholder="76543210" maxlength="8" inputmode="numeric"
         autocomplete="off">
-
-      <!-- CTA -->
-      <button id="btn-consultar" class="btn-consultar" onclick="consultarDni()">
-        ⚽ CONSULTAR ESTATUS
-      </button>
-
-      <!-- Loader -->
-      <div id="loader-box" class="loader-row hidden">
-        <div class="spinner"></div>
-        <span>Extrayendo biometría...</span>
+      <button id="btnC" class="btn-cta" onclick="buscar()">⚽ CONSULTAR ESTATUS</button>
+      <div id="ld" class="ld-row hidden">
+        <div class="sp"></div><span>Extrayendo biometría...</span>
       </div>
-
-      <!-- Cisne Negro: Error -->
-      <div id="error-card" class="error-card hidden">
-        <div class="error-tag">// resultado</div>
-        <div class="error-title">ATLETA NO<br>REGISTRADO.</div>
-        <p class="error-hook">¿Tu hijo tiene el nivel para estar en el ranking de JR Stars? Las vacantes son limitadas.
-        </p>
+      <div id="err" class="err-card hidden">
+        <div class="err-tag">// resultado</div>
+        <div class="err-h">ATLETA NO<br>REGISTRADO.</div>
+        <p class="err-p">¿Tu hijo tiene el nivel para estar en el ranking de JR Stars? Las vacantes son limitadas.</p>
         <a href="https://wa.me/51955515693?text=Hola,%20busco%20una%20prueba%20de%20nivel%20para%20mi%20hijo%20en%20JR%20Stars"
-          target="_blank" class="btn-wa">
-          💬 POSTULAR A LA ACADEMIA
-        </a>
+          target="_blank" class="btn-wa">💬 POSTULAR A LA ACADEMIA</a>
       </div>
-
     </div>
   </section>
 
-
-  <!-- ═══════════════════════════════════════════════════════════
-     PANEL 2 — FICHA FUT
-═══════════════════════════════════════════════════════════════ -->
-  <section id="panel-ficha" class="hidden">
-
-    <button class="back-btn" onclick="goBack()">← NUEVA CONSULTA</button>
-
-    <!-- Carta (inyectada por JS) -->
-    <div id="fut-card-wrap"></div>
-
+  <!-- ═══ P2 — FICHA FUT ═══ -->
+  <section id="p2" class="hidden">
+    <button class="back-btn" onclick="volver()">← NUEVA CONSULTA</button>
+    <div id="card-wrap"></div>
   </section>
 
+  <!-- ═══ P3 — ECOSISTEMA ═══ -->
+  <section id="p3" class="hidden">
 
-  <!-- ═══════════════════════════════════════════════════════════
-     PANEL 3 — ECOSISTEMA
-═══════════════════════════════════════════════════════════════ -->
-  <section id="panel-eco" class="hidden">
-
-    <!-- ─ KIOSKO ─────────────────────────────────────────── -->
-    <div class="eco-section">
+    <!-- KIOSKO -->
+    <div class="eco-sec">
       <span class="eco-tag">// Nutrición post-entreno</span>
-      <h2 class="eco-title">KIOSKO <span>JR</span></h2>
-
-      <div class="kiosko-card">
-        <div class="energy-bar-wrap">
-          <div class="energy-label">
-            <span>🔋 MONITOREO DE ENERGÍA</span>
-            <span>25% — BAJO</span>
-          </div>
-          <div class="energy-bar">
-            <div class="energy-fill"></div>
+      <h2 class="eco-h">KIOSKO <span>JR</span></h2>
+      <div class="k-card">
+        <div class="k-energy">
+          <div class="k-energy-lbl"><span>🔋 MONITOREO DE ENERGÍA</span><span>25% — BAJO</span></div>
+          <div class="k-bar">
+            <div class="k-fill"></div>
           </div>
         </div>
-        <div class="kiosko-body">
-          <div class="kiosko-credits-label">Saldo actual</div>
-          <div class="kiosko-bal" id="saldo-display">0 CRÉDITOS</div>
-          <p class="kiosko-desc">
-            Desgaste físico detectado tras las últimas sesiones.
-            Asegura su recuperación muscular post-entrenamiento.
-          </p>
-          <button class="btn-recarga" onclick="document.getElementById('modal-yape').classList.add('open')">
+        <div class="k-body">
+          <span class="k-lbl">Saldo actual</span>
+          <div class="k-bal">0 CRÉDITOS</div>
+          <p class="k-desc">Desgaste físico detectado tras las últimas sesiones. Asegura la recuperación muscular
+            post-entrenamiento.</p>
+          <button class="btn-rec" onclick="document.getElementById('modal-yape').classList.add('open')">
             ⚡ RECARGAR 4 CRÉDITOS (S/20)
           </button>
         </div>
       </div>
     </div>
 
-    <!-- ─ COLISEO ─────────────────────────────────────────── -->
-    <div class="eco-section">
+    <!-- COLISEO -->
+    <div class="eco-sec">
       <span class="eco-tag">// Élite de disciplina</span>
-      <h2 class="eco-title">TOP 5 <span>DE HIERRO</span></h2>
-
-      <div class="ranking-card">
-        <div class="ranking-head">
-          <div class="ranking-title">🏆 ESTE MES</div>
-          <div class="ranking-sub">Atletas con mayor racha activa de asistencia</div>
+      <h2 class="eco-h">TOP 5 <span>DE HIERRO</span></h2>
+      <div class="rk-card">
+        <div class="rk-head">
+          <div class="rk-title">🏆 ESTE MES</div>
+          <div class="rk-sub">Atletas con la mayor racha activa de asistencia</div>
         </div>
-        <div id="ranking-list">
-          <!-- Renderizado por JS -->
-        </div>
+        <div id="ranking"></div>
       </div>
-
-      <!-- Footer -->
-      <div class="footer-block">
-        <div class="footer-links">
-          <a href="https://maps.google.com" target="_blank">📍 Cajamarca, Perú</a>
+      <div class="ft-block">
+        <div class="ft-links">
+          <a href="https://maps.google.com/maps?q=cajamarca+peru" target="_blank">📍 Cajamarca, Perú</a>
           <a href="https://facebook.com" target="_blank">📘 Facebook</a>
           <a href="https://instagram.com" target="_blank">📸 Instagram</a>
         </div>
-        <div class="footer-copy">
-          JR Stars Academia © 2026 &nbsp;·&nbsp;
-          <a href="tel:+51955515693">955 515 693</a>
-          <br>
-          <a href="/admin/login">Admin</a>
+        <div class="ft-copy">
+          JR Stars Academia © 2026 &nbsp;·&nbsp; <a href="tel:+51955515693">955 515 693</a>
+          <br><a href="/admin/login">Administrador</a>
         </div>
       </div>
     </div>
 
   </section>
 
-
-  <!-- ═ MODAL YAPE ═══════════════════════════════════════════════ -->
+  <!-- MODAL YAPE -->
   <div id="modal-yape" class="modal-overlay">
     <div class="modal-card">
-      <button class="modal-close" onclick="document.getElementById('modal-yape').classList.remove('open')">✕</button>
-      <div class="modal-title">YAPE / PLIN</div>
-      <p class="modal-sub">Escanea el QR y envía tu comprobante por WhatsApp.</p>
-      <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=955515693&color=0a0a0a&bgcolor=D4A017"
-        alt="QR Yape" class="yape-qr">
-      <div class="yape-num">955 515 693</div>
-      <a href="https://wa.me/51955515693?text=Hola,%20yapé%20S/20%20para%20los%20créditos%20de%20kiosko%20de%20mi%20hijo."
-        target="_blank" class="btn-wa">
-        📲 ENVIAR COMPROBANTE
-      </a>
+      <button class="m-close" onclick="document.getElementById('modal-yape').classList.remove('open')">✕</button>
+      <div class="m-title">YAPE / PLIN</div>
+      <p class="m-sub">Escanea el QR y envía tu comprobante por WhatsApp.</p>
+      <img
+        src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=YAPE_955515693&color=0a0a0a&bgcolor=D4A017"
+        alt="QR Yape" class="m-qr">
+      <div class="m-num">955 515 693</div>
+      <a href="https://wa.me/51955515693?text=Hola,%20yapé%20S/20%20para%20créditos%20de%20kiosko%20de%20mi%20hijo."
+        target="_blank" class="btn-wa">📲 ENVIAR COMPROBANTE</a>
     </div>
   </div>
-
-
-  <!-- ═ DEV TOOLS (remover en producción) ════════════════════════ -->
-  <div class="devtools">
-    <button class="devtools-toggle" onclick="toggleDev()">⚙ DEV</button>
-    <div class="devtools-panel" id="devtools-panel">
-      <button class="dev-btn dred" onclick="simError()">DNI No encontrado</button>
-      <button class="dev-btn dgray" onclick="simDeuda()">Atleta con DEUDA</button>
-      <button class="dev-btn dgreen" onclick="simAlDia()">Atleta AL DÍA</button>
-    </div>
-  </div>
-
 
   <script>
-    /* ═══════════════════════════════════════════════════════════════
-       CORE LOGIC
-    ═══════════════════════════════════════════════════════════════ */
-
-    // ── State ──────────────────────────────────────────────────────
-    const S = {
-      currentPanel: 'search',
-    };
-
-    // ── DOM shortcuts ───────────────────────────────────────────────
+    /* ─── SHORTCUTS ─── */
     const $ = id => document.getElementById(id);
-    const pSearch = $('panel-search');
-    const pFicha = $('panel-ficha');
-    const pEco = $('panel-eco');
+    const p1 = $('p1'), p2 = $('p2'), p3 = $('p3');
 
-    // Enter en el input
-    $('dni-input').addEventListener('keypress', e => {
-      if (e.key === 'Enter') consultarDni();
-    });
-
-    // ── Cargar ranking al iniciar ───────────────────────────────────
+    /* ─── INIT ─── */
     document.addEventListener('DOMContentLoaded', loadRanking);
+    $('dni').addEventListener('keypress', e => { if (e.key === 'Enter') buscar(); });
 
-    /* ── CONSULTAR DNI ── */
-    async function consultarDni() {
-      const dni = $('dni-input').value.trim();
-      const btn = $('btn-consultar');
+    /* ─── BUSCAR DNI ─── */
+    async function buscar() {
+      const dni = $('dni').value.trim();
+      const btn = $('btnC');
+      const ld = $('ld');
+      const err = $('err');
 
-      hideError();
+      err.classList.add('hidden');
 
       if (!/^\d{8}$/.test(dni)) {
-        $('dni-input').style.borderBottomColor = 'var(--red)';
-        setTimeout(() => $('dni-input').style.borderBottomColor = 'var(--gold)', 800);
+        $('dni').style.borderBottomColor = 'var(--red)';
+        setTimeout(() => $('dni').style.borderBottomColor = 'var(--gold)', 900);
         return;
       }
 
-      // loading
       btn.disabled = true;
-      $('loader-box').classList.remove('hidden');
+      ld.classList.remove('hidden');
 
       try {
         const res = await fetch(`/public/student/${dni}/info`);
 
         if (res.status === 404) {
-          showError();
-        } else if (res.ok) {
-          const data = await res.json();
-          transitionToFicha(data.debe, {
-            nombre: data.full_name,
-            categoria: data.category || 'Categoría Base',
-            racha: data.racha,
-            talla: data.bio?.talla || '1.45m',
-            peso: data.bio?.peso || '38kg',
-            img: data.img_url || null,
-          });
-        } else {
-          alert('Error del servidor. Intenta de nuevo.');
+          ld.classList.add('hidden');
+          btn.disabled = false;
+          err.classList.remove('hidden');
+          return;
         }
-      } catch {
-        alert('Sin conexión. Verifica tu internet.');
-      } finally {
+
+        if (!res.ok) throw new Error('server');
+
+        const data = await res.json();
+        ld.classList.add('hidden');
         btn.disabled = false;
-        $('loader-box').classList.add('hidden');
+
+        setTimeout(() => {
+          renderCard(data);
+          p1.classList.add('hidden');
+          p2.classList.remove('hidden');
+          p3.classList.remove('hidden');
+          $('dni').value = '';
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }, 300);
+
+      } catch {
+        ld.classList.add('hidden');
+        btn.disabled = false;
+        alert('Error de conexión. Verifica tu internet.');
       }
     }
 
-    function showError() {
-      $('error-card').classList.remove('hidden');
-      $('error-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-    function hideError() { $('error-card').classList.add('hidden'); }
-
-    /* ── TRANSICIÓN A PANEL 2 ── */
-    function transitionToFicha(deuda, athlete) {
-      buildCard(deuda, athlete);
-      pSearch.classList.add('hidden');
-      pFicha.classList.remove('hidden');
-      pEco.classList.remove('hidden');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      $('dni-input').value = '';
-    }
-
-    function goBack() {
-      pFicha.classList.add('hidden');
-      pEco.classList.add('hidden');
-      pSearch.classList.remove('hidden');
+    /* ─── VOLVER ─── */
+    function volver() {
+      p2.classList.add('hidden');
+      p3.classList.add('hidden');
+      p1.classList.remove('hidden');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    /* ── CONSTRUIR CARTA FUT ── */
-    function buildCard(deuda, a) {
-      const wrap = $('fut-card-wrap');
-      const avatar = a.img
-        ? `<img src="${a.img}" alt="${a.nombre}">`
-        : `<span>${a.nombre.charAt(0)}</span>`;
+    /* ─── RENDER FICHA FUT ─── */
+    function renderCard(d) {
+      const wrap = $('card-wrap');
+      const av = d.img_url
+        ? `<img src="${d.img_url}" alt="${d.full_name}">`
+        : `<span>${d.full_name.charAt(0)}</span>`;
 
-      const waMsg = encodeURIComponent(
-        `¡Mi hijo ${a.nombre} está en JR Stars Academia! 🔥🏆\n` +
-        `Racha activa: ${a.racha} sesiones consecutivas.\n` +
-        `Consulta el tuyo → https://emblema-app.up.railway.app`
-      );
-
-      if (deuda) {
+      if (d.debe) {
+        // ─── ESTADO A: DEUDA ───
         wrap.innerHTML = `
       <div class="fut-card deuda">
         <div class="card-stripe"></div>
-        <div class="card-header">
-          <div class="athlete-avatar">${avatar}</div>
-          <div class="athlete-meta">
-            <h2>${a.nombre}</h2>
-            <div class="athlete-cat">${a.categoria}</div>
+        <div class="c-header">
+          <div class="avatar">${av}</div>
+          <div>
+            <div class="c-name">${d.full_name}</div>
+            <div class="c-cat">${d.category}</div>
           </div>
         </div>
-        <div class="racha-block">
-          <div class="lock-icon">🔒</div>
-          <div class="deuda-title">ESTATUS OCULTO</div>
+        <div class="deuda-overlay">
+          <div class="lock-ico">🔒</div>
+          <div class="deuda-h">ESTATUS OCULTO</div>
           <div class="deuda-sub">MENSUALIDAD PENDIENTE</div>
-          <p class="deuda-desc">El historial y métricas de <strong>${a.nombre.split(' ')[0]}</strong> están bloqueados hasta regularizar el pago.</p>
-          <button class="btn-pagar"
-                  onclick="document.getElementById('modal-yape').classList.add('open')">
+          <p class="deuda-desc">El historial de <strong>${d.full_name.split(' ')[0]}</strong> está bloqueado. Regulariza el pago para desbloquear.</p>
+          <button class="btn-pagar" onclick="document.getElementById('modal-yape').classList.add('open')">
             PAGAR S/80 VÍA YAPE / PLIN
           </button>
         </div>
       </div>`;
       } else {
+        // ─── ESTADO B: AL DÍA ───
+        const waMsg = encodeURIComponent(`¡Mi hijo/a ${d.full_name} tiene ${d.racha} sesiones consecutivas en JR Stars Academia! 🔥🏆\nhttps://emblema-app.up.railway.app`);
+        const waLink = `https://wa.me/?text=${waMsg}`;
+
+        // Historial biométrico
+        const histRows = (d.historial_biometrico || []).map(h => `
+      <tr>
+        <td class="fecha">${h.fecha}</td>
+        <td>${h.talla}</td>
+        <td>${h.peso}</td>
+      </tr>`).join('');
+
+        const histSection = histRows ? `
+      <div class="bio-hist">
+        <div class="hist-title">// EVOLUCIÓN FÍSICA</div>
+        <table class="hist-table">
+          <thead><tr><th>Mes</th><th>Talla</th><th>Peso</th></tr></thead>
+          <tbody>${histRows}</tbody>
+        </table>
+      </div>` : '';
+
         wrap.innerHTML = `
-      <div class="fut-card al-dia">
+      <div class="fut-card ok">
         <div class="card-stripe"></div>
-        <div class="card-header">
-          <div class="athlete-avatar">${avatar}</div>
-          <div class="athlete-meta">
-            <h2>${a.nombre}</h2>
-            <div class="athlete-cat">${a.categoria}</div>
+        <div class="c-header">
+          <div class="avatar">${av}</div>
+          <div>
+            <div class="c-name">${d.full_name}</div>
+            <div class="c-cat">${d.category}</div>
           </div>
         </div>
-        <div class="racha-block">
-          <span class="racha-label">// RACHA ACTIVA DE DISCIPLINA</span>
-          <div class="racha-num"><span class="fire">🔥</span> ${a.racha} SESIONES<br>CONSECUTIVAS</div>
+        <div class="racha-blk">
+          <span class="racha-tag">// RACHA ACTIVA DE DISCIPLINA</span>
+          <div class="racha-num"><span class="fire">🔥</span> ${d.racha}<br>SESIONES</div>
         </div>
-        <div class="bio-grid">
+        <div class="bio-row">
           <div class="bio-cell">
-            <div class="bio-val">${a.talla}<span class="bio-delta">+2cm</span></div>
+            <div class="bio-val">${d.talla_actual}<span class="bio-delta">${d.delta_talla || ''}</span></div>
             <div class="bio-label">Estatura</div>
           </div>
           <div class="bio-cell">
-            <div class="bio-val">${a.peso}</div>
+            <div class="bio-val">${d.peso_actual}</div>
             <div class="bio-label">Peso corporal</div>
           </div>
         </div>
-        <div class="radar-block">
+        ${histSection}
+        <div class="radar-blk">
           <div class="radar-hex"></div>
           <div class="radar-txt">
-            <strong class="neon">PRÓXIMAMENTE</strong>
-            Fase de medición física en progreso.
-            Velocidad · Potencia · Resistencia.
+            <strong>PRÓXIMAMENTE</strong>
+            Medición de Velocidad · Potencia · Resistencia.
           </div>
         </div>
-        <a href="https://wa.me/?text=${waMsg}" target="_blank" class="btn-presumir">
-          📲 PRESUMIR ESTATUS
-        </a>
+        <a href="${waLink}" target="_blank" class="btn-presumir">📲 PRESUMIR ESTATUS</a>
       </div>`;
       }
     }
 
-    /* ── RANKING ── */
+    /* ─── RANKING ─── */
     async function loadRanking() {
-      const container = $('ranking-list');
-      const FALLBACK = [
-        { name: 'Carlos Q.', score: 18 },
-        { name: 'Sebastián M.', score: 15 },
-        { name: 'Diego R.', score: 13 },
-        { name: 'Ángel T.', score: 11 },
-        { name: 'Fabrizio L.', score: 10 },
-      ];
-
+      const el = $('ranking');
       try {
         const res = await fetch('/public/leaderboard/month');
-        const data = res.ok ? await res.json() : FALLBACK;
-        renderRanking(data.length ? data : FALLBACK);
+        const data = res.ok ? await res.json() : [];
+        if (!data.length) {
+          el.innerHTML = '<div class="rk-empty">Datos disponibles próximamente.</div>';
+          return;
+        }
+        el.innerHTML = data.map((item, i) => `
+      <div class="rk-item${i === 0 ? ' first' : ''}">
+        <div class="rk-pos">${i + 1}</div>
+        <div class="rk-name">${item.name}</div>
+        <div class="rk-score">🔥 ${item.score}</div>
+      </div>`).join('');
       } catch {
-        renderRanking(FALLBACK);
+        el.innerHTML = '<div class="rk-empty" style="color:var(--red2)">No disponible.</div>';
       }
-    }
-
-    function renderRanking(data) {
-      $('ranking-list').innerHTML = data.map((item, i) => `
-    <div class="rank-item${i === 0 ? ' first' : ''}">
-      <div class="rank-pos">${i + 1}</div>
-      <div class="rank-name">${item.name}</div>
-      <div class="rank-score">🔥 ${item.score}</div>
-    </div>`).join('');
-    }
-
-    /* ═══════════════════════════════════════════════════════════════
-       DEV TOOLS: SIMULACIÓN DE ESTADOS
-    ═══════════════════════════════════════════════════════════════ */
-    function toggleDev() {
-      $('devtools-panel').classList.toggle('open');
-    }
-
-    const DEV_ATHLETE = {
-      nombre: 'Carlos Quispe',
-      categoria: 'Sub-12 · Delantero',
-      racha: 12,
-      talla: '1.45m',
-      peso: '38kg',
-      img: null,
-    };
-
-    function simError() {
-      // Resetear al panel 1 y mostrar el error
-      pFicha.classList.add('hidden');
-      pEco.classList.add('hidden');
-      pSearch.classList.remove('hidden');
-      hideError();
-      setTimeout(() => {
-        $('loader-box').classList.add('hidden');
-        showError();
-      }, 50);
-    }
-
-    function simDeuda() {
-      transitionToFicha(true, DEV_ATHLETE);
-    }
-
-    function simAlDia() {
-      transitionToFicha(false, DEV_ATHLETE);
     }
   </script>
 </body>
