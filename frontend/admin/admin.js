@@ -52,8 +52,8 @@ function goTo(page, ev) {
   if (page === 'stats') loadStats();
   if (page === 'alumnos') loadAlumnos();
   if (page === 'batidos') loadCreditos();
-  if (page === 'noticias') loadNoticias();
-  if (page === 'fotos') loadFotos();
+  if (page === 'rendimiento') resetBioSearch();
+  if (page === 'ranking') cargarRanking();
   if (page === 'entrenadores') loadEntrenadores();
   if (page === 'scanner' && !scannerInit) initScanner();
 }
@@ -678,6 +678,209 @@ async function eliminarFoto(id) {
 
 // ── INIT ──────────────────────────────────────────────
 loadStats();
+
+// ── RENDIMIENTO FÍSICO (BIOMETRÍA) ────────────────────
+let _bioStudents = [];
+let _bioSelected = null;
+
+function resetBioSearch() {
+  const inp = document.getElementById('bio-search');
+  if (inp) inp.value = '';
+  document.getElementById('bio-search-results').innerHTML = '';
+  document.getElementById('bio-form-card').style.display = 'none';
+  _bioSelected = null;
+}
+
+async function buscarParaBio() {
+  const q = document.getElementById('bio-search').value.trim().toLowerCase();
+  const el = document.getElementById('bio-search-results');
+  if (q.length < 2) { el.innerHTML = ''; return; }
+
+  if (!_bioStudents.length) {
+    const res = await fetch('/admin/alumnos', { headers: H });
+    _bioStudents = await res.json();
+  }
+
+  const hits = _bioStudents.filter(s =>
+    s.full_name.toLowerCase().includes(q) ||
+    (s.dni || '').includes(q)
+  ).slice(0, 6);
+
+  if (!hits.length) {
+    el.innerHTML = '<p style="font-family:var(--font-cond);color:var(--gray);font-size:.85rem">Sin resultados.</p>';
+    return;
+  }
+
+  el.innerHTML = hits.map(s => `
+    <div class="alumno-card" style="cursor:pointer;margin-bottom:.5rem;padding:.6rem 1rem"
+         onclick="seleccionarBioAlumno('${s.id}','${s.full_name.replace(/'/g, "\\'")}')"
+         onmouseenter="this.style.borderColor='var(--gold)'"
+         onmouseleave="this.style.borderColor='var(--border)'">
+      <span style="font-family:var(--font-cond);font-weight:700">${s.full_name}</span>
+      <span style="font-family:var(--font-mono);font-size:.72rem;color:var(--gray);margin-left:.5rem">${s.dni || ''}</span>
+    </div>`).join('');
+}
+
+async function seleccionarBioAlumno(id, nombre) {
+  _bioSelected = { id, nombre };
+  document.getElementById('bio-student-id').value = id;
+  document.getElementById('bio-alumno-label').textContent = `📋 ${nombre}`;
+  document.getElementById('bio-search-results').innerHTML = '';
+  document.getElementById('bio-search').value = nombre;
+
+  // Mes actual como default
+  const ahora = new Date();
+  const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+  document.getElementById('bio-fecha').value = `${meses[ahora.getMonth()]} ${ahora.getFullYear()}`;
+
+  document.getElementById('bio-form-card').style.display = 'block';
+  await cargarHistorialBio(id);
+}
+
+async function cargarHistorialBio(sid) {
+  const wrap = document.getElementById('bio-historial-wrap');
+  wrap.innerHTML = '<p style="font-family:var(--font-cond);color:var(--gray)">Cargando historial...</p>';
+  try {
+    const res = await fetch(`/admin/biometria/${sid}`, { headers: H });
+    const data = await res.json();
+
+    if (!data.length) {
+      wrap.innerHTML = '<p style="font-family:var(--font-cond);color:var(--gray);font-size:.85rem">Sin mediciones registradas aún.</p>';
+      return;
+    }
+
+    wrap.innerHTML = `
+      <div style="font-family:var(--font-cond);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);margin-bottom:.6rem">// HISTORIAL BIOMÉTRICO</div>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-family:var(--font-cond)">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border)">
+              <th style="text-align:left;padding:.4rem .6rem;font-size:.72rem;letter-spacing:.12em;color:var(--gray)">Mes</th>
+              <th style="padding:.4rem .6rem;font-size:.72rem;letter-spacing:.12em;color:var(--gray)">Talla</th>
+              <th style="padding:.4rem .6rem;font-size:.72rem;letter-spacing:.12em;color:var(--gray)">Peso</th>
+              <th style="padding:.4rem .6rem"></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map(r => `
+              <tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+                <td style="padding:.4rem .6rem;color:var(--gray);font-size:.85rem">${r.fecha}</td>
+                <td style="padding:.4rem .6rem;text-align:center;font-size:1rem;font-weight:700;color:var(--white)">${r.talla != null ? r.talla + 'm' : '—'}</td>
+                <td style="padding:.4rem .6rem;text-align:center;font-size:1rem;font-weight:700;color:var(--white)">${r.peso != null ? r.peso + 'kg' : '—'}</td>
+                <td style="padding:.4rem .6rem;text-align:right">
+                  <button onclick="eliminarBio('${r.id}')" style="background:none;border:none;color:var(--red2);cursor:pointer;font-size:.9rem">✕</button>
+                </td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch {
+    wrap.innerHTML = '<p style="color:var(--red2);font-family:var(--font-cond)">Error al cargar historial.</p>';
+  }
+}
+
+async function guardarBiometria() {
+  const sid = document.getElementById('bio-student-id').value;
+  const fecha = document.getElementById('bio-fecha').value.trim();
+  const talla = parseFloat(document.getElementById('bio-talla').value);
+  const peso = parseInt(document.getElementById('bio-peso').value);
+
+  if (!sid || !fecha) return showToast('Completa mes y alumno', 'error');
+
+  const body = { student_id: sid, fecha };
+  if (!isNaN(talla)) body.talla = talla;
+  if (!isNaN(peso)) body.peso = peso;
+
+  const res = await fetch('/admin/biometria', {
+    method: 'POST', headers: H, body: JSON.stringify(body)
+  });
+
+  if (res.ok) {
+    showToast('✅ Medición guardada');
+    document.getElementById('bio-talla').value = '';
+    document.getElementById('bio-peso').value = '';
+    await cargarHistorialBio(sid);
+  } else {
+    showToast('❌ Error al guardar', 'error');
+  }
+}
+
+async function eliminarBio(id) {
+  if (!confirm('¿Eliminar esta medición?')) return;
+  await fetch(`/admin/biometria/${id}`, { method: 'DELETE', headers: H });
+  showToast('✅ Eliminado');
+  if (_bioSelected) await cargarHistorialBio(_bioSelected.id);
+}
+
+function cancelarBio() {
+  document.getElementById('bio-form-card').style.display = 'none';
+  document.getElementById('bio-search').value = '';
+  document.getElementById('bio-search-results').innerHTML = '';
+  _bioSelected = null;
+}
+
+// ── RANKING ───────────────────────────────────────────
+async function cargarRanking() {
+  const campo = document.getElementById('rk-campo')?.value || 'talla';
+  const sede = document.getElementById('rk-sede')?.value || '';
+  const cat = document.getElementById('rk-cat')?.value || '';
+  const wrap = document.getElementById('ranking-table-wrap');
+  if (!wrap) return;
+
+  wrap.innerHTML = '<p style="font-family:var(--font-cond);color:var(--gray)">Cargando...</p>';
+
+  const params = new URLSearchParams({ campo });
+  if (sede) params.append('sede', sede);
+  if (cat) params.append('categoria', cat);
+
+  try {
+    const res = await fetch(`/public/ranking?${params}`);
+    const data = await res.json();
+
+    if (!data.length) {
+      wrap.innerHTML = '<p style="font-family:var(--font-cond);color:var(--gray)">Sin datos aún. Registra mediciones en la sección Rendimiento.</p>';
+      return;
+    }
+
+    const label = campo === 'talla' ? 'Talla' : 'Peso';
+    const unit = campo === 'talla' ? 'm' : 'kg';
+    const emoji = campo === 'talla' ? '📏' : '⚖️';
+
+    wrap.innerHTML = `
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-family:var(--font-cond)">
+          <thead>
+            <tr style="border-bottom:2px solid var(--border)">
+              <th style="padding:.5rem .7rem;text-align:center;font-size:.72rem;letter-spacing:.12em;color:var(--gray)">#</th>
+              <th style="padding:.5rem .7rem;text-align:left;font-size:.72rem;letter-spacing:.12em;color:var(--gray)">Atleta</th>
+              <th style="padding:.5rem .7rem;text-align:center;font-size:.72rem;letter-spacing:.12em;color:var(--gray)">Sede</th>
+              <th style="padding:.5rem .7rem;text-align:center;font-size:.72rem;letter-spacing:.12em;color:var(--gray)">Horario</th>
+              <th style="padding:.5rem .7rem;text-align:center;font-size:.72rem;letter-spacing:.12em;color:var(--gold)">${emoji} ${label}</th>
+              <th style="padding:.5rem .7rem;text-align:center;font-size:.72rem;letter-spacing:.12em;color:var(--gray)">Mes</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${data.map((r, i) => `
+              <tr style="border-bottom:1px solid rgba(255,255,255,.04);${i === 0 ? 'background:rgba(212,160,23,.07)' : ''}"
+                  onmouseenter="this.style.background='rgba(255,255,255,.04)'"
+                  onmouseleave="this.style.background='${i === 0 ? 'rgba(212,160,23,.07)' : ''}'"
+              >
+                <td style="padding:.5rem .7rem;text-align:center;font-family:var(--font-display);font-size:${i === 0 ? '1.4rem' : '1.1rem'};color:${i === 0 ? 'var(--gold)' : 'var(--gray)'}">${i + 1}</td>
+                <td style="padding:.5rem .7rem;font-weight:700;color:var(--white)">${r.full_name}</td>
+                <td style="padding:.5rem .7rem;text-align:center;color:var(--gray);font-size:.88rem">${r.sede || '—'}</td>
+                <td style="padding:.5rem .7rem;text-align:center;color:var(--gray);font-size:.88rem">${r.horario || '—'}</td>
+                <td style="padding:.5rem .7rem;text-align:center;font-size:1.1rem;font-weight:700;color:var(--white)">${r.valor}${unit}</td>
+                <td style="padding:.5rem .7rem;text-align:center;color:var(--gray);font-size:.82rem">${r.fecha || '—'}</td>
+              </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch {
+    wrap.innerHTML = '<p style="color:var(--red2);font-family:var(--font-cond)">Error al cargar ranking.</p>';
+  }
+}
+
+
 
 // ── ENTRENADORES ──────────────────────────────────────
 let _entrenadoresData = [];

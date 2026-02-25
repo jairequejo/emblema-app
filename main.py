@@ -73,57 +73,151 @@ def status():
     return {"status": "Backend funcionando 🚀"}
 
 # --- ENDPOINTS PÚBLICOS ---
-@app.get("/public/noticias")
-def noticias_publicas():
-    res = supabase.table("noticias").select("*") \
-        .eq("activa", True).order("created_at", desc=True).limit(5).execute()
-    return res.data or []
-
-@app.get("/public/galeria")
-def galeria_publica():
-    res = supabase.table("galeria").select("*") \
-        .eq("activa", True).order("created_at", desc=True).limit(6).execute()
-    return res.data or []
-
 @app.get("/public/leaderboard/month")
 def leaderboard_mes():
     from datetime import datetime
     today = datetime.now()
     first_day = today.replace(day=1, hour=0, minute=0, second=0).isoformat()
-    
+
     res = supabase.table("attendance").select("student_id").gte("created_at", first_day).execute()
     if not res.data:
         return []
-        
+
     counts = {}
     for r in res.data:
         sid = r["student_id"]
         counts[sid] = counts.get(sid, 0) + 1
-        
-    # Ordenar por asistencia desc
+
     top_sids = sorted(counts.items(), key=lambda x: x[1], reverse=True)[:5]
     if not top_sids:
         return []
-        
-    # Traer nombres
+
     ids = [t[0] for t in top_sids]
-    st_res = supabase.table("students").select("id, full_name, img_url").in_("id", ids).execute()
+    st_res = supabase.table("students").select("id, full_name").in_("id", ids).execute()
     st_map = {s["id"]: s for s in (st_res.data or [])}
-    
+
     result = []
     for sid, count in top_sids:
         st = st_map.get(sid)
         if st:
-            # Fake names for privacy, user wants first name and initial
-            name_parts = st["full_name"].split(" ")
-            short_name = name_parts[0] + (" " + name_parts[1][0] + "." if len(name_parts) > 1 else "")
-            result.append({
-                "student_id": sid,
-                "name": short_name,
-                "avatar": st.get("img_url"),
-                "score": count
-            })
+            parts = st["full_name"].split(" ")
+            short = parts[0] + (" " + parts[1][0] + "." if len(parts) > 1 else "")
+            result.append({"student_id": sid, "name": short, "score": count})
     return result
+
+
+# ── BIOMETRÍA ADMIN ────────────────────────────────────────────────────────
+
+@app.post("/admin/biometria")
+def registrar_biometria(payload: dict, token: str = None):
+    """Registra medición mensual de un atleta."""
+    from fastapi import HTTPException
+    from routers.admin import get_current_admin
+    # payload: { student_id, fecha, talla, peso }
+    student_id = payload.get("student_id")
+    fecha      = payload.get("fecha")     # "Feb 2026"
+    talla      = payload.get("talla")     # numeric, e.g. 1.45
+    peso       = payload.get("peso")      # int, e.g. 38
+
+    if not all([student_id, fecha]):
+        raise HTTPException(400, "Faltan campos")
+
+    data = {"student_id": student_id, "fecha": fecha}
+    if talla is not None: data["talla"] = float(talla)
+    if peso  is not None: data["peso"]  = int(peso)
+
+    res = supabase.table("biometria").insert(data).execute()
+    return res.data[0] if res.data else {}
+
+
+@app.get("/admin/biometria/{student_id}")
+def historial_biometria(student_id: str):
+    """Historial biométrico completo de un atleta."""
+    res = supabase.table("biometria") \
+        .select("id, fecha, talla, peso, created_at") \
+        .eq("student_id", student_id) \
+        .order("created_at", desc=True).limit(24).execute()
+    return res.data or []
+
+
+@app.delete("/admin/biometria/{record_id}")
+def eliminar_biometria(record_id: str):
+    """Elimina una medición biométrica."""
+    supabase.table("biometria").delete().eq("id", record_id).execute()
+    return {"ok": True}
+
+
+# ── RANKING PÚBLICO (con filtros) ──────────────────────────────────────────
+
+@app.get("/public/ranking")
+def ranking_publico(categoria: str = None, sede: str = None, campo: str = "talla"):
+    """
+    Ranking de atletas por campo biométrico (talla o peso).
+    Filtra por categoría y/o sede.
+    """
+    from datetime import datetime
+
+    # Traer todos los students activos
+    q = supabase.table("students").select("id, full_name, horario, sede")
+    q = q.eq("is_active", True)
+    if sede:
+        q = q.eq("sede", sede)
+    st_res = q.execute()
+    students_list = st_res.data or []
+    if not students_list:
+        return []
+
+    # Filtrar por categoría (horario en students)
+    if categoria:
+        students_list = [s for s in students_list if (s.get("horario") or "") == categoria]
+
+    ids = [s["id"] for s in students_list]
+    if not ids:
+        return []
+
+    st_map = {s["id"]: s for s in students_list}
+
+    # Traer la última medición biométrica de cada alumno
+    bio_res = supabase.table("biometria") \
+        .select("student_id, talla, peso, fecha, created_at") \
+        .in_("student_id", ids) \
+        .order("created_at", desc=True).execute()
+
+    # Quedarme solo con la medición más reciente por alumno
+    last_bio = {}
+    for r in (bio_res.data or []):
+        sid = r["student_id"]
+        if sid not in last_bio:
+            last_bio[sid] = r
+
+    # Construir resultados con dato del campo solicitado
+    result = []
+    for sid, bio in last_bio.items():
+        st = st_map.get(sid)
+        if not st:
+            continue
+        val = bio.get(campo)
+        if val is None:
+            continue
+        parts = st["full_name"].split(" ")
+        short = parts[0] + (" " + parts[1][0] + "." if len(parts) > 1 else "")
+        result.append({
+            "student_id": sid,
+            "name":       short,
+            "full_name":  st["full_name"],
+            "sede":       st.get("sede") or "",
+            "horario":    st.get("horario") or "",
+            "talla":      bio.get("talla"),
+            "peso":       bio.get("peso"),
+            "fecha":      bio.get("fecha"),
+            "valor":      float(val),
+        })
+
+    # Ordenar por valor descendente y tomar top 20
+    result.sort(key=lambda x: x["valor"], reverse=True)
+    return result[:20]
+
+
 
 @app.get("/public/student/{dni}/info")
 def student_public_info(dni: str):
