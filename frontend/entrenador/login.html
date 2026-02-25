@@ -251,6 +251,8 @@
 
                 localStorage.setItem('jr_entrenador_token', data.access_token);
                 localStorage.setItem('jr_entrenador_email', data.user_email);
+                // Guardar clave HMAC para validación offline
+                if (data.signing_key) sessionStorage.setItem('jr_signing_key', data.signing_key);
                 window.location.href = '/entrenador';
 
             } catch {

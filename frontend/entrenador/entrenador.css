@@ -608,3 +608,64 @@
 .bnav-btn:hover {
     color: var(--gold);
 }
+
+/* ── BADGE OFFLINE (topbar) ──────────────────────────────── */
+.offline-badge {
+    display: none;
+    font-family: var(--font-mono);
+    font-size: .68rem;
+    color: var(--orange, #ff9900);
+    background: rgba(255, 153, 0, .12);
+    border: 1px solid rgba(255, 153, 0, .4);
+    padding: .18rem .55rem;
+    border-radius: 12px;
+    white-space: nowrap;
+    animation: pulse-badge 2s ease-in-out infinite;
+}
+
+.offline-badge.visible {
+    display: inline-block;
+}
+
+@keyframes pulse-badge {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.6;
+    }
+}
+
+/* ── FLASH: estado offline_ok (azul — guardado offline) ──── */
+.flash-overlay.offline_ok {
+    background: rgba(0, 30, 80, .96);
+}
+
+.flash-overlay.offline_ok .flash-status {
+    color: #4db8ff;
+}
+
+.flash-overlay.offline_ok .flash-bar::after {
+    background: #4db8ff;
+}
+
+/* ── FLASH: estado offline_need (gris — requiere internet) ── */
+.flash-overlay.offline_need {
+    background: rgba(20, 20, 30, .97);
+}
+
+.flash-overlay.offline_need .flash-status {
+    color: var(--gray, #888);
+}
+
+.flash-overlay.offline_need .flash-bar::after {
+    background: var(--gray, #888);
+}
+
+/* ── HISTORY: dot para offline_ok ───────────────────────── */
+.history-item.offline_ok .h-dot {
+    background: #4db8ff;
+}
