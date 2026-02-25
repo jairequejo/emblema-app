@@ -1,194 +1,166 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>JR Stars | Academia Deportiva</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>JR Stars | Vía Negativa</title>
   <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@400;500&display=swap" rel="stylesheet"/>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;700&display=swap"
+    rel="stylesheet" />
   <link rel="stylesheet" href="/static/home/home.css">
 </head>
-<body>
 
-<nav>
-  <a href="/" class="nav-brand">
-    <div class="nav-logo-img">
-      <img src="/static/img/logo.png" alt="JR Stars Logo" onload="this.classList.add('loaded')" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-      <span class="logo-fallback">⭐</span>
-    </div>
-    <div class="nav-logo">JR <span>STARS</span></div>
-  </a>
-  <ul class="nav-links">
-    <li><a href="#nosotros">Academia</a></li>
-    <li><a href="#noticias">Noticias</a></li>
-    <li><a href="#asistencias">Asistencias</a></li>
-    <li><a href="#kiosko">Kiosko</a></li>
-  </ul>
-  <a href="/dashboard" class="nav-cta">Ver Asistencias</a>
-</nav>
+<body class="bg-black">
 
-<div class="hero">
-  <span class="hero-tag">⭐ Academia Deportiva · Cajamarca</span>
-  <h1><span class="accent">JR</span><br><span class="gold">STARS</span></h1>
-  <p class="hero-sub">Forjamos campeones desde el primer día</p>
-  <div class="hero-btns">
-    <a href="/dashboard" class="btn-primary">Ver Asistencias</a>
-    <a href="#nosotros" class="btn-secondary">Conocer más</a>
-  </div>
-  <div class="hero-stats">
-    <div class="stat">
-      <div class="stat-num" id="cnt-alumnos">0</div>
-      <div class="stat-label">Atletas activos</div>
-    </div>
-    <div class="stat">
-      <div class="stat-num" id="cnt-sesiones">0</div>
-      <div class="stat-label">Sesiones registradas</div>
-    </div>
-    <div class="stat">
-      <div class="stat-num" id="cnt-años">0</div>
-      <div class="stat-label">Años de experiencia</div>
-    </div>
-  </div>
-</div>
+  <!-- ==========================================
+     PANEL 1: LA PUERTA DE ENTRADA (CAPTACIÓN)
+     ========================================== -->
+  <section id="panel-1" class="panel-screen flex-center visible">
+    <div class="container text-center">
 
-<section id="nosotros">
-  <div class="reveal">
-    <span class="section-tag">// Lo que ofrecemos</span>
-    <h2 class="section-title">Todo en<br>un solo lugar</h2>
-    <div class="divider"></div>
-    <p class="section-desc">Tecnología moderna para que los padres estén siempre informados y los atletas, siempre motivados.</p>
-  </div>
-  <div class="features-grid reveal">
-    <div class="feature-card">
-      <span class="feature-icon">📱</span>
-      <div class="feature-title">Asistencia por NFC</div>
-      <div class="feature-desc">El medallón registra la entrada automáticamente al acercarse al lector. Sin papeles, sin filas.</div>
-    </div>
-    <div class="feature-card">
-      <span class="feature-icon">📊</span>
-      <div class="feature-title">Dashboard en tiempo real</div>
-      <div class="feature-desc">Consulta las asistencias desde cualquier dispositivo, en cualquier momento.</div>
-    </div>
-    <div class="feature-card">
-      <span class="feature-icon">🥤</span>
-      <div class="feature-title">Créditos de kiosko</div>
-      <div class="feature-desc">Recarga créditos vía Yape y tu hijo los canjea por su batido favorito después de entrenar.</div>
-    </div>
-    <div class="feature-card">
-      <span class="feature-icon">📢</span>
-      <div class="feature-title">Noticias y fotos</div>
-      <div class="feature-desc">Mantente al día con los torneos, logros del equipo y fotos de cada entrenamiento.</div>
-    </div>
-  </div>
-</section>
-
-<section id="asistencias">
-  <div class="dashboard-wrap">
-    <div class="reveal">
-      <span class="section-tag">// Para los padres</span>
-      <h2 class="section-title">Seguimiento<br><span style="color:var(--gold)">completo</span></h2>
-      <div class="divider"></div>
-      <p class="section-desc">Ve el historial de asistencias, puntualidad y saldo del kiosko disponible al instante.</p>
-      <br>
-      <a href="/dashboard" class="btn-primary" style="display:inline-block;margin-top:1rem;">Consultar ahora</a>
-    </div>
-    <div class="dashboard-mock reveal">
-      <div class="mock-header">
-        <div class="mock-dot green"></div>
-        <div class="mock-dot yellow"></div>
-        <div class="mock-dot red"></div>
-        <span class="mock-title">Dashboard · JR Stars</span>
+      <!-- Logo Agresivo -->
+      <div class="logo-box">
+        <img src="/static/img/logo.png" alt="JR Stars Logo" class="logo-img" id="main-logo"
+          onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='block'">
+        <div id="logo-fallback" class="logo-text" style="display:none;">JR<br><span class="gold">STARS</span></div>
       </div>
-      <div class="mock-row"><span class="name">Carlos Quispe</span><span class="date">Hoy 08:02 am</span><span class="badge present">Presente</span></div>
-      <div class="mock-row"><span class="name">Carlos Quispe</span><span class="date">Ayer 07:55 am</span><span class="badge present">Presente</span></div>
-      <div class="mock-row"><span class="name">Carlos Quispe</span><span class="date">Lun 08:10 am</span><span class="badge present">Presente</span></div>
-      <div class="mock-row"><span class="name">Carlos Quispe</span><span class="date">Vie 08:00 am</span><span class="badge absent">Faltó</span></div>
-      <div class="mock-credits">
-        <span class="credits-label">🥤 Créditos de Kiosko</span>
-        <span class="credits-num">4</span>
-      </div>
-    </div>
-  </div>
-</section>
 
-<section class="noticias-section" id="noticias">
-  <div class="reveal">
-    <span class="section-tag">// Últimas novedades</span>
-    <h2 class="section-title">Noticias<br><span style="color:var(--gold)">& Avisos</span></h2>
-    <div class="divider"></div>
-    <p class="section-desc">Torneos, logros y comunicados importantes de JR Stars.</p>
-  </div>
-  <div class="noticias-grid reveal">
-    <div class="noticia-featured" id="noticia-featured">
-      <div class="img-placeholder">📢</div>
-      <div class="noticia-featured-body">
-        <span class="noticia-cat">📢 Aviso</span>
-        <div class="noticia-title">Bienvenidos a JR Stars 2026</div>
-        <p class="noticia-desc">Estamos mejorando cada día para ofrecerte la mejor experiencia deportiva en Cajamarca.</p>
-        <div class="noticia-meta"><span>📅 2026</span> · Por el entrenador JR</div>
-      </div>
-    </div>
-    <div class="noticias-list" id="noticias-list">
-      <div class="noticia-item">
-        <div class="noticia-item-icon">⭐</div>
-        <div class="noticia-item-body">
-          <div class="noticia-item-title">Próximamente más noticias...</div>
-          <div class="noticia-item-date">📅 JR Stars 2026</div>
+      <div class="search-wrap">
+        <h1 class="giant-txt">INGRESA DNI DEL ATLETA</h1>
+
+        <div class="input-group">
+          <input type="tel" id="dni-input" class="heavy-input" placeholder="Ej. 76543210" maxlength="8"
+            autocomplete="off">
+          <button id="btn-consultar" class="btn-heavy btn-gold" onclick="consultarDni()">CONSULTAR ESTATUS</button>
         </div>
+
+        <!-- Cisne Negro: DNI no encontrado -->
+        <div id="error-box" class="error-box hidden">
+          <div class="error-title">ATLETA NO REGISTRADO.</div>
+          <p class="error-desc">¿Tu hijo tiene el nivel para estar en el ranking de JR Stars? Las vacantes son
+            limitadas.</p>
+          <a href="https://wa.me/51955515693?text=Hola,%20busco%20una%20prueba%20de%20nivel%20para%20mi%20hijo%20en%20JR%20Stars"
+            target="_blank" class="btn-whatsapp">
+            <span class="icon">💬</span> Postular a la Academia
+          </a>
+        </div>
+
+        <!-- Loader State -->
+        <div id="loader-box" class="loader-box hidden">
+          <div class="spinner"></div>
+          <span>Extrayendo Biometría...</span>
+        </div>
+
       </div>
     </div>
+  </section>
+
+
+  <!-- ==========================================
+     PANEL 2: LA FICHA FUT (ESTATUS)
+     ========================================== -->
+  <section id="panel-2" class="panel-screen hidden">
+    <div class="container panel-2-wrap">
+
+      <!-- Botón Volver Oculto (Solo para UI) -->
+      <button class="btn-back" onclick="volverInicio()">❮ ATRÁS</button>
+
+      <!-- La Ficha -->
+      <div id="ficha-atleta" class="fut-card">
+        <!-- El contenido de la ficha se inyecta por JS (Estado A o Estado B) -->
+      </div>
+
+    </div>
+  </section>
+
+
+  <!-- ==========================================
+     PANEL 3: EL ECOSISTEMA (KIOSKO, RANKING)
+     ========================================== -->
+  <section id="panel-3" class="ecosistema-section hidden">
+    <div class="container">
+
+      <div class="ecosistema-grid">
+
+        <!-- Bloque A: Kiosko JR (Monetización de Fatiga) -->
+        <div class="block-kiosko bg-dark panel-box">
+          <h2 class="box-title">RECUPERACIÓN FÍSICA</h2>
+
+          <div class="fatigue-indicator">
+            <div class="fatigue-label">🔋 Desgaste físico post-entrenamiento: ALTO</div>
+            <div class="fatigue-bar">
+              <div class="fatigue-fill" style="width:25%"></div>
+            </div>
+          </div>
+
+          <div class="credits-box">
+            Saldo Actual: <span class="gold-txt" style="font-size:1.5rem">0 CRÉDITOS</span>
+          </div>
+
+          <p class="kiosko-desc">Asegura su recuperación muscular. Añade créditos para consumos en el kiosko (batidos,
+            rehidratantes).</p>
+
+          <button class="btn-heavy btn-green"
+            onclick="document.getElementById('modal-recarga').classList.add('visible')">⚡ RECARGAR 4 CRÉDITOS
+            (S/20)</button>
+        </div>
+
+        <!-- Bloque B: El Coliseo (Ranking) -->
+        <div class="block-ranking bg-dark panel-box">
+          <h2 class="box-title gold-txt">🏆 TOP 5 DE HIERRO - ESTE MES</h2>
+          <p class="ranking-sub">Alumnos con la mayor racha de disciplina diaria consecuente de la Academia.</p>
+
+          <div class="ranking-list" id="ranking-list">
+            <!-- Renderizado por JS -->
+            <div class="loader-txt">Cargando la élite...</div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Bloque C: Footer (Grasa Administrativa) -->
+    <footer class="footer-minimal">
+      <div class="footer-links">
+        <a href="https://maps.app.goo.gl/..." target="_blank">📍 Cajamarca, Perú</a>
+        <a href="https://facebook.com/..." target="_blank">📘 Facebook</a>
+        <a href="https://instagram.com/..." target="_blank">📸 Instagram</a>
+      </div>
+      <div class="footer-copy">JR Stars Academia © 2026. <a href="tel:+51955515693">📞 +51 955515693</a>
+        <br><a href="/admin/login" style="color:#555">Panel</a>
+      </div>
+    </footer>
+  </section>
+
+  <!-- Modal: Yape Recarga -->
+  <div id="modal-recarga" class="modal-overlay">
+    <div class="modal-card bg-dark text-center">
+      <button class="close-modal"
+        onclick="document.getElementById('modal-recarga').classList.remove('visible')">✕</button>
+      <h3 class="modal-title">RECUPERACIÓN ASEGURADA</h3>
+      <p style="color:var(--gray);font-family:var(--font-barlow);font-size:0.9rem;margin-bottom:1rem">
+        Escanea el QR para transferir S/20 vía Yape o Plin.
+      </p>
+      <div class="qr-yape">
+        <!-- Un placeholder del QR de Yape de la academia -->
+        <img
+          src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=YAPE_51955515693&color=111111&bgcolor=00ff88"
+          alt="Yape" style="width:150px;border-radius:10px;border:4px solid #00ff88">
+      </div>
+      <p style="color:white;font-family:var(--font-bebas);font-size:1.5rem;letter-spacing:1px;margin:1rem 0">
+        YAPE AL: 955 515 693
+      </p>
+      <a href="https://wa.me/51955515693?text=Hola,%20acabo%20de%20yapear%20S/20%20para%20los%20créditos%20de%20mi%20hijo."
+        target="_blank" class="btn-whatsapp">
+        📲 Enviar Captura por WhatsApp
+      </a>
+    </div>
   </div>
-</section>
 
-<div class="galeria-section">
-  <div class="galeria-inner">
-    <div class="reveal">
-      <span class="section-tag">// Momentos JR Stars</span>
-      <h2 class="section-title">Galería<br><span style="color:var(--gold)">de Fotos</span></h2>
-      <div class="divider"></div>
-      <p class="section-desc">Cada entrenamiento, cada logro, cada momento memorable de nuestra academia.</p>
-    </div>
-    <div class="galeria-grid reveal" id="galeria-grid">
-      <div class="galeria-item wide"><div class="galeria-placeholder">🏋️<span>Entrenamiento</span></div><div class="galeria-overlay"><span class="galeria-overlay-text">Sesión grupal</span></div></div>
-      <div class="galeria-item"><div class="galeria-placeholder">🏆<span>Torneo</span></div><div class="galeria-overlay"><span class="galeria-overlay-text">Clasificatorio</span></div></div>
-      <div class="galeria-item"><div class="galeria-placeholder">⭐<span>Logro</span></div><div class="galeria-overlay"><span class="galeria-overlay-text">Atleta del mes</span></div></div>
-      <div class="galeria-item"><div class="galeria-placeholder">🥤<span>Kiosko</span></div><div class="galeria-overlay"><span class="galeria-overlay-text">Post-entreno</span></div></div>
-      <div class="galeria-item"><div class="galeria-placeholder">💪<span>Fuerza</span></div><div class="galeria-overlay"><span class="galeria-overlay-text">Circuito</span></div></div>
-      <div class="galeria-item wide"><div class="galeria-placeholder">🎯<span>Competencia</span></div><div class="galeria-overlay"><span class="galeria-overlay-text">Copa Cajamarca</span></div></div>
-    </div>
-  </div>
-</div>
-
-<div class="batidos-section">
-  <div class="batidos-inner" id="kiosko">
-    <div class="reveal">
-      <span class="section-tag">// Nutrición post-entreno</span>
-      <h2 class="section-title">El<br><span style="color:var(--gold)">Kiosko</span></h2>
-      <div class="divider"></div>
-      <p class="section-desc">Recarga créditos por Yape o Plin y tu hijo los canjea al salir del entrenamiento.</p>
-      <br>
-      <a href="/kiosko" class="btn-secondary" style="display:inline-block;margin-top:1rem;">Ver menú completo</a>
-    </div>
-    <div class="batido-cards reveal">
-      <div class="batido-card"><div class="b-icon">🍓</div><div class="b-name">Fresa</div><div class="b-credits">1 crédito</div></div>
-      <div class="batido-card"><div class="b-icon">🍌</div><div class="b-name">Plátano</div><div class="b-credits">1 crédito</div></div>
-      <div class="batido-card"><div class="b-icon">💪</div><div class="b-name">Proteína</div><div class="b-credits">2 créditos</div></div>
-      <div class="batido-card"><div class="b-icon">🌿</div><div class="b-name">Verde</div><div class="b-credits">1 crédito</div></div>
-    </div>
-  </div>
-</div>
-
-<div class="cta-section">
-  <h2>¿Listo para<br>ver la asistencia?</h2>
-  <p>Consulta el historial de tu hijo en segundos</p>
-  <a href="/dashboard" class="btn-primary">Entrar al dashboard</a>
-</div>
-
-<footer>
-  <div class="footer-logo">JR <span>STARS</span></div>
-  <p>Academia Deportiva · Cajamarca, Perú</p>
-</footer>
-
-<script src="/static/home/home.js"></script>
+  <script src="/static/home/home.js"></script>
 </body>
+
 </html>
