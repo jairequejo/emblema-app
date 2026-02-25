@@ -1328,16 +1328,20 @@
           <span class="racha-tag">// RACHA ACTIVA DE DISCIPLINA</span>
           <div class="racha-num"><span class="fire">🔥</span> ${d.racha} SESIONES</div>
         </div>
+        ${(d.talla_actual || d.peso_actual) ? `
         <div class="bio-row">
           <div class="bio-cell">
-            <div class="bio-val">${d.talla_actual}<span class="bio-delta">${d.delta_talla || ''}</span></div>
+            <div class="bio-val">${d.talla_actual || '\u2014'}<span class="bio-delta">${d.delta_talla || ''}</span></div>
             <div class="bio-label">Estatura</div>
           </div>
           <div class="bio-cell">
-            <div class="bio-val">${d.peso_actual}</div>
+            <div class="bio-val">${d.peso_actual || '\u2014'}</div>
             <div class="bio-label">Peso corporal</div>
           </div>
-        </div>
+        </div>` : `
+        <div style="padding:.9rem 1.2rem;border-bottom:1px solid var(--border);font-family:var(--ff-c);font-size:.82rem;color:var(--gray);text-align:center">
+          📏 Sin mediciones físicas registradas aún
+        </div>`}
         ${histSection}
         <div class="radar-blk">
           <div class="radar-hex"></div>

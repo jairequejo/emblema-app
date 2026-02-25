@@ -109,22 +109,24 @@ def leaderboard_mes():
 # ── BIOMETRÍA ADMIN ────────────────────────────────────────────────────────
 
 @app.post("/admin/biometria")
-def registrar_biometria(payload: dict, token: str = None):
+def registrar_biometria(payload: dict = __import__('fastapi').Body(...)):
     """Registra medición mensual de un atleta."""
     from fastapi import HTTPException
-    from routers.admin import get_current_admin
-    # payload: { student_id, fecha, talla, peso }
     student_id = payload.get("student_id")
-    fecha      = payload.get("fecha")     # "Feb 2026"
-    talla      = payload.get("talla")     # numeric, e.g. 1.45
-    peso       = payload.get("peso")      # int, e.g. 38
+    fecha      = payload.get("fecha")
+    talla      = payload.get("talla")
+    peso       = payload.get("peso")
 
     if not all([student_id, fecha]):
-        raise HTTPException(400, "Faltan campos")
+        raise HTTPException(400, "Faltan campos: student_id y fecha son obligatorios")
 
-    data = {"student_id": student_id, "fecha": fecha}
-    if talla is not None: data["talla"] = float(talla)
-    if peso  is not None: data["peso"]  = int(peso)
+    data = {"student_id": student_id, "fecha": str(fecha)}
+    if talla is not None:
+        try: data["talla"] = float(talla)
+        except: pass
+    if peso is not None:
+        try: data["peso"] = int(peso)
+        except: pass
 
     res = supabase.table("biometria").insert(data).execute()
     return res.data[0] if res.data else {}
@@ -250,33 +252,38 @@ def student_public_info(dni: str):
         .eq("student_id", sid).gte("created_at", first_day).execute()
     racha = len(att_res.data) if att_res.data else 0
 
-    # 4. Biometria estimada (sin columnas talla/peso en students)
-    h = abs(hash(sid))
-    talla_cm = round(1.40 + (h % 25) / 100, 2)
-    peso_kg  = 36 + (h % 18)
+    # 4+5. Biometria real desde tabla biometria — sin datos inventados
+    bio_res = supabase.table("biometria") \
+        .select("fecha, talla, peso") \
+        .eq("student_id", sid) \
+        .order("created_at", desc=True).limit(12).execute()
 
-    # 5. Historial biométrico - tabla "biometria" (crea cuando tengas datos reales)
-    historial = []
-    try:
-        bio_res = supabase.table("biometria") \
-            .select("fecha, talla, peso") \
-            .eq("student_id", sid) \
-            .order("fecha", desc=True).limit(4).execute()
-        if bio_res.data:
-            historial = [
-                {"fecha": r["fecha"], "talla": f"{r['talla']}m", "peso": f"{r['peso']}kg"}
-                for r in bio_res.data
-            ]
-    except Exception:
-        pass
+    historial     = []
+    talla_actual  = None
+    peso_actual   = None
+    delta_talla   = None
 
-    # Fallback: 2 meses estimados si no hay datos reales
-    if not historial:
-        meses = ["Feb 2026", "Ene 2026"]
-        for i, mes in enumerate(meses):
-            t = round(talla_cm - i * 0.02, 2)
-            p = peso_kg - i
-            historial.append({"fecha": mes, "talla": f"{t}m", "peso": f"{p}kg"})
+    if bio_res.data:
+        # La más reciente es el primer registro
+        ultimo = bio_res.data[0]
+        talla_actual = f"{ultimo['talla']}m" if ultimo.get("talla") is not None else None
+        peso_actual  = f"{ultimo['peso']}kg" if ultimo.get("peso")  is not None else None
+
+        # Delta talla: diferencia entre el último y el anterior
+        if len(bio_res.data) >= 2:
+            anterior = bio_res.data[1]
+            if ultimo.get("talla") and anterior.get("talla"):
+                diff = round(float(ultimo["talla"]) - float(anterior["talla"]), 2)
+                delta_talla = f"+{int(diff*100)}cm" if diff >= 0 else f"{int(diff*100)}cm"
+
+        historial = [
+            {
+                "fecha": r["fecha"],
+                "talla": f"{r['talla']}m" if r.get("talla") is not None else "—",
+                "peso":  f"{r['peso']}kg"  if r.get("peso")  is not None else "—",
+            }
+            for r in bio_res.data
+        ]
 
     horario   = student.get("horario") or "LMV"
     sede      = student.get("sede") or ""
@@ -288,9 +295,9 @@ def student_public_info(dni: str):
         "img_url":    None,
         "debe":       debe,
         "racha":      racha,
-        "talla_actual":  f"{talla_cm}m",
-        "delta_talla":   "+2cm",
-        "peso_actual":   f"{peso_kg}kg",
+        "talla_actual":  talla_actual,
+        "delta_talla":   delta_talla,
+        "peso_actual":   peso_actual,
         "historial_biometrico": historial,
     }
 
