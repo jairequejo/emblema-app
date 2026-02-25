@@ -5,16 +5,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
   <title>JR Stars | Portal del Atleta</title>
-  <meta name="description"
-    content="Consulta el estatus y evolución física de tu atleta en JR Stars Academia Deportiva, Cajamarca.">
+  <meta name="description" content="Consulta el estatus de tu atleta en JR Stars Academia Deportiva, Cajamarca.">
+  <link rel="icon" href="/static/img/logo.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
+
   <link
     href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap"
     rel="stylesheet">
   <style>
-    /* ═══════════════════════════════════════════
-   RESET & TOKENS
-═══════════════════════════════════════════ */
     *,
     *::before,
     *::after {
@@ -25,8 +23,7 @@
     }
 
     html {
-      scroll-behavior: smooth;
-      font-size: 16px
+      scroll-behavior: smooth
     }
 
     :root {
@@ -73,7 +70,7 @@
       display: none !important
     }
 
-    /* ── TOPBAR ── */
+    /* TOPBAR */
     .topbar {
       display: flex;
       align-items: center;
@@ -94,7 +91,8 @@
       border-radius: 50%;
       border: 2px solid var(--gold);
       overflow: hidden;
-      flex-shrink: 0
+      flex-shrink: 0;
+      background: var(--dark)
     }
 
     .tl img {
@@ -107,28 +105,29 @@
     .tn {
       font-family: var(--ff-h);
       font-size: 1.8rem;
-      letter-spacing: .1em
+      letter-spacing: .1em;
+      color: var(--white)
     }
 
     .tn span {
       color: var(--gold)
     }
 
-    /* ═══ PANEL 1 — HERO / BÚSQUEDA ═══ */
+    /* PANEL 1 — BÚSQUEDA */
     #p1 {
       min-height: calc(100dvh - 50px);
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 3rem 1.5rem 4rem;
+      padding: 2.5rem 1.5rem 4rem;
       text-align: center;
       gap: 1.4rem
     }
 
     .hero-logo {
-      width: 110px;
-      height: 110px;
+      width: 120px;
+      height: 120px;
       object-fit: contain;
       filter: drop-shadow(0 0 18px rgba(204, 22, 22, .5));
       animation: float 4s ease-in-out infinite
@@ -172,10 +171,9 @@
       color: var(--gray)
     }
 
-    /* Input + Botón */
     .sbox {
       width: 100%;
-      max-width: 420px;
+      max-width: 400px;
       display: flex;
       flex-direction: column;
       gap: .85rem
@@ -197,45 +195,29 @@
     }
 
     .dni-in:focus {
-      border-color: var(--gold);
       box-shadow: 0 4px 20px rgba(212, 160, 23, .14)
     }
 
     .dni-in::placeholder {
       color: var(--gray2);
-      font-size: 1.3rem;
+      font-size: 1.2rem;
       letter-spacing: 3px
     }
 
     .btn-cta {
       font-family: var(--ff-c);
       font-weight: 800;
-      font-size: 1.35rem;
+      font-size: 1.3rem;
       letter-spacing: .14em;
       text-transform: uppercase;
-      background: linear-gradient(135deg, var(--red) 0%, #7a0000 100%);
+      background: linear-gradient(135deg, var(--red), #7a0000);
       color: var(--white);
       border: none;
       cursor: pointer;
       padding: .95rem;
       width: 100%;
       clip-path: var(--clip);
-      transition: filter .2s, transform .15s;
-      position: relative;
-      overflow: hidden
-    }
-
-    .btn-cta::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(135deg, rgba(212, 160, 23, .12), transparent);
-      opacity: 0;
-      transition: opacity .2s
-    }
-
-    .btn-cta:hover::before {
-      opacity: 1
+      transition: filter .2s, transform .15s
     }
 
     .btn-cta:hover {
@@ -254,8 +236,7 @@
       gap: .8rem;
       font-family: var(--ff-c);
       letter-spacing: .18em;
-      color: var(--gray);
-      font-size: .95rem
+      color: var(--gray)
     }
 
     .sp {
@@ -274,13 +255,13 @@
       }
     }
 
-    /* Error / Cisne Negro */
+    /* Cisne Negro */
     .err-card {
       width: 100%;
-      max-width: 420px;
+      max-width: 400px;
       background: var(--red-gl);
       border: 1px solid rgba(204, 22, 22, .5);
-      padding: 1.5rem;
+      padding: 1.4rem;
       animation: shake .4s
     }
 
@@ -290,21 +271,21 @@
       letter-spacing: .35em;
       text-transform: uppercase;
       color: var(--red);
-      margin-bottom: .4rem
+      margin-bottom: .3rem
     }
 
     .err-h {
       font-family: var(--ff-h);
-      font-size: clamp(1.9rem, 6vw, 3rem);
+      font-size: clamp(1.9rem, 6vw, 2.8rem);
       line-height: .93;
       margin-bottom: .6rem
     }
 
     .err-p {
-      font-size: .88rem;
+      font-size: .87rem;
       color: #ccc;
       line-height: 1.5;
-      margin-bottom: 1.3rem
+      margin-bottom: 1.2rem
     }
 
     @keyframes shake {
@@ -331,7 +312,7 @@
       justify-content: center;
       gap: .5rem;
       width: 100%;
-      padding: .9rem;
+      padding: .88rem;
       background: var(--green);
       color: #000;
       font-family: var(--ff-c);
@@ -348,10 +329,10 @@
       filter: brightness(1.08)
     }
 
-    /* ═══ PANEL 2 — FICHA FUT ═══ */
+    /* PANEL 2 — FICHA FUT */
     #p2 {
       padding: 0 1.2rem 2rem;
-      max-width: 560px;
+      max-width: 540px;
       margin: 0 auto;
       width: 100%
     }
@@ -377,7 +358,7 @@
       color: var(--white)
     }
 
-    /* FUT Card — Glassmorphism */
+    /* Glassmorphism card */
     .fut-card {
       border-radius: 3px;
       overflow: hidden;
@@ -407,9 +388,8 @@
       background: linear-gradient(90deg, var(--red), var(--gold))
     }
 
-    /* Estado AL DÍA */
     .fut-card.ok {
-      box-shadow: 0 0 0 1px rgba(212, 160, 23, .45), 0 16px 40px rgba(212, 160, 23, .12), 0 4px 12px rgba(0, 0, 0, .5)
+      box-shadow: 0 0 0 1px rgba(212, 160, 23, .45), 0 16px 40px rgba(212, 160, 23, .12)
     }
 
     .fut-card.ok .card-stripe {
@@ -437,8 +417,8 @@
     }
 
     .avatar {
-      width: 70px;
-      height: 70px;
+      width: 68px;
+      height: 68px;
       border-radius: 50%;
       border: 2.5px solid var(--gold);
       background: var(--dark);
@@ -468,7 +448,7 @@
 
     .c-cat {
       font-family: var(--ff-c);
-      font-size: .76rem;
+      font-size: .75rem;
       letter-spacing: .22em;
       text-transform: uppercase;
       color: var(--gray);
@@ -544,9 +524,9 @@
       margin-top: .2rem
     }
 
-    /* Historial Biométrico */
+    /* Historial biométrico */
     .bio-hist {
-      padding: 1rem 1.2rem;
+      padding: .95rem 1.2rem;
       border-bottom: 1px solid var(--border)
     }
 
@@ -556,7 +536,7 @@
       letter-spacing: .3em;
       text-transform: uppercase;
       color: var(--gold);
-      margin-bottom: .7rem
+      margin-bottom: .65rem
     }
 
     .hist-table {
@@ -570,7 +550,7 @@
       letter-spacing: .15em;
       text-transform: uppercase;
       color: var(--gray);
-      padding: .35rem .5rem;
+      padding: .3rem .5rem;
       text-align: left;
       border-bottom: 1px solid var(--border)
     }
@@ -579,7 +559,7 @@
       font-family: var(--ff-c);
       font-size: .9rem;
       font-weight: 600;
-      padding: .4rem .5rem;
+      padding: .38rem .5rem;
       border-bottom: 1px solid rgba(255, 255, 255, .04);
       color: var(--white)
     }
@@ -593,9 +573,9 @@
       font-size: .82rem
     }
 
-    /* Radar futuro */
+    /* Radar próximamente */
     .radar-blk {
-      padding: 1.1rem 1.2rem;
+      padding: 1rem 1.2rem;
       border-bottom: 1px solid var(--border);
       background: rgba(0, 0, 0, .22);
       display: flex;
@@ -604,17 +584,17 @@
     }
 
     .radar-hex {
-      width: 46px;
-      height: 46px;
+      width: 44px;
+      height: 44px;
       flex-shrink: 0;
-      opacity: .28;
+      opacity: .25;
       background: conic-gradient(from 0deg, var(--gray2), var(--gray) 60deg, var(--gray2));
       clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)
     }
 
     .radar-txt {
       font-family: var(--ff-c);
-      font-size: .84rem;
+      font-size: .83rem;
       color: var(--gray);
       line-height: 1.4
     }
@@ -623,12 +603,11 @@
       color: var(--neon);
       font-size: .76rem;
       display: block;
-      margin-bottom: .15rem;
-      font-family: var(--ff-c);
+      margin-bottom: .1rem;
       letter-spacing: .2em
     }
 
-    /* Botón presumir */
+    /* Presumir */
     .btn-presumir {
       display: block;
       width: 100%;
@@ -644,10 +623,10 @@
     }
 
     .btn-presumir:hover {
-      filter: brightness(1.1)
+      filter: brightness(1.08)
     }
 
-    /* Estado DEUDA */
+    /* DEUDA */
     .fut-card.deuda {
       border-color: rgba(204, 22, 22, .4)
     }
@@ -658,7 +637,7 @@
     }
 
     .deuda-overlay {
-      padding: 2rem 1.2rem;
+      padding: 1.8rem 1.2rem;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -696,7 +675,7 @@
     .btn-pagar {
       font-family: var(--ff-c);
       font-weight: 800;
-      font-size: 1.15rem;
+      font-size: 1.1rem;
       letter-spacing: .1em;
       text-transform: uppercase;
       background: linear-gradient(135deg, var(--red), #6b0000);
@@ -715,9 +694,9 @@
       filter: brightness(1.15)
     }
 
-    /* ═══ PANEL 3 — ECOSISTEMA ═══ */
+    /* PANEL 3 — ECOSISTEMA */
     #p3 {
-      max-width: 560px;
+      max-width: 540px;
       margin: 0 auto;
       padding: 0 1.2rem 5rem
     }
@@ -766,7 +745,7 @@
       font-size: .8rem;
       letter-spacing: .1em;
       color: #e67e22;
-      margin-bottom: .5rem;
+      margin-bottom: .45rem;
       display: flex;
       justify-content: space-between
     }
@@ -840,8 +819,8 @@
       border: none;
       cursor: pointer;
       clip-path: var(--clip);
-      text-decoration: none;
       text-align: center;
+      text-decoration: none;
       transition: filter .2s
     }
 
@@ -1042,7 +1021,7 @@
       margin-bottom: 1.1rem
     }
 
-    /* ── RESPONSIVE DESKTOP ── */
+    /* RESPONSIVE */
     @media(min-width:600px) {
       #p1 {
         padding: 4rem 2rem 5rem
@@ -1054,7 +1033,7 @@
       }
 
       .hero-h {
-        font-size: 5.5rem
+        font-size: 5rem
       }
     }
 
@@ -1063,7 +1042,7 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 2rem;
-        max-width: 840px;
+        max-width: 860px;
         align-items: start
       }
 
@@ -1096,8 +1075,12 @@
         height: 180px
       }
 
+      #p1 .sbox {
+        max-width: 400px
+      }
+
       .hero-h {
-        font-size: 6rem
+        font-size: 5.5rem
       }
 
       .divider-rg,
@@ -1112,13 +1095,18 @@
 
   <!-- TOPBAR -->
   <header class="topbar">
-    <div class="tl"><img src="/static/img/logo.png" alt="JR Stars" onerror="this.parentElement.textContent='⭐'"></div>
+    <div class="tl">
+      <!-- Logo en frontend/logo.png → sirve como /static/img/logo.png -->
+      <img src="/static/img/logo.png" alt="JR Stars"
+        onerror="this.style.display='none';this.parentElement.textContent='⭐'">
+    </div>
     <div class="tn">JR <span>STARS</span></div>
   </header>
 
-  <!-- ═══ P1 — BÚSQUEDA POR DNI ═══ -->
+  <!-- PANEL 1: BÚSQUEDA -->
   <section id="p1">
     <img src="/static/img/logo.png" alt="JR Stars" class="hero-logo" onerror="this.style.display='none'">
+
     <div class="divider-rg"></div>
     <h1 class="hero-h">INGRESA DNI<br><span>DEL ATLETA</span></h1>
     <p class="hero-sub">// Academia JR Stars · Cajamarca</p>
@@ -1128,28 +1116,27 @@
         autocomplete="off">
       <button id="btnC" class="btn-cta" onclick="buscar()">⚽ CONSULTAR ESTATUS</button>
       <div id="ld" class="ld-row hidden">
-        <div class="sp"></div><span>Extrayendo biometría...</span>
+        <div class="sp"></div><span>Extrayendo datos...</span>
       </div>
       <div id="err" class="err-card hidden">
         <div class="err-tag">// resultado</div>
         <div class="err-h">ATLETA NO<br>REGISTRADO.</div>
-        <p class="err-p">¿Tu hijo tiene el nivel para estar en el ranking de JR Stars? Las vacantes son limitadas.</p>
+        <p class="err-p">¿Tu hijo tiene el nivel para el ranking de JR Stars? Las vacantes son limitadas.</p>
         <a href="https://wa.me/51955515693?text=Hola,%20busco%20una%20prueba%20de%20nivel%20para%20mi%20hijo%20en%20JR%20Stars"
           target="_blank" class="btn-wa">💬 POSTULAR A LA ACADEMIA</a>
       </div>
     </div>
   </section>
 
-  <!-- ═══ P2 — FICHA FUT ═══ -->
+  <!-- PANEL 2: FICHA FUT -->
   <section id="p2" class="hidden">
     <button class="back-btn" onclick="volver()">← NUEVA CONSULTA</button>
     <div id="card-wrap"></div>
   </section>
 
-  <!-- ═══ P3 — ECOSISTEMA ═══ -->
+  <!-- PANEL 3: ECOSISTEMA -->
   <section id="p3" class="hidden">
 
-    <!-- KIOSKO -->
     <div class="eco-sec">
       <span class="eco-tag">// Nutrición post-entreno</span>
       <h2 class="eco-h">KIOSKO <span>JR</span></h2>
@@ -1163,8 +1150,7 @@
         <div class="k-body">
           <span class="k-lbl">Saldo actual</span>
           <div class="k-bal">0 CRÉDITOS</div>
-          <p class="k-desc">Desgaste físico detectado tras las últimas sesiones. Asegura la recuperación muscular
-            post-entrenamiento.</p>
+          <p class="k-desc">Desgaste físico detectado tras las últimas sesiones. Asegura la recuperación muscular.</p>
           <button class="btn-rec" onclick="document.getElementById('modal-yape').classList.add('open')">
             ⚡ RECARGAR 4 CRÉDITOS (S/20)
           </button>
@@ -1172,14 +1158,13 @@
       </div>
     </div>
 
-    <!-- COLISEO -->
     <div class="eco-sec">
       <span class="eco-tag">// Élite de disciplina</span>
       <h2 class="eco-h">TOP 5 <span>DE HIERRO</span></h2>
       <div class="rk-card">
         <div class="rk-head">
           <div class="rk-title">🏆 ESTE MES</div>
-          <div class="rk-sub">Atletas con la mayor racha activa de asistencia</div>
+          <div class="rk-sub">Atletas con mayor racha activa de asistencia</div>
         </div>
         <div id="ranking"></div>
       </div>
@@ -1204,32 +1189,26 @@
       <button class="m-close" onclick="document.getElementById('modal-yape').classList.remove('open')">✕</button>
       <div class="m-title">YAPE / PLIN</div>
       <p class="m-sub">Escanea el QR y envía tu comprobante por WhatsApp.</p>
-      <img
-        src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=YAPE_955515693&color=0a0a0a&bgcolor=D4A017"
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=955515693&color=0a0a0a&bgcolor=D4A017"
         alt="QR Yape" class="m-qr">
       <div class="m-num">955 515 693</div>
-      <a href="https://wa.me/51955515693?text=Hola,%20yapé%20S/20%20para%20créditos%20de%20kiosko%20de%20mi%20hijo."
+      <a href="https://wa.me/51955515693?text=Yapé%20S/20%20para%20créditos%20de%20kiosko%20de%20mi%20hijo."
         target="_blank" class="btn-wa">📲 ENVIAR COMPROBANTE</a>
     </div>
   </div>
 
   <script>
-    /* ─── SHORTCUTS ─── */
     const $ = id => document.getElementById(id);
     const p1 = $('p1'), p2 = $('p2'), p3 = $('p3');
 
-    /* ─── INIT ─── */
     document.addEventListener('DOMContentLoaded', loadRanking);
     $('dni').addEventListener('keypress', e => { if (e.key === 'Enter') buscar(); });
 
-    /* ─── BUSCAR DNI ─── */
+    /* ── CONSULTAR DNI ── */
     async function buscar() {
       const dni = $('dni').value.trim();
       const btn = $('btnC');
-      const ld = $('ld');
-      const err = $('err');
-
-      err.classList.add('hidden');
+      $('err').classList.add('hidden');
 
       if (!/^\d{8}$/.test(dni)) {
         $('dni').style.borderBottomColor = 'var(--red)';
@@ -1238,22 +1217,23 @@
       }
 
       btn.disabled = true;
-      ld.classList.remove('hidden');
+      $('ld').classList.remove('hidden');
 
       try {
         const res = await fetch(`/public/student/${dni}/info`);
 
         if (res.status === 404) {
-          ld.classList.add('hidden');
+          $('ld').classList.add('hidden');
           btn.disabled = false;
-          err.classList.remove('hidden');
+          $('err').classList.remove('hidden');
+          $('err').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           return;
         }
 
         if (!res.ok) throw new Error('server');
 
         const data = await res.json();
-        ld.classList.add('hidden');
+        $('ld').classList.add('hidden');
         btn.disabled = false;
 
         setTimeout(() => {
@@ -1263,16 +1243,16 @@
           p3.classList.remove('hidden');
           $('dni').value = '';
           window.scrollTo({ top: 0, behavior: 'smooth' });
-        }, 300);
+        }, 250);
 
       } catch {
-        ld.classList.add('hidden');
+        $('ld').classList.add('hidden');
         btn.disabled = false;
         alert('Error de conexión. Verifica tu internet.');
       }
     }
 
-    /* ─── VOLVER ─── */
+    /* ── VOLVER ── */
     function volver() {
       p2.classList.add('hidden');
       p3.classList.add('hidden');
@@ -1280,15 +1260,14 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    /* ─── RENDER FICHA FUT ─── */
+    /* ── RENDER FICHA ── */
     function renderCard(d) {
       const wrap = $('card-wrap');
       const av = d.img_url
         ? `<img src="${d.img_url}" alt="${d.full_name}">`
-        : `<span>${d.full_name.charAt(0)}</span>`;
+        : `<span>${d.full_name.charAt(0).toUpperCase()}</span>`;
 
       if (d.debe) {
-        // ─── ESTADO A: DEUDA ───
         wrap.innerHTML = `
       <div class="fut-card deuda">
         <div class="card-stripe"></div>
@@ -1303,18 +1282,22 @@
           <div class="lock-ico">🔒</div>
           <div class="deuda-h">ESTATUS OCULTO</div>
           <div class="deuda-sub">MENSUALIDAD PENDIENTE</div>
-          <p class="deuda-desc">El historial de <strong>${d.full_name.split(' ')[0]}</strong> está bloqueado. Regulariza el pago para desbloquear.</p>
-          <button class="btn-pagar" onclick="document.getElementById('modal-yape').classList.add('open')">
+          <p class="deuda-desc">
+            El historial de <strong>${d.full_name.split(' ')[0]}</strong>
+            está bloqueado. Regulariza el pago para ver tus métricas.
+          </p>
+          <button class="btn-pagar"
+                  onclick="document.getElementById('modal-yape').classList.add('open')">
             PAGAR S/80 VÍA YAPE / PLIN
           </button>
         </div>
       </div>`;
       } else {
-        // ─── ESTADO B: AL DÍA ───
-        const waMsg = encodeURIComponent(`¡Mi hijo/a ${d.full_name} tiene ${d.racha} sesiones consecutivas en JR Stars Academia! 🔥🏆\nhttps://emblema-app.up.railway.app`);
-        const waLink = `https://wa.me/?text=${waMsg}`;
+        const waMsg = encodeURIComponent(
+          `¡Mi hijo/a ${d.full_name} tiene ${d.racha} sesiones en JR Stars! 🔥🏆\n` +
+          `Consulta el tuyo → https://emblema-app.up.railway.app`
+        );
 
-        // Historial biométrico
         const histRows = (d.historial_biometrico || []).map(h => `
       <tr>
         <td class="fecha">${h.fecha}</td>
@@ -1343,7 +1326,7 @@
         </div>
         <div class="racha-blk">
           <span class="racha-tag">// RACHA ACTIVA DE DISCIPLINA</span>
-          <div class="racha-num"><span class="fire">🔥</span> ${d.racha}<br>SESIONES</div>
+          <div class="racha-num"><span class="fire">🔥</span> ${d.racha} SESIONES</div>
         </div>
         <div class="bio-row">
           <div class="bio-cell">
@@ -1360,15 +1343,17 @@
           <div class="radar-hex"></div>
           <div class="radar-txt">
             <strong>PRÓXIMAMENTE</strong>
-            Medición de Velocidad · Potencia · Resistencia.
+            Velocidad · Potencia · Resistencia.
           </div>
         </div>
-        <a href="${waLink}" target="_blank" class="btn-presumir">📲 PRESUMIR ESTATUS</a>
+        <a href="https://wa.me/?text=${waMsg}" target="_blank" class="btn-presumir">
+          📲 PRESUMIR ESTATUS
+        </a>
       </div>`;
       }
     }
 
-    /* ─── RANKING ─── */
+    /* ── RANKING ── */
     async function loadRanking() {
       const el = $('ranking');
       try {

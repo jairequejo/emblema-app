@@ -130,9 +130,9 @@ def student_public_info(dni: str):
     from datetime import datetime
     from fastapi import HTTPException
 
-    # 1. Buscar atleta activo por DNI
+    # 1. Buscar atleta activo — solo columnas que existen en students
     res = supabase.table("students") \
-        .select("id, full_name, valid_until, img_url, category, talla, peso") \
+        .select("id, full_name, valid_until, horario, sede, batido_credits") \
         .eq("dni", dni).eq("is_active", True).execute()
 
     if not res.data:
@@ -156,14 +156,10 @@ def student_public_info(dni: str):
         .eq("student_id", sid).gte("created_at", first_day).execute()
     racha = len(att_res.data) if att_res.data else 0
 
-    # 4. Biometria actual
+    # 4. Biometria estimada (sin columnas talla/peso en students)
     h = abs(hash(sid))
-    talla_raw = student.get("talla")
-    peso_raw  = student.get("peso")
-    talla_cm  = float(talla_raw) if talla_raw else round(1.40 + (h % 25) / 100, 2)
-    peso_kg   = int(peso_raw)   if peso_raw  else 36 + (h % 18)
-    talla_str = f"{talla_cm}m"
-    peso_str  = f"{peso_kg}kg"
+    talla_cm = round(1.40 + (h % 25) / 100, 2)
+    peso_kg  = 36 + (h % 18)
 
     # 5. Historial biométrico - tabla "biometria" (crea cuando tengas datos reales)
     historial = []
@@ -188,15 +184,19 @@ def student_public_info(dni: str):
             p = peso_kg - i
             historial.append({"fecha": mes, "talla": f"{t}m", "peso": f"{p}kg"})
 
+    horario   = student.get("horario") or "LMV"
+    sede      = student.get("sede") or ""
+    categoria = f"Sede {sede}" if sede else f"Entreno {horario}"
+
     return {
         "full_name":  student["full_name"],
-        "category":   student.get("category") or "Categoria Base",
-        "img_url":    student.get("img_url"),
+        "category":   categoria,
+        "img_url":    None,
         "debe":       debe,
         "racha":      racha,
-        "talla_actual":  talla_str,
+        "talla_actual":  f"{talla_cm}m",
         "delta_talla":   "+2cm",
-        "peso_actual":   peso_str,
+        "peso_actual":   f"{peso_kg}kg",
         "historial_biometrico": historial,
     }
 

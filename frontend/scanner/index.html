@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -9,58 +10,63 @@
     <link rel="stylesheet" href="/static/scanner/style.css">
     <link rel="icon" href="/static/favicon-scanner.ico" type="image/x-icon">
 </head>
+
 <body>
 
-<div id="flash-bg"></div>
+    <div id="flash-bg"></div>
 
-<div class="kiosko-layout">
+    <div class="kiosko-layout">
 
-    <div class="left-panel">
-        <div class="brand">
-            <div class="brand-logo">JR★</div>
-            <div class="brand-name">STARS</div>
-            <div class="brand-sub">Academia</div>
+        <div class="left-panel">
+            <div class="brand">
+                <img src="/static/img/logo.png" alt="JR Stars"
+                    style="width:60px;height:60px;object-fit:contain;filter:drop-shadow(0 0 8px rgba(212,160,23,.5))"
+                    onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+                <div class="brand-logo" style="display:none">JR★</div>
+                <div class="brand-name">STARS</div>
+                <div class="brand-sub">Academia</div>
+            </div>
+            <div class="brand-divider"></div>
+            <div class="clock" id="clock">00:00</div>
+            <div class="date" id="date-display"></div>
+            <div class="brand-divider"></div>
+            <div class="status-idle" id="status-text">Acerca tu medallón</div>
+            <div class="nfc-indicator" id="nfc-indicator">
+                <div class="nfc-icon">📡</div>
+                <span class="nfc-label">NFC Activo</span>
+            </div>
         </div>
-        <div class="brand-divider"></div>
-        <div class="clock" id="clock">00:00</div>
-        <div class="date" id="date-display"></div>
-        <div class="brand-divider"></div>
-        <div class="status-idle" id="status-text">Acerca tu medallón</div>
-        <div class="nfc-indicator" id="nfc-indicator">
-            <div class="nfc-icon">📡</div>
-            <span class="nfc-label">NFC Activo</span>
+
+        <div class="right-panel" id="right-panel">
+
+            <div class="start-screen" id="start-screen">
+                <div class="start-icon">📷</div>
+                <div class="start-title">TOCA PARA ACTIVAR</div>
+                <div class="start-sub">Se necesita permiso de cámara</div>
+            </div>
+
+            <div class="scanner-frame" id="scanner-frame" style="display:none">
+                <div class="corner tl"></div>
+                <div class="corner tr"></div>
+                <div class="corner bl"></div>
+                <div class="corner br"></div>
+                <div id="reader"></div>
+                <div class="scan-line"></div>
+            </div>
+
         </div>
     </div>
 
-    <div class="right-panel" id="right-panel">
-
-        <div class="start-screen" id="start-screen">
-            <div class="start-icon">📷</div>
-            <div class="start-title">TOCA PARA ACTIVAR</div>
-            <div class="start-sub">Se necesita permiso de cámara</div>
-        </div>
-
-        <div class="scanner-frame" id="scanner-frame" style="display:none">
-            <div class="corner tl"></div>
-            <div class="corner tr"></div>
-            <div class="corner bl"></div>
-            <div class="corner br"></div>
-            <div id="reader"></div>
-            <div class="scan-line"></div>
-        </div>
-
+    <div class="result-overlay" id="result-overlay">
+        <div class="result-icon" id="result-icon"></div>
+        <div class="result-name" id="result-name"></div>
+        <div class="result-msg" id="result-msg"></div>
     </div>
-</div>
 
-<div class="result-overlay" id="result-overlay">
-    <div class="result-icon" id="result-icon"></div>
-    <div class="result-name" id="result-name"></div>
-    <div class="result-msg"  id="result-msg"></div>
-</div>
+    <div class="history-strip" id="history-strip"></div>
 
-<div class="history-strip" id="history-strip"></div>
-
-<script src="https://unpkg.com/html5-qrcode"></script>
-<script src="/static/scanner/scanner.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="/static/scanner/scanner.js"></script>
 </body>
+
 </html>
