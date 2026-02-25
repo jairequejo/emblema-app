@@ -2,165 +2,1588 @@
 <html lang="es">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>JR Stars | Vía Negativa</title>
-  <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>JR Stars | Academia Deportiva · Cajamarca</title>
+  <meta name="description" content="Consulta el estatus de tu atleta en JR Stars Academia Deportiva.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link
-    href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;700&display=swap"
-    rel="stylesheet" />
-  <link rel="stylesheet" href="/static/home/home.css">
+    href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap"
+    rel="stylesheet">
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+   RESET & ROOT
+═══════════════════════════════════════════════════════════════ */
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    :root {
+      /* Paleta JR Stars */
+      --black: #0a0a0a;
+      --dark: #111;
+      --card: #181818;
+      --border: rgba(255, 255, 255, 0.07);
+      --red: #CC1616;
+      /* carmesí logo */
+      --red2: #e60000;
+      --red-gl: rgba(204, 22, 22, 0.18);
+      --gold: #D4A017;
+      /* dorado estrella */
+      --gold2: #F5C842;
+      --gold-gl: rgba(212, 160, 23, 0.15);
+      --neon: #ccff00;
+      /* acento neón para énfasis */
+      --green: #25D366;
+      /* WhatsApp */
+      --white: #F0EDE8;
+      --gray: #888;
+      --gray2: #444;
+
+      --ff-display: 'Bebas Neue', sans-serif;
+      --ff-cond: 'Barlow Condensed', sans-serif;
+      --ff-body: 'Barlow', sans-serif;
+
+      --clip: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+      --radius: 2px;
+    }
+
+    body {
+      font-family: var(--ff-body);
+      background: var(--black);
+      color: var(--white);
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* Noise texture */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: .3;
+    }
+
+    /* ── UTILIDADES ── */
+    .hidden {
+      display: none !important;
+    }
+
+    .gold {
+      color: var(--gold);
+    }
+
+    .red {
+      color: var(--red);
+    }
+
+    .neon {
+      color: var(--neon);
+    }
+
+    /* ── LAYOUT PANELES ── */
+    .panel {
+      width: 100%;
+    }
+
+    .panel--hero {
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+   TOPBAR COMPACTO
+═══════════════════════════════════════════════════════════════ */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .7rem;
+      padding: .8rem 1.5rem;
+      background: rgba(10, 10, 10, 0.95);
+      border-bottom: 1px solid var(--border);
+      backdrop-filter: blur(8px);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .topbar-logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid var(--gold);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .topbar-logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .topbar-name {
+      font-family: var(--ff-display);
+      font-size: 1.8rem;
+      letter-spacing: .12em;
+      color: var(--white);
+    }
+
+    .topbar-name span {
+      color: var(--gold);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+   PANEL 1 — BÚSQUEDA (Hero 100vh)
+═══════════════════════════════════════════════════════════════ */
+    #panel-search {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1.5rem 4rem;
+      text-align: center;
+      gap: 1.6rem;
+    }
+
+    .hero-logo {
+      width: 120px;
+      height: 120px;
+      object-fit: contain;
+      filter: drop-shadow(0 0 20px rgba(204, 22, 22, .5));
+      animation: float 4s ease-in-out infinite;
+    }
+
+    @keyframes float {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-8px);
+      }
+    }
+
+    .hero-divider {
+      width: 70px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--red), var(--gold));
+    }
+
+    .hero-head {
+      font-family: var(--ff-display);
+      font-size: clamp(2.6rem, 9vw, 5rem);
+      letter-spacing: .06em;
+      line-height: .95;
+    }
+
+    .hero-head span {
+      color: var(--gold);
+      display: block;
+    }
+
+    .hero-sub {
+      font-family: var(--ff-cond);
+      font-size: .8rem;
+      letter-spacing: .35em;
+      text-transform: uppercase;
+      color: var(--gray);
+    }
+
+    /* Input + Botón */
+    .search-box {
+      width: 100%;
+      max-width: 420px;
+      display: flex;
+      flex-direction: column;
+      gap: .9rem;
+    }
+
+    .dni-input {
+      font-family: var(--ff-display);
+      font-size: 2.2rem;
+      letter-spacing: 8px;
+      text-align: center;
+      background: var(--card);
+      color: var(--white);
+      border: 1px solid var(--border);
+      border-bottom: 3px solid var(--gold);
+      padding: .9rem 1rem;
+      outline: none;
+      width: 100%;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    .dni-input:focus {
+      border-color: var(--gold);
+      box-shadow: 0 4px 24px rgba(212, 160, 23, .15);
+    }
+
+    .dni-input::placeholder {
+      color: var(--gray2);
+      font-size: 1.4rem;
+      letter-spacing: 4px;
+    }
+
+    .btn-consultar {
+      font-family: var(--ff-cond);
+      font-weight: 800;
+      font-size: 1.4rem;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, var(--red) 0%, #8b0000 100%);
+      color: var(--white);
+      border: none;
+      cursor: pointer;
+      padding: 1rem;
+      width: 100%;
+      clip-path: var(--clip);
+      transition: filter .2s, transform .15s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-consultar::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(212, 160, 23, .15), transparent);
+      opacity: 0;
+      transition: opacity .2s;
+    }
+
+    .btn-consultar:hover::before {
+      opacity: 1;
+    }
+
+    .btn-consultar:hover {
+      filter: brightness(1.12);
+    }
+
+    .btn-consultar:active {
+      transform: scale(.98);
+    }
+
+    /* Loader */
+    .loader-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .8rem;
+      font-family: var(--ff-cond);
+      letter-spacing: .2em;
+      color: var(--gray);
+    }
+
+    .spinner {
+      width: 22px;
+      height: 22px;
+      border: 3px solid var(--card);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ── Cisne Negro ─────────────────────────────────────────────── */
+    .error-card {
+      width: 100%;
+      max-width: 420px;
+      background: var(--red-gl);
+      border: 1px solid rgba(204, 22, 22, .5);
+      padding: 1.6rem;
+      animation: shake .4s;
+    }
+
+    .error-tag {
+      font-family: var(--ff-cond);
+      font-size: .7rem;
+      letter-spacing: .35em;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: .4rem;
+    }
+
+    .error-title {
+      font-family: var(--ff-display);
+      font-size: clamp(2rem, 7vw, 3.5rem);
+      line-height: .95;
+      color: var(--white);
+      margin-bottom: .6rem;
+    }
+
+    .error-hook {
+      font-size: .9rem;
+      color: #ccc;
+      line-height: 1.5;
+      margin-bottom: 1.4rem;
+    }
+
+    .btn-wa {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: .6rem;
+      width: 100%;
+      padding: .9rem;
+      background: var(--green);
+      color: #000;
+      font-family: var(--ff-cond);
+      font-weight: 800;
+      font-size: 1.2rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      text-decoration: none;
+      clip-path: var(--clip);
+      transition: filter .2s;
+    }
+
+    .btn-wa:hover {
+      filter: brightness(1.08);
+    }
+
+    @keyframes shake {
+
+      0%,
+      100% {
+        transform: translateX(0);
+      }
+
+      20%,
+      60% {
+        transform: translateX(-6px);
+      }
+
+      40%,
+      80% {
+        transform: translateX(6px);
+      }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+   PANEL 2 — FICHA FUT
+═══════════════════════════════════════════════════════════════ */
+    #panel-ficha {
+      padding: 0 1.2rem 3rem;
+      max-width: 600px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .back-btn {
+      font-family: var(--ff-cond);
+      font-size: .9rem;
+      font-weight: 700;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--gray);
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: .8rem 0;
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      transition: color .15s;
+    }
+
+    .back-btn:hover {
+      color: var(--white);
+    }
+
+    /* La Carta — Glassmorphism */
+    .fut-card {
+      width: 100%;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+      background: rgba(24, 24, 24, 0.75);
+      backdrop-filter: blur(16px) saturate(1.2);
+      -webkit-backdrop-filter: blur(16px) saturate(1.2);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+      animation: cardIn .45s cubic-bezier(.22, 1, .36, 1) forwards;
+    }
+
+    @keyframes cardIn {
+      from {
+        opacity: 0;
+        transform: translateY(24px) scale(.97);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .card-stripe {
+      height: 5px;
+      background: linear-gradient(90deg, var(--red), var(--gold));
+    }
+
+    /* ─── Estado: AL DÍA ──────────────────────────────────────── */
+    .fut-card.al-dia {
+      box-shadow: 0 0 0 1px rgba(212, 160, 23, .4), 0 16px 40px rgba(212, 160, 23, .12), 0 4px 12px rgba(0, 0, 0, .5);
+    }
+
+    .fut-card.al-dia .card-stripe {
+      background: linear-gradient(90deg, var(--gold), var(--gold2), var(--gold));
+      background-size: 200%;
+      animation: shimmer 2.5s linear infinite;
+    }
+
+    @keyframes shimmer {
+      0% {
+        background-position: 0%
+      }
+
+      100% {
+        background-position: 200%
+      }
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 1.1rem;
+      padding: 1.3rem 1.3rem .9rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .athlete-avatar {
+      width: 74px;
+      height: 74px;
+      border-radius: 50%;
+      border: 3px solid var(--gold);
+      background: var(--dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--ff-display);
+      font-size: 2.2rem;
+      color: var(--gold);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .athlete-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .athlete-meta h2 {
+      font-family: var(--ff-display);
+      font-size: clamp(1.6rem, 5vw, 2.4rem);
+      letter-spacing: .04em;
+      color: var(--gold);
+      line-height: 1;
+    }
+
+    .athlete-cat {
+      font-family: var(--ff-cond);
+      font-size: .78rem;
+      letter-spacing: .25em;
+      text-transform: uppercase;
+      color: var(--gray);
+      margin-top: .25rem;
+    }
+
+    /* Racha */
+    .racha-block {
+      padding: 1.4rem 1.3rem;
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .racha-label {
+      font-family: var(--ff-cond);
+      font-size: .7rem;
+      letter-spacing: .35em;
+      text-transform: uppercase;
+      color: var(--gray);
+      display: block;
+      margin-bottom: .4rem;
+    }
+
+    .racha-num {
+      font-family: var(--ff-display);
+      font-size: clamp(2.6rem, 9vw, 4rem);
+      color: var(--white);
+      letter-spacing: .04em;
+      text-shadow: 0 0 20px rgba(255, 87, 34, .4);
+    }
+
+    .racha-num .fire {
+      color: #ff5722;
+    }
+
+    /* Bio */
+    .bio-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .bio-cell {
+      padding: 1rem 1.3rem;
+      text-align: center;
+    }
+
+    .bio-cell+.bio-cell {
+      border-left: 1px solid var(--border);
+    }
+
+    .bio-val {
+      font-family: var(--ff-display);
+      font-size: 1.8rem;
+      color: var(--white);
+      line-height: 1;
+    }
+
+    .bio-delta {
+      font-size: .72rem;
+      color: #2ecc71;
+      margin-left: .3rem;
+    }
+
+    .bio-label {
+      font-family: var(--ff-cond);
+      font-size: .72rem;
+      letter-spacing: .2em;
+      text-transform: uppercase;
+      color: var(--gray);
+      margin-top: .2rem;
+    }
+
+    /* Radar futuro */
+    .radar-block {
+      padding: 1.2rem 1.3rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0, 0, 0, .25);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .radar-hex {
+      width: 52px;
+      height: 52px;
+      flex-shrink: 0;
+      opacity: .3;
+      background: conic-gradient(from 0deg, var(--gray2), var(--gray) 60deg, var(--gray2));
+      clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    }
+
+    .radar-txt {
+      font-family: var(--ff-cond);
+      font-size: .85rem;
+      color: var(--gray);
+      line-height: 1.4;
+    }
+
+    .radar-txt strong {
+      color: var(--neon);
+      font-size: .8rem;
+      display: block;
+      margin-bottom: .2rem;
+    }
+
+    /* Presumir */
+    .btn-presumir {
+      display: block;
+      width: 100%;
+      padding: 1rem;
+      background: linear-gradient(135deg, #1a7a3a, var(--green));
+      color: #000;
+      font-family: var(--ff-display);
+      font-size: 1.5rem;
+      letter-spacing: .08em;
+      text-align: center;
+      text-decoration: none;
+      transition: filter .2s;
+      flex-shrink: 0;
+    }
+
+    .btn-presumir:hover {
+      filter: brightness(1.1);
+    }
+
+    /* ─── Estado: DEUDA ───────────────────────────────────────── */
+    .fut-card.deuda {
+      border-color: rgba(204, 22, 22, .4);
+    }
+
+    .fut-card.deuda .card-header {
+      filter: grayscale(100%);
+      opacity: .6;
+    }
+
+    .fut-card.deuda .racha-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 220px;
+      position: relative;
+      gap: .8rem;
+      background: rgba(10, 10, 10, .9);
+    }
+
+    .lock-icon {
+      font-size: 3.8rem;
+    }
+
+    .deuda-title {
+      font-family: var(--ff-display);
+      font-size: clamp(1.6rem, 6vw, 2.5rem);
+      color: var(--white);
+      text-align: center;
+      line-height: 1;
+    }
+
+    .deuda-sub {
+      font-family: var(--ff-cond);
+      font-size: .85rem;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+      color: var(--red);
+      text-align: center;
+    }
+
+    .deuda-desc {
+      font-size: .82rem;
+      color: #aaa;
+      text-align: center;
+      max-width: 260px;
+      line-height: 1.5;
+    }
+
+    .btn-pagar {
+      font-family: var(--ff-cond);
+      font-weight: 800;
+      font-size: 1.1rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, var(--red), #6b0000);
+      color: var(--white);
+      border: none;
+      cursor: pointer;
+      padding: .85rem 1.5rem;
+      clip-path: var(--clip);
+      width: 100%;
+      max-width: 280px;
+      transition: filter .2s;
+    }
+
+    .btn-pagar:hover {
+      filter: brightness(1.15);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+   PANEL 3 — ECOSISTEMA
+═══════════════════════════════════════════════════════════════ */
+    #panel-eco {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 0 1.2rem 5rem;
+    }
+
+    .eco-section {
+      margin-bottom: 2rem;
+    }
+
+    .eco-tag {
+      font-family: var(--ff-cond);
+      font-size: .7rem;
+      letter-spacing: .35em;
+      text-transform: uppercase;
+      color: var(--red);
+      display: block;
+      margin-bottom: .3rem;
+    }
+
+    .eco-title {
+      font-family: var(--ff-display);
+      font-size: clamp(1.8rem, 6vw, 2.8rem);
+      letter-spacing: .05em;
+      line-height: 1;
+      margin-bottom: 1rem;
+    }
+
+    .eco-title span {
+      color: var(--gold);
+    }
+
+    /* Kiosko */
+    .kiosko-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .energy-bar-wrap {
+      padding: .9rem 1.2rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0, 0, 0, .3);
+    }
+
+    .energy-label {
+      font-family: var(--ff-cond);
+      font-size: .82rem;
+      letter-spacing: .1em;
+      color: #e67e22;
+      margin-bottom: .5rem;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .energy-bar {
+      height: 8px;
+      background: var(--dark);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .energy-fill {
+      height: 100%;
+      width: 25%;
+      background: linear-gradient(90deg, #e67e22, #e74c3c);
+      border-radius: 4px;
+      animation: pulse-bar 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-bar {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .6
+      }
+    }
+
+    .kiosko-body {
+      padding: 1.2rem;
+    }
+
+    .kiosko-bal {
+      font-family: var(--ff-display);
+      font-size: 2rem;
+      color: var(--gold);
+      margin-bottom: .5rem;
+    }
+
+    .kiosko-credits-label {
+      font-family: var(--ff-cond);
+      font-size: .72rem;
+      letter-spacing: .3em;
+      color: var(--gray);
+      margin-bottom: .8rem;
+      display: block;
+    }
+
+    .kiosko-desc {
+      font-size: .85rem;
+      color: var(--gray);
+      line-height: 1.5;
+      margin-bottom: 1.2rem;
+    }
+
+    .btn-recarga {
+      display: block;
+      width: 100%;
+      padding: .85rem;
+      font-family: var(--ff-cond);
+      font-weight: 800;
+      font-size: 1.2rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      background: linear-gradient(135deg, var(--gold), var(--gold2));
+      color: #000;
+      border: none;
+      cursor: pointer;
+      clip-path: var(--clip);
+      text-decoration: none;
+      text-align: center;
+      transition: filter .2s;
+    }
+
+    .btn-recarga:hover {
+      filter: brightness(1.1);
+    }
+
+    /* Ranking */
+    .ranking-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+
+    .ranking-head {
+      padding: 1rem 1.2rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0, 0, 0, .35);
+    }
+
+    .ranking-title {
+      font-family: var(--ff-display);
+      font-size: 1.8rem;
+      color: var(--gold);
+      line-height: 1;
+    }
+
+    .ranking-sub {
+      font-family: var(--ff-cond);
+      font-size: .75rem;
+      letter-spacing: .1em;
+      color: var(--gray);
+    }
+
+    .rank-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: .75rem 1.2rem;
+      border-bottom: 1px solid var(--border);
+      transition: background .15s;
+    }
+
+    .rank-item:last-child {
+      border-bottom: none;
+    }
+
+    .rank-item:hover {
+      background: rgba(255, 255, 255, .03);
+    }
+
+    .rank-item.first {
+      background: linear-gradient(90deg, rgba(212, 160, 23, .1), transparent);
+    }
+
+    .rank-pos {
+      font-family: var(--ff-display);
+      font-size: 1.5rem;
+      color: var(--gray);
+      width: 26px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .rank-item.first .rank-pos {
+      color: var(--gold);
+      font-size: 2rem;
+    }
+
+    .rank-name {
+      flex: 1;
+      font-family: var(--ff-cond);
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: .05em;
+    }
+
+    .rank-score {
+      font-family: var(--ff-display);
+      font-size: 1.3rem;
+      color: #ff5722;
+    }
+
+    /* Footer */
+    .footer-block {
+      border-top: 1px solid var(--border);
+      margin-top: 2rem;
+      padding: 1.5rem 0;
+      text-align: center;
+    }
+
+    .footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: .5rem 1.2rem;
+      margin-bottom: .7rem;
+    }
+
+    .footer-links a {
+      color: var(--gold);
+      text-decoration: none;
+      font-family: var(--ff-cond);
+      font-size: .85rem;
+      letter-spacing: .1em;
+    }
+
+    .footer-links a:hover {
+      color: var(--white);
+    }
+
+    .footer-copy {
+      font-family: var(--ff-cond);
+      font-size: .75rem;
+      letter-spacing: .1em;
+      color: var(--gray2);
+      line-height: 2;
+    }
+
+    .footer-copy a {
+      color: var(--gray);
+      text-decoration: none;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+   MODAL YAPE
+═══════════════════════════════════════════════════════════════ */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .9);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .25s;
+    }
+
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal-card {
+      width: calc(100% - 2.4rem);
+      max-width: 320px;
+      background: var(--card);
+      border: 1px solid rgba(212, 160, 23, .3);
+      padding: 2rem;
+      position: relative;
+      text-align: center;
+      animation: cardIn .3s ease;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: .8rem;
+      right: .8rem;
+      background: none;
+      border: none;
+      color: var(--gray);
+      font-size: 1.4rem;
+      cursor: pointer;
+    }
+
+    .modal-title {
+      font-family: var(--ff-display);
+      font-size: 2.2rem;
+      color: var(--gold);
+      margin-bottom: .4rem;
+    }
+
+    .modal-sub {
+      font-family: var(--ff-cond);
+      color: var(--gray);
+      font-size: .88rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .yape-qr {
+      width: 150px;
+      border: 3px solid #2ecc71;
+      border-radius: 3px;
+      margin-bottom: .8rem;
+    }
+
+    .yape-num {
+      font-family: var(--ff-display);
+      font-size: 1.8rem;
+      color: var(--white);
+      margin-bottom: 1.2rem;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+   DEV TOOLS (SIMULACIÓN — REMOVER EN PRODUCCIÓN)
+═══════════════════════════════════════════════════════════════ */
+    .devtools {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: .4rem;
+      align-items: flex-end;
+    }
+
+    .devtools-toggle {
+      background: var(--gold);
+      color: #000;
+      font-family: var(--ff-cond);
+      font-weight: 800;
+      font-size: .8rem;
+      letter-spacing: .1em;
+      border: none;
+      cursor: pointer;
+      padding: .4rem .8rem;
+      clip-path: var(--clip);
+    }
+
+    .devtools-panel {
+      background: rgba(10, 10, 10, .96);
+      border: 1px solid var(--gold);
+      padding: .8rem;
+      display: none;
+      flex-direction: column;
+      gap: .4rem;
+    }
+
+    .devtools-panel.open {
+      display: flex;
+    }
+
+    .dev-btn {
+      font-family: var(--ff-cond);
+      font-weight: 700;
+      font-size: .78rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      padding: .4rem .9rem;
+      border: none;
+      cursor: pointer;
+      clip-path: polygon(5px 0%, 100% 0%, calc(100% - 5px) 100%, 0% 100%);
+      white-space: nowrap;
+    }
+
+    .dev-btn.dred {
+      background: var(--red);
+      color: #fff;
+    }
+
+    .dev-btn.dgray {
+      background: #444;
+      color: #fff;
+    }
+
+    .dev-btn.dgreen {
+      background: var(--green);
+      color: #000;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+   RESPONSIVE — DESKTOP ENHANCEMENTS
+═══════════════════════════════════════════════════════════════ */
+    @media (min-width: 640px) {
+      #panel-search {
+        padding: 4rem 2rem 5rem;
+      }
+
+      .search-box {
+        max-width: 480px;
+      }
+
+      .hero-logo {
+        width: 160px;
+        height: 160px;
+      }
+
+      .hero-head {
+        font-size: 5rem;
+      }
+
+      .topbar-name {
+        font-size: 2rem;
+      }
+    }
+
+    @media (min-width: 1024px) {
+
+      /* Desktop: dos columnas en Panel 2+3 */
+      .desktop-wrap {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 0 2rem;
+      }
+
+      #panel-ficha {
+        max-width: 520px;
+      }
+
+      #panel-eco {
+        max-width: 1000px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        align-items: start;
+        padding: 0 2rem 5rem;
+      }
+
+      /* Forzar kiosko y ranking a sus columnas */
+      #panel-eco .eco-section:nth-child(1) {
+        grid-column: 1;
+      }
+
+      #panel-eco .eco-section:nth-child(2) {
+        grid-column: 2;
+      }
+
+      #panel-eco .footer-block {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (min-width:1100px) {
+
+      /* Hero más amplio en desktop grande */
+      #panel-search {
+        flex-direction: row;
+        justify-content: space-evenly;
+        text-align: left;
+      }
+
+      #panel-search .hero-logo {
+        order: -1;
+        width: 200px;
+        height: 200px;
+      }
+
+      #panel-search .hero-head {
+        font-size: 6rem;
+      }
+
+      #panel-search .search-box {
+        max-width: 420px;
+      }
+
+      .hero-divider {
+        margin: 0;
+      }
+    }
+  </style>
 </head>
 
-<body class="bg-black">
+<body>
 
-  <!-- ==========================================
-     PANEL 1: LA PUERTA DE ENTRADA (CAPTACIÓN)
-     ========================================== -->
-  <section id="panel-1" class="panel-screen flex-center visible">
-    <div class="container text-center">
-
-      <!-- Logo Agresivo -->
-      <div class="logo-box">
-        <img src="/static/img/logo.png" alt="JR Stars Logo" class="logo-img" id="main-logo"
-          onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='block'">
-        <div id="logo-fallback" class="logo-text" style="display:none;">JR<br><span class="gold">STARS</span></div>
-      </div>
-
-      <div class="search-wrap">
-        <h1 class="giant-txt">INGRESA DNI DEL ATLETA</h1>
-
-        <div class="input-group">
-          <input type="tel" id="dni-input" class="heavy-input" placeholder="Ej. 76543210" maxlength="8"
-            autocomplete="off">
-          <button id="btn-consultar" class="btn-heavy btn-gold" onclick="consultarDni()">CONSULTAR ESTATUS</button>
-        </div>
-
-        <!-- Cisne Negro: DNI no encontrado -->
-        <div id="error-box" class="error-box hidden">
-          <div class="error-title">ATLETA NO REGISTRADO.</div>
-          <p class="error-desc">¿Tu hijo tiene el nivel para estar en el ranking de JR Stars? Las vacantes son
-            limitadas.</p>
-          <a href="https://wa.me/51955515693?text=Hola,%20busco%20una%20prueba%20de%20nivel%20para%20mi%20hijo%20en%20JR%20Stars"
-            target="_blank" class="btn-whatsapp">
-            <span class="icon">💬</span> Postular a la Academia
-          </a>
-        </div>
-
-        <!-- Loader State -->
-        <div id="loader-box" class="loader-box hidden">
-          <div class="spinner"></div>
-          <span>Extrayendo Biometría...</span>
-        </div>
-
-      </div>
+  <!-- ═ TOPBAR ═══════════════════════════════════════════════════ -->
+  <header class="topbar">
+    <div class="topbar-logo">
+      <img src="/static/img/logo.png" alt="JR Stars" onerror="this.parentElement.textContent='⭐'">
     </div>
-  </section>
+    <div class="topbar-name">JR <span>STARS</span></div>
+  </header>
 
 
-  <!-- ==========================================
-     PANEL 2: LA FICHA FUT (ESTATUS)
-     ========================================== -->
-  <section id="panel-2" class="panel-screen hidden">
-    <div class="container panel-2-wrap">
+  <!-- ═══════════════════════════════════════════════════════════
+     PANEL 1 — PUERTA DE ENTRADA
+═══════════════════════════════════════════════════════════════ -->
+  <section class="panel panel--hero" id="panel-search">
 
-      <!-- Botón Volver Oculto (Solo para UI) -->
-      <button class="btn-back" onclick="volverInicio()">❮ ATRÁS</button>
+    <img src="/static/img/logo.png" alt="JR Stars" class="hero-logo" onerror="this.style.display='none'">
 
-      <!-- La Ficha -->
-      <div id="ficha-atleta" class="fut-card">
-        <!-- El contenido de la ficha se inyecta por JS (Estado A o Estado B) -->
+    <div class="hero-divider"></div>
+
+    <h1 class="hero-head">
+      INGRESA DNI<br><span>DEL ATLETA</span>
+    </h1>
+    <p class="hero-sub">// Academia JR Stars · Cajamarca</p>
+
+    <div class="search-box">
+      <!-- Input -->
+      <input type="tel" id="dni-input" class="dni-input" placeholder="76543210" maxlength="8" inputmode="numeric"
+        autocomplete="off">
+
+      <!-- CTA -->
+      <button id="btn-consultar" class="btn-consultar" onclick="consultarDni()">
+        ⚽ CONSULTAR ESTATUS
+      </button>
+
+      <!-- Loader -->
+      <div id="loader-box" class="loader-row hidden">
+        <div class="spinner"></div>
+        <span>Extrayendo biometría...</span>
+      </div>
+
+      <!-- Cisne Negro: Error -->
+      <div id="error-card" class="error-card hidden">
+        <div class="error-tag">// resultado</div>
+        <div class="error-title">ATLETA NO<br>REGISTRADO.</div>
+        <p class="error-hook">¿Tu hijo tiene el nivel para estar en el ranking de JR Stars? Las vacantes son limitadas.
+        </p>
+        <a href="https://wa.me/51955515693?text=Hola,%20busco%20una%20prueba%20de%20nivel%20para%20mi%20hijo%20en%20JR%20Stars"
+          target="_blank" class="btn-wa">
+          💬 POSTULAR A LA ACADEMIA
+        </a>
       </div>
 
     </div>
   </section>
 
 
-  <!-- ==========================================
-     PANEL 3: EL ECOSISTEMA (KIOSKO, RANKING)
-     ========================================== -->
-  <section id="panel-3" class="ecosistema-section hidden">
-    <div class="container">
+  <!-- ═══════════════════════════════════════════════════════════
+     PANEL 2 — FICHA FUT
+═══════════════════════════════════════════════════════════════ -->
+  <section id="panel-ficha" class="hidden">
 
-      <div class="ecosistema-grid">
+    <button class="back-btn" onclick="goBack()">← NUEVA CONSULTA</button>
 
-        <!-- Bloque A: Kiosko JR (Monetización de Fatiga) -->
-        <div class="block-kiosko bg-dark panel-box">
-          <h2 class="box-title">RECUPERACIÓN FÍSICA</h2>
+    <!-- Carta (inyectada por JS) -->
+    <div id="fut-card-wrap"></div>
 
-          <div class="fatigue-indicator">
-            <div class="fatigue-label">🔋 Desgaste físico post-entrenamiento: ALTO</div>
-            <div class="fatigue-bar">
-              <div class="fatigue-fill" style="width:25%"></div>
-            </div>
-          </div>
-
-          <div class="credits-box">
-            Saldo Actual: <span class="gold-txt" style="font-size:1.5rem">0 CRÉDITOS</span>
-          </div>
-
-          <p class="kiosko-desc">Asegura su recuperación muscular. Añade créditos para consumos en el kiosko (batidos,
-            rehidratantes).</p>
-
-          <button class="btn-heavy btn-green"
-            onclick="document.getElementById('modal-recarga').classList.add('visible')">⚡ RECARGAR 4 CRÉDITOS
-            (S/20)</button>
-        </div>
-
-        <!-- Bloque B: El Coliseo (Ranking) -->
-        <div class="block-ranking bg-dark panel-box">
-          <h2 class="box-title gold-txt">🏆 TOP 5 DE HIERRO - ESTE MES</h2>
-          <p class="ranking-sub">Alumnos con la mayor racha de disciplina diaria consecuente de la Academia.</p>
-
-          <div class="ranking-list" id="ranking-list">
-            <!-- Renderizado por JS -->
-            <div class="loader-txt">Cargando la élite...</div>
-          </div>
-        </div>
-
-      </div>
-
-    </div>
-
-    <!-- Bloque C: Footer (Grasa Administrativa) -->
-    <footer class="footer-minimal">
-      <div class="footer-links">
-        <a href="https://maps.app.goo.gl/..." target="_blank">📍 Cajamarca, Perú</a>
-        <a href="https://facebook.com/..." target="_blank">📘 Facebook</a>
-        <a href="https://instagram.com/..." target="_blank">📸 Instagram</a>
-      </div>
-      <div class="footer-copy">JR Stars Academia © 2026. <a href="tel:+51955515693">📞 +51 955515693</a>
-        <br><a href="/admin/login" style="color:#555">Panel</a>
-      </div>
-    </footer>
   </section>
 
-  <!-- Modal: Yape Recarga -->
-  <div id="modal-recarga" class="modal-overlay">
-    <div class="modal-card bg-dark text-center">
-      <button class="close-modal"
-        onclick="document.getElementById('modal-recarga').classList.remove('visible')">✕</button>
-      <h3 class="modal-title">RECUPERACIÓN ASEGURADA</h3>
-      <p style="color:var(--gray);font-family:var(--font-barlow);font-size:0.9rem;margin-bottom:1rem">
-        Escanea el QR para transferir S/20 vía Yape o Plin.
-      </p>
-      <div class="qr-yape">
-        <!-- Un placeholder del QR de Yape de la academia -->
-        <img
-          src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=YAPE_51955515693&color=111111&bgcolor=00ff88"
-          alt="Yape" style="width:150px;border-radius:10px;border:4px solid #00ff88">
+
+  <!-- ═══════════════════════════════════════════════════════════
+     PANEL 3 — ECOSISTEMA
+═══════════════════════════════════════════════════════════════ -->
+  <section id="panel-eco" class="hidden">
+
+    <!-- ─ KIOSKO ─────────────────────────────────────────── -->
+    <div class="eco-section">
+      <span class="eco-tag">// Nutrición post-entreno</span>
+      <h2 class="eco-title">KIOSKO <span>JR</span></h2>
+
+      <div class="kiosko-card">
+        <div class="energy-bar-wrap">
+          <div class="energy-label">
+            <span>🔋 MONITOREO DE ENERGÍA</span>
+            <span>25% — BAJO</span>
+          </div>
+          <div class="energy-bar">
+            <div class="energy-fill"></div>
+          </div>
+        </div>
+        <div class="kiosko-body">
+          <div class="kiosko-credits-label">Saldo actual</div>
+          <div class="kiosko-bal" id="saldo-display">0 CRÉDITOS</div>
+          <p class="kiosko-desc">
+            Desgaste físico detectado tras las últimas sesiones.
+            Asegura su recuperación muscular post-entrenamiento.
+          </p>
+          <button class="btn-recarga" onclick="document.getElementById('modal-yape').classList.add('open')">
+            ⚡ RECARGAR 4 CRÉDITOS (S/20)
+          </button>
+        </div>
       </div>
-      <p style="color:white;font-family:var(--font-bebas);font-size:1.5rem;letter-spacing:1px;margin:1rem 0">
-        YAPE AL: 955 515 693
-      </p>
-      <a href="https://wa.me/51955515693?text=Hola,%20acabo%20de%20yapear%20S/20%20para%20los%20créditos%20de%20mi%20hijo."
-        target="_blank" class="btn-whatsapp">
-        📲 Enviar Captura por WhatsApp
+    </div>
+
+    <!-- ─ COLISEO ─────────────────────────────────────────── -->
+    <div class="eco-section">
+      <span class="eco-tag">// Élite de disciplina</span>
+      <h2 class="eco-title">TOP 5 <span>DE HIERRO</span></h2>
+
+      <div class="ranking-card">
+        <div class="ranking-head">
+          <div class="ranking-title">🏆 ESTE MES</div>
+          <div class="ranking-sub">Atletas con mayor racha activa de asistencia</div>
+        </div>
+        <div id="ranking-list">
+          <!-- Renderizado por JS -->
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer-block">
+        <div class="footer-links">
+          <a href="https://maps.google.com" target="_blank">📍 Cajamarca, Perú</a>
+          <a href="https://facebook.com" target="_blank">📘 Facebook</a>
+          <a href="https://instagram.com" target="_blank">📸 Instagram</a>
+        </div>
+        <div class="footer-copy">
+          JR Stars Academia © 2026 &nbsp;·&nbsp;
+          <a href="tel:+51955515693">955 515 693</a>
+          <br>
+          <a href="/admin/login">Admin</a>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+
+  <!-- ═ MODAL YAPE ═══════════════════════════════════════════════ -->
+  <div id="modal-yape" class="modal-overlay">
+    <div class="modal-card">
+      <button class="modal-close" onclick="document.getElementById('modal-yape').classList.remove('open')">✕</button>
+      <div class="modal-title">YAPE / PLIN</div>
+      <p class="modal-sub">Escanea el QR y envía tu comprobante por WhatsApp.</p>
+      <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=955515693&color=0a0a0a&bgcolor=D4A017"
+        alt="QR Yape" class="yape-qr">
+      <div class="yape-num">955 515 693</div>
+      <a href="https://wa.me/51955515693?text=Hola,%20yapé%20S/20%20para%20los%20créditos%20de%20kiosko%20de%20mi%20hijo."
+        target="_blank" class="btn-wa">
+        📲 ENVIAR COMPROBANTE
       </a>
     </div>
   </div>
 
-  <script src="/static/home/home.js"></script>
+
+  <!-- ═ DEV TOOLS (remover en producción) ════════════════════════ -->
+  <div class="devtools">
+    <button class="devtools-toggle" onclick="toggleDev()">⚙ DEV</button>
+    <div class="devtools-panel" id="devtools-panel">
+      <button class="dev-btn dred" onclick="simError()">DNI No encontrado</button>
+      <button class="dev-btn dgray" onclick="simDeuda()">Atleta con DEUDA</button>
+      <button class="dev-btn dgreen" onclick="simAlDia()">Atleta AL DÍA</button>
+    </div>
+  </div>
+
+
+  <script>
+    /* ═══════════════════════════════════════════════════════════════
+       CORE LOGIC
+    ═══════════════════════════════════════════════════════════════ */
+
+    // ── State ──────────────────────────────────────────────────────
+    const S = {
+      currentPanel: 'search',
+    };
+
+    // ── DOM shortcuts ───────────────────────────────────────────────
+    const $ = id => document.getElementById(id);
+    const pSearch = $('panel-search');
+    const pFicha = $('panel-ficha');
+    const pEco = $('panel-eco');
+
+    // Enter en el input
+    $('dni-input').addEventListener('keypress', e => {
+      if (e.key === 'Enter') consultarDni();
+    });
+
+    // ── Cargar ranking al iniciar ───────────────────────────────────
+    document.addEventListener('DOMContentLoaded', loadRanking);
+
+    /* ── CONSULTAR DNI ── */
+    async function consultarDni() {
+      const dni = $('dni-input').value.trim();
+      const btn = $('btn-consultar');
+
+      hideError();
+
+      if (!/^\d{8}$/.test(dni)) {
+        $('dni-input').style.borderBottomColor = 'var(--red)';
+        setTimeout(() => $('dni-input').style.borderBottomColor = 'var(--gold)', 800);
+        return;
+      }
+
+      // loading
+      btn.disabled = true;
+      $('loader-box').classList.remove('hidden');
+
+      try {
+        const res = await fetch(`/public/student/${dni}/info`);
+
+        if (res.status === 404) {
+          showError();
+        } else if (res.ok) {
+          const data = await res.json();
+          transitionToFicha(data.debe, {
+            nombre: data.full_name,
+            categoria: data.category || 'Categoría Base',
+            racha: data.racha,
+            talla: data.bio?.talla || '1.45m',
+            peso: data.bio?.peso || '38kg',
+            img: data.img_url || null,
+          });
+        } else {
+          alert('Error del servidor. Intenta de nuevo.');
+        }
+      } catch {
+        alert('Sin conexión. Verifica tu internet.');
+      } finally {
+        btn.disabled = false;
+        $('loader-box').classList.add('hidden');
+      }
+    }
+
+    function showError() {
+      $('error-card').classList.remove('hidden');
+      $('error-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    function hideError() { $('error-card').classList.add('hidden'); }
+
+    /* ── TRANSICIÓN A PANEL 2 ── */
+    function transitionToFicha(deuda, athlete) {
+      buildCard(deuda, athlete);
+      pSearch.classList.add('hidden');
+      pFicha.classList.remove('hidden');
+      pEco.classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      $('dni-input').value = '';
+    }
+
+    function goBack() {
+      pFicha.classList.add('hidden');
+      pEco.classList.add('hidden');
+      pSearch.classList.remove('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    /* ── CONSTRUIR CARTA FUT ── */
+    function buildCard(deuda, a) {
+      const wrap = $('fut-card-wrap');
+      const avatar = a.img
+        ? `<img src="${a.img}" alt="${a.nombre}">`
+        : `<span>${a.nombre.charAt(0)}</span>`;
+
+      const waMsg = encodeURIComponent(
+        `¡Mi hijo ${a.nombre} está en JR Stars Academia! 🔥🏆\n` +
+        `Racha activa: ${a.racha} sesiones consecutivas.\n` +
+        `Consulta el tuyo → https://emblema-app.up.railway.app`
+      );
+
+      if (deuda) {
+        wrap.innerHTML = `
+      <div class="fut-card deuda">
+        <div class="card-stripe"></div>
+        <div class="card-header">
+          <div class="athlete-avatar">${avatar}</div>
+          <div class="athlete-meta">
+            <h2>${a.nombre}</h2>
+            <div class="athlete-cat">${a.categoria}</div>
+          </div>
+        </div>
+        <div class="racha-block">
+          <div class="lock-icon">🔒</div>
+          <div class="deuda-title">ESTATUS OCULTO</div>
+          <div class="deuda-sub">MENSUALIDAD PENDIENTE</div>
+          <p class="deuda-desc">El historial y métricas de <strong>${a.nombre.split(' ')[0]}</strong> están bloqueados hasta regularizar el pago.</p>
+          <button class="btn-pagar"
+                  onclick="document.getElementById('modal-yape').classList.add('open')">
+            PAGAR S/80 VÍA YAPE / PLIN
+          </button>
+        </div>
+      </div>`;
+      } else {
+        wrap.innerHTML = `
+      <div class="fut-card al-dia">
+        <div class="card-stripe"></div>
+        <div class="card-header">
+          <div class="athlete-avatar">${avatar}</div>
+          <div class="athlete-meta">
+            <h2>${a.nombre}</h2>
+            <div class="athlete-cat">${a.categoria}</div>
+          </div>
+        </div>
+        <div class="racha-block">
+          <span class="racha-label">// RACHA ACTIVA DE DISCIPLINA</span>
+          <div class="racha-num"><span class="fire">🔥</span> ${a.racha} SESIONES<br>CONSECUTIVAS</div>
+        </div>
+        <div class="bio-grid">
+          <div class="bio-cell">
+            <div class="bio-val">${a.talla}<span class="bio-delta">+2cm</span></div>
+            <div class="bio-label">Estatura</div>
+          </div>
+          <div class="bio-cell">
+            <div class="bio-val">${a.peso}</div>
+            <div class="bio-label">Peso corporal</div>
+          </div>
+        </div>
+        <div class="radar-block">
+          <div class="radar-hex"></div>
+          <div class="radar-txt">
+            <strong class="neon">PRÓXIMAMENTE</strong>
+            Fase de medición física en progreso.
+            Velocidad · Potencia · Resistencia.
+          </div>
+        </div>
+        <a href="https://wa.me/?text=${waMsg}" target="_blank" class="btn-presumir">
+          📲 PRESUMIR ESTATUS
+        </a>
+      </div>`;
+      }
+    }
+
+    /* ── RANKING ── */
+    async function loadRanking() {
+      const container = $('ranking-list');
+      const FALLBACK = [
+        { name: 'Carlos Q.', score: 18 },
+        { name: 'Sebastián M.', score: 15 },
+        { name: 'Diego R.', score: 13 },
+        { name: 'Ángel T.', score: 11 },
+        { name: 'Fabrizio L.', score: 10 },
+      ];
+
+      try {
+        const res = await fetch('/public/leaderboard/month');
+        const data = res.ok ? await res.json() : FALLBACK;
+        renderRanking(data.length ? data : FALLBACK);
+      } catch {
+        renderRanking(FALLBACK);
+      }
+    }
+
+    function renderRanking(data) {
+      $('ranking-list').innerHTML = data.map((item, i) => `
+    <div class="rank-item${i === 0 ? ' first' : ''}">
+      <div class="rank-pos">${i + 1}</div>
+      <div class="rank-name">${item.name}</div>
+      <div class="rank-score">🔥 ${item.score}</div>
+    </div>`).join('');
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       DEV TOOLS: SIMULACIÓN DE ESTADOS
+    ═══════════════════════════════════════════════════════════════ */
+    function toggleDev() {
+      $('devtools-panel').classList.toggle('open');
+    }
+
+    const DEV_ATHLETE = {
+      nombre: 'Carlos Quispe',
+      categoria: 'Sub-12 · Delantero',
+      racha: 12,
+      talla: '1.45m',
+      peso: '38kg',
+      img: null,
+    };
+
+    function simError() {
+      // Resetear al panel 1 y mostrar el error
+      pFicha.classList.add('hidden');
+      pEco.classList.add('hidden');
+      pSearch.classList.remove('hidden');
+      hideError();
+      setTimeout(() => {
+        $('loader-box').classList.add('hidden');
+        showError();
+      }, 50);
+    }
+
+    function simDeuda() {
+      transitionToFicha(true, DEV_ATHLETE);
+    }
+
+    function simAlDia() {
+      transitionToFicha(false, DEV_ATHLETE);
+    }
+  </script>
 </body>
 
 </html>

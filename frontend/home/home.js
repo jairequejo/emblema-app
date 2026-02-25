@@ -1,112 +1,88 @@
 /* ==========================================================================
-   home.js - Lógica del Landing Page (Vía Negativa)
+   home.js - Landing Page JR Stars (Vía Negativa)
    ========================================================================== */
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Solo cargar el ranking al inicio, el resto espera al DNI
   cargarRanking();
 
-  // Listeners para el input (permitir enter)
-  const dniInput = document.getElementById('dni-input');
-  if (dniInput) {
-    dniInput.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') consultarDni();
-    });
-  }
+  document.getElementById('dni-input').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') consultarDni();
+  });
 });
 
-/**
- * Consulta el DNI en el backend.
- * Controla la transición del Panel 1 al Panel 2.
- */
+/* ══ CONSULTAR DNI ══════════════════════════════════════════════════════ */
 async function consultarDni() {
   const dni = document.getElementById('dni-input').value.trim();
   const errorBox = document.getElementById('error-box');
-  const loaderBox = document.getElementById('loader-box');
+  const loader = document.getElementById('loader-box');
   const btn = document.getElementById('btn-consultar');
-  const logoBox = document.querySelector('.logo-box');
 
   errorBox.classList.add('hidden');
 
   if (dni.length < 8) {
-    // Mini feedback visual de error en el input sin mostrar todo el cisne negro
     const input = document.getElementById('dni-input');
-    input.style.borderColor = 'var(--error-red)';
-    setTimeout(() => input.style.borderColor = 'var(--dark-border)', 800);
+    input.style.borderColor = 'var(--red)';
+    setTimeout(() => input.style.borderColor = 'var(--border)', 800);
     return;
   }
 
-  // Estado de carga UI
+  // Estado: cargando
   btn.style.display = 'none';
-  loaderBox.classList.remove('hidden');
+  loader.classList.remove('hidden');
 
   try {
-    const response = await fetch(`/public/student/${dni}/info`);
+    const res = await fetch(`/public/student/${dni}/info`);
 
-    if (!response.ok) {
-      // DNI NO ENCONTRADO -> El Cisne Negro
-      if (response.status === 404) {
-        loaderBox.classList.add('hidden');
-        btn.style.display = 'block';
-        errorBox.classList.remove('hidden'); // Mostrar mensaje agresivo
-        logoBox.style.transform = 'scale(0.8)';
-        logoBox.style.transition = '0.3s';
+    if (!res.ok) {
+      loader.classList.add('hidden');
+      btn.style.display = 'block';
+
+      if (res.status === 404) {
+        // CISNE NEGRO — DNI no registrado
+        errorBox.classList.remove('hidden');
       } else {
-        throw new Error('Error de servidor');
+        alert('Error del servidor. Intenta de nuevo.');
       }
       return;
     }
 
-    const data = await response.json();
+    const data = await res.json();
 
-    // TRANSICIÓN DE PANELES (DNI VÁLIDO)
+    // Transición: Panel 1 → Panel 2
     setTimeout(() => {
-      document.getElementById('panel-1').classList.remove('visible');
-      document.getElementById('panel-1').classList.add('hidden');
+      document.getElementById('panel-1').classList.replace('on', 'off');
 
       renderizarFicha(data);
 
-      document.getElementById('panel-2').classList.remove('hidden');
-      document.getElementById('panel-2').classList.add('visible');
+      document.getElementById('panel-2').classList.replace('off', 'on');
       document.getElementById('panel-3').classList.remove('hidden');
 
-      // Scroll to top
-      window.scrollTo(0, 0);
-
-      // Restaurar panel 1 por si vuelve
-      loaderBox.classList.add('hidden');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      loader.classList.add('hidden');
       btn.style.display = 'block';
       document.getElementById('dni-input').value = '';
-    }, 600); // Pequeño delay para que el loader se vea (puro teatro UX)
+    }, 450);
 
-  } catch (error) {
-    console.error('Error:', error);
-    loaderBox.classList.add('hidden');
+  } catch (err) {
+    console.error(err);
+    loader.classList.add('hidden');
     btn.style.display = 'block';
-    alert('Error de conexión. Intente nuevamente.');
+    alert('Sin conexión. Intenta de nuevo.');
   }
 }
 
-/**
- * Vuelve al Panel 1
- */
+/* ══ VOLVER AL PANEL 1 ══════════════════════════════════════════════════ */
 function volverInicio() {
-  document.getElementById('panel-2').classList.remove('visible');
-  document.getElementById('panel-2').classList.add('hidden');
+  document.getElementById('panel-2').classList.replace('on', 'off');
   document.getElementById('panel-3').classList.add('hidden');
 
   setTimeout(() => {
-    document.getElementById('panel-1').classList.remove('hidden');
-    document.getElementById('panel-1').classList.add('visible');
-    const logoBox = document.querySelector('.logo-box');
-    logoBox.style.transform = 'scale(1)';
-  }, 300);
+    document.getElementById('panel-1').classList.replace('off', 'on');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, 200);
 }
 
-/**
- * Renderiza dinámicamente el HTML de la ficha del atleta (Panel 2)
- * dependiendo de si DEBE (Estado A) o ESTÁ AL DÍA (Estado B)
- */
+/* ══ RENDERIZAR FICHA FUT ══════════════════════════════════════════════ */
 function renderizarFicha(data) {
   const container = document.getElementById('ficha-atleta');
 
@@ -115,106 +91,109 @@ function renderizarFicha(data) {
     : `<span>${data.full_name.charAt(0)}</span>`;
 
   if (data.debe) {
-    // ESTADO A: CASTIGO (DEUDA)
+    /* ── ESTADO A: CASTIGO / DEUDA ─────────────────────────── */
     container.className = 'fut-card deuda';
     container.innerHTML = `
+      <div class="card-accent"></div>
+      
       <div class="deuda-overlay">
         <div class="lock-icon">🔒</div>
         <div class="deuda-title">ESTATUS OCULTO</div>
         <div class="deuda-sub">MENSUALIDAD PENDIENTE</div>
-        <p style="color:var(--gray);font-size:0.85rem;margin-bottom:1.5rem">
-          Para acceder a las métricas e historial de <strong>${data.full_name.split(' ')[0]}</strong>, debes estar al día.
+        <p class="deuda-desc">
+          Para acceder a las métricas de <strong>${data.full_name.split(' ')[0]}</strong>
+          debes estar al día con la academia.
         </p>
-        <button class="btn-heavy btn-gold" onclick="document.getElementById('modal-recarga').classList.add('visible')">
-          PAGAR S/80 VÍA YAPE/PLIN
+        <button class="btn-pagar"
+                onclick="document.getElementById('modal-yape').classList.add('open')">
+          PAGAR S/80 VÍA YAPE / PLIN
         </button>
       </div>
-      
-      <!-- Ficha de fondo (desenfocada) -->
+
+      <!-- Ficha de fondo borrosa -->
       <div class="fut-header">
         <div class="fut-avatar">${avatarHtml}</div>
         <div class="fut-info">
-          <h2>${data.full_name}</h2>
+          <div class="fut-name">${data.full_name}</div>
           <div class="fut-cat">${data.category}</div>
         </div>
       </div>
       <div class="racha-box">
-        <div class="racha-title">RACHA ACTIVA</div>
-        <div class="fire-metric">🔥 ${data.racha} CLASES</div>
-      </div>
-    `;
+        <span class="racha-tag">// racha activa</span>
+        <div class="fire-metric"><span>🔥</span> ${data.racha} SESIONES</div>
+      </div>`;
+
   } else {
-    // ESTADO B: RECOMPENSA (AL DÍA)
+    /* ── ESTADO B: AL DÍA / DOPAMINA ───────────────────────── */
     container.className = 'fut-card al-dia';
 
-    // Generar enlace mágico falso / texto de WhatsApp
-    const msg = encodeURIComponent(`¡Mira el estatus deportivo de ${data.full_name} en JR Stars Academia! 🔥🏆\n\nFicha Oficial: https://jrstars.pe`);
+    const msg = encodeURIComponent(
+      `¡Mira el estatus deportivo de ${data.full_name} en JR Stars! 🔥🏆\n\nConsulta el tuyo: https://emblema-app.up.railway.app`
+    );
     const linkWa = `https://wa.me/?text=${msg}`;
 
     container.innerHTML = `
+      <div class="card-accent"></div>
+
       <div class="fut-header">
         <div class="fut-avatar">${avatarHtml}</div>
         <div class="fut-info">
-          <h2 class="gold-txt">${data.full_name}</h2>
+          <div class="fut-name">${data.full_name}</div>
           <div class="fut-cat">${data.category}</div>
         </div>
       </div>
-      
+
       <div class="racha-box">
-        <div class="racha-title">RACHA DE DISCIPLINA</div>
-        <div class="fire-metric">🔥 ${data.racha} SESIONES</div>
+        <span class="racha-tag">// RACHA DE DISCIPLINA</span>
+        <div class="fire-metric"><span>🔥</span> ${data.racha} SESIONES</div>
       </div>
-      
-      <div class="bio-grid">
-        <div class="bio-stat">
+
+      <div class="bio-row">
+        <div class="bio-cell">
           <div class="bio-val">${data.bio.talla}</div>
           <div class="bio-label">Estatura</div>
         </div>
-        <div class="bio-stat">
+        <div class="bio-cell">
           <div class="bio-val">${data.bio.peso}</div>
-          <div class="bio-label">Peso Corporal</div>
+          <div class="bio-label">Peso corporal</div>
         </div>
       </div>
-      
-      <div class="fut-radar">
-        <div class="hex-placeholder"></div>
-        <p>Fase de medición física en progreso.<br>Próximamente: Ranking de Velocidad y Potencia.</p>
+
+      <div class="radar-box">
+        <span class="radar-icon">📊</span>
+        <div class="radar-txt">
+          Fase de medición física en progreso.<br>
+          Próximamente: Ranking de Velocidad y Potencia.
+        </div>
       </div>
-      
-      <a href="${linkWa}" target="_blank" class="presumir-btn">
+
+      <a href="${linkWa}" target="_blank" class="btn-presumir">
         📲 PRESUMIR ESTATUS
-      </a>
-    `;
+      </a>`;
   }
 }
 
-/**
- * Consulta el TOP 5 en el backend y renderiza la lista (Panel 3)
- */
+/* ══ CARGAR TOP 5 DE HIERRO ════════════════════════════════════════════ */
 async function cargarRanking() {
   const container = document.getElementById('ranking-list');
   try {
-    const response = await fetch('/public/leaderboard/month');
-    if (!response.ok) throw new Error();
-    const data = await response.json();
+    const res = await fetch('/public/leaderboard/month');
+    if (!res.ok) throw new Error();
+    const data = await res.json();
 
-    if (data.length === 0) {
-      container.innerHTML = '<div class="loader-txt" style="color:var(--gray)">Iniciando el mes de entrenamiento...</div>';
+    if (!data.length) {
+      container.innerHTML = '<div class="rank-loader">Iniciando el mes...</div>';
       return;
     }
 
-    container.innerHTML = data.map((item, index) => {
-      const cls = index === 0 ? 'rank-1' : '';
-      return `
-        <div class="ranking-item ${cls}">
-          <div class="rank-pos">${index + 1}</div>
-          <div class="rank-name">${item.name}</div>
-          <div class="rank-score">🔥 ${item.score}</div>
-        </div>
-      `;
-    }).join('');
+    container.innerHTML = data.map((item, i) => `
+      <div class="rank-item${i === 0 ? ' first' : ''}">
+        <div class="rank-pos">${i + 1}</div>
+        <div class="rank-name">${item.name}</div>
+        <div class="rank-score">🔥 ${item.score}</div>
+      </div>`).join('');
 
-  } catch (error) {
-    container.innerHTML = '<div class="loader-txt" style="color:var(--error-red)">Data no disponible.</div>';
+  } catch {
+    container.innerHTML = '<div class="rank-loader" style="color:var(--red2)">No disponible.</div>';
   }
 }
