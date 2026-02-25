@@ -18,14 +18,36 @@ function logout() {
   window.location.href = '/admin/login';
 }
 
+// ── SIDEBAR MOBILE ────────────────────────────────────
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  sidebar.classList.toggle('open');
+  overlay.classList.toggle('visible');
+  document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
+}
+
+function closeSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const overlay = document.getElementById('sidebar-overlay');
+  sidebar.classList.remove('open');
+  overlay.classList.remove('visible');
+  document.body.style.overflow = '';
+}
+
 // ── NAVEGACIÓN ────────────────────────────────────────
 let scannerInit = false;
+let paginaActual = 'stats';
 
 function goTo(page, ev) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
   document.getElementById(`page-${page}`).classList.add('active');
-  if (ev && ev.currentTarget) ev.currentTarget.classList.add('active');
+  const navItem = document.getElementById(`nav-${page}`);
+  if (navItem) navItem.classList.add('active');
+
+  paginaActual = page;
+  closeSidebar();
 
   if (page === 'stats') loadStats();
   if (page === 'alumnos') loadAlumnos();
@@ -33,6 +55,13 @@ function goTo(page, ev) {
   if (page === 'noticias') loadNoticias();
   if (page === 'fotos') loadFotos();
   if (page === 'scanner' && !scannerInit) initScanner();
+}
+
+// Barra de navegación inferior (móvil)
+function setBottomNav(page) {
+  document.querySelectorAll('.bottom-nav-item').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById(`bnav-${page}`);
+  if (btn) btn.classList.add('active');
 }
 
 // ── TOAST ─────────────────────────────────────────────
@@ -53,7 +82,7 @@ async function loadStats() {
     document.getElementById('s-presentes').textContent = d.presentes_hoy;
     document.getElementById('s-ausentes').textContent = d.ausentes_hoy;
     document.getElementById('s-fecha').textContent = d.fecha;
-  } catch {}
+  } catch { }
 }
 
 // ── SCANNER ───────────────────────────────────────────
@@ -89,70 +118,131 @@ function initScanner() {
 }
 
 // ── ALUMNOS (Registro + Cobro Inicial y Tabla Semáforo) ──
+let alumnosData = []; // cache para filtros
+
 async function loadAlumnos() {
   const res = await fetch('/admin/alumnos', { headers: H });
   if (res.status === 401) { logout(); return; }
-  const data = await res.json();
-  const container = document.getElementById('alumnos-list');
-  if (!data.length) { container.innerHTML = '<p style="color:var(--gray);font-family:var(--font-cond)">No hay alumnos aún.</p>'; return; }
+  alumnosData = await res.json();
+  renderAlumnos(alumnosData);
+}
 
+function aplicarFiltros() {
+  const estado = document.getElementById('filtro-estado')?.value || '';
+  const horario = document.getElementById('filtro-horario')?.value || '';
+  const busqueda = (document.getElementById('filtro-busqueda')?.value || '').toLowerCase().trim();
   const hoy = new Date();
-  
-  container.innerHTML = `
+
+  const filtrados = alumnosData.filter(a => {
+    // Filtro búsqueda de texto
+    if (busqueda && !a.full_name.toLowerCase().includes(busqueda)) return false;
+    // Filtro horario
+    if (horario && a.horario !== horario) return false;
+    // Filtro estado
+    if (estado) {
+      if (estado === 'inactivo' && a.is_active !== false) return false;
+      if (estado !== 'inactivo' && !a.is_active) return false;
+      if (estado === 'al-dia' && a.valid_until) {
+        const f = new Date(a.valid_until); f.setMinutes(f.getMinutes() + f.getTimezoneOffset());
+        if (f < hoy) return false;
+      }
+      if (estado === 'vencido' && a.valid_until) {
+        const f = new Date(a.valid_until); f.setMinutes(f.getMinutes() + f.getTimezoneOffset());
+        if (f >= hoy) return false;
+      }
+    }
+    return true;
+  });
+
+  renderAlumnos(filtrados);
+}
+
+function renderAlumnos(data) {
+  const container = document.getElementById('alumnos-list');
+  if (!data.length) {
+    container.innerHTML = '<p style="color:var(--gray);font-family:var(--font-cond);padding:1rem 0">No se encontraron alumnos con esos filtros.</p>';
+    return;
+  }
+  const hoy = new Date();
+
+  // Vista mobile: cards en lugar de tabla
+  const esMobile = window.innerWidth <= 700;
+
+  if (esMobile) {
+    container.innerHTML = data.map(a => {
+      let estadoColor = 'var(--red2)', estadoTexto = 'Inactivo', vencimiento = '—';
+      if (a.is_active) {
+        if (a.valid_until) {
+          const fv = new Date(a.valid_until); fv.setMinutes(fv.getMinutes() + fv.getTimezoneOffset());
+          vencimiento = fv.toLocaleDateString('es-PE');
+          if (fv >= hoy) { estadoColor = '#00ff88'; estadoTexto = 'Al Día'; }
+          else { estadoColor = 'var(--gold)'; estadoTexto = 'Vencido'; }
+        } else { estadoColor = 'var(--gold)'; estadoTexto = 'Sin Pago'; }
+      }
+      return `
+      <div class="alumno-card" style="opacity:${a.is_active ? '1' : '0.55'}">
+        <div class="alumno-card-header">
+          <div>
+            <div class="alumno-card-name">${a.full_name}</div>
+            <div style="font-size:.72rem;color:var(--gray);font-family:var(--font-mono)">DNI: ${a.dni || '—'}</div>
+          </div>
+          <span style="color:${estadoColor};font-weight:bold;font-size:.8rem;font-family:var(--font-cond)">${estadoTexto}</span>
+        </div>
+        <div class="alumno-card-row">
+          <span class="badge badge-gold">${a.horario || 'LMV'}</span>
+          <span style="font-family:var(--font-mono);font-size:.8rem;color:var(--gray)">Vence: ${vencimiento}</span>
+        </div>
+        <div class="alumno-card-actions">
+          <button class="btn btn-outline" style="font-size:.75rem;padding:.3rem .9rem" onclick="verQR('${a.id}')">📱 QR</button>
+          ${a.is_active
+          ? `<button class="btn btn-red" style="font-size:.75rem;padding:.3rem .9rem" onclick="toggleEstadoAlumno('${a.id}','${a.full_name.replace(/'/g, "\\'")}', false)">Desactivar</button>`
+          : `<button class="btn btn-outline" style="font-size:.75rem;padding:.3rem .9rem;border-color:#00ff88;color:#00ff88" onclick="toggleEstadoAlumno('${a.id}','${a.full_name.replace(/'/g, "\\'")}', true)">Reactivar</button>`
+        }
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    container.innerHTML = `
     <table class="admin-table">
       <thead><tr>
         <th>Nombre</th><th>Estado</th><th>Vence</th><th>Horario</th><th>Acciones</th>
       </tr></thead>
       <tbody>
         ${data.map(a => {
-          // Lógica Antifrágil Visual
-          let estadoColor = 'var(--red2)';
-          let estadoTexto = 'Inactivo';
-          let vencimiento = '—';
-          
-          if (a.is_active) {
-              if (a.valid_until) {
-                  const fechaVence = new Date(a.valid_until);
-                  fechaVence.setMinutes(fechaVence.getMinutes() + fechaVence.getTimezoneOffset());
-                  vencimiento = fechaVence.toLocaleDateString('es-PE');
-                  
-                  if (fechaVence >= hoy) {
-                      estadoColor = '#00ff88';
-                      estadoTexto = 'Al Día';
-                  } else {
-                      estadoColor = 'var(--gold)';
-                      estadoTexto = 'Vencido';
-                  }
-              } else {
-                  estadoColor = 'var(--gold)';
-                  estadoTexto = 'Sin Pago';
-              }
-          }
-
-          return `
-          <tr style="opacity: ${a.is_active ? '1' : '0.5'}">
-            <td><strong>${a.full_name}</strong><br><span style="font-size:0.75rem; color:var(--gray)">DNI: ${a.dni || '—'}</span></td>
-            <td><span style="color:${estadoColor}; font-weight:bold; font-size:0.85rem">${estadoTexto}</span></td>
-            <td style="font-family:var(--font-mono); font-size:0.85rem">${vencimiento}</td>
+      let estadoColor = 'var(--red2)', estadoTexto = 'Inactivo', vencimiento = '—';
+      if (a.is_active) {
+        if (a.valid_until) {
+          const fv = new Date(a.valid_until); fv.setMinutes(fv.getMinutes() + fv.getTimezoneOffset());
+          vencimiento = fv.toLocaleDateString('es-PE');
+          if (fv >= hoy) { estadoColor = '#00ff88'; estadoTexto = 'Al Día'; }
+          else { estadoColor = 'var(--gold)'; estadoTexto = 'Vencido'; }
+        } else { estadoColor = 'var(--gold)'; estadoTexto = 'Sin Pago'; }
+      }
+      return `
+          <tr style="opacity:${a.is_active ? '1' : '0.5'}">
+            <td><strong>${a.full_name}</strong><br><span style="font-size:.75rem;color:var(--gray)">DNI: ${a.dni || '—'}</span></td>
+            <td><span style="color:${estadoColor};font-weight:bold;font-size:.85rem">${estadoTexto}</span></td>
+            <td style="font-family:var(--font-mono);font-size:.85rem">${vencimiento}</td>
             <td><span class="badge badge-gold">${a.horario || 'LMV'}</span></td>
             <td>
               <button class="btn btn-outline" style="font-size:.75rem;padding:.3rem .7rem" onclick="verQR('${a.id}')">QR</button>
-              ${a.is_active 
-                ? `<button class="btn btn-red" style="font-size:.75rem;padding:.3rem .7rem;margin-left:.3rem" onclick="toggleEstadoAlumno('${a.id}','${a.full_name.replace(/'/g, "\\'")}', false)">Desactivar</button>`
-                : `<button class="btn btn-outline" style="font-size:.75rem;padding:.3rem .7rem;margin-left:.3rem; border-color:#00ff88; color:#00ff88" onclick="toggleEstadoAlumno('${a.id}','${a.full_name.replace(/'/g, "\\'")}', true)">Reactivar</button>`
-              }
+              ${a.is_active
+          ? `<button class="btn btn-red" style="font-size:.75rem;padding:.3rem .7rem;margin-left:.3rem" onclick="toggleEstadoAlumno('${a.id}','${a.full_name.replace(/'/g, "\\'")}', false)">Desactivar</button>`
+          : `<button class="btn btn-outline" style="font-size:.75rem;padding:.3rem .7rem;margin-left:.3rem;border-color:#00ff88;color:#00ff88" onclick="toggleEstadoAlumno('${a.id}','${a.full_name.replace(/'/g, "\\'")}', true)">Reactivar</button>`
+        }
             </td>
-          </tr>
-        `}).join('')}
+          </tr>`;
+    }).join('')}
       </tbody>
     </table>`;
+  }
 }
 
 async function crearAlumno() {
   const nombre = document.getElementById('a-nombre').value.trim();
   const dni = document.getElementById('a-dni').value.trim();
-  const apoderado = document.getElementById('a-apoderado').value.trim(); // NUEVO
-  const telefono = document.getElementById('a-telefono').value.trim();   // NUEVO
+  const apoderado = document.getElementById('a-apoderado').value.trim();
+  const telefono = document.getElementById('a-telefono').value.trim();
   const pagoMes = parseFloat(document.getElementById('a-pago-mes').value) || 0;
   const pagoMat = parseFloat(document.getElementById('a-pago-mat').value) || 0;
   const metodo = document.getElementById('a-metodo').value;
@@ -165,22 +255,22 @@ async function crearAlumno() {
     body: JSON.stringify({
       full_name: nombre,
       dni: dni || null,
-      parent_name: apoderado || null, // Enviamos el dato
-      parent_phone: telefono || null, // Enviamos el dato
+      parent_name: apoderado || null,
+      parent_phone: telefono || null,
       horario: document.getElementById('a-horario').value,
       turno: document.getElementById('a-turno')?.value || null,
-      sede: null, 
+      sede: null,
       pago_mensualidad: pagoMes,
       pago_matricula: pagoMat,
       metodo_pago: metodo
     })
   });
-  
+
   if (res.ok) {
     document.getElementById('a-nombre').value = '';
     document.getElementById('a-dni').value = '';
-    document.getElementById('a-apoderado').value = ''; // Limpiamos
-    document.getElementById('a-telefono').value = '';  // Limpiamos
+    document.getElementById('a-apoderado').value = '';
+    document.getElementById('a-telefono').value = '';
     showToast('✅ Alumno inscrito. Cobro registrado.');
     loadAlumnos();
   } else {
@@ -191,96 +281,252 @@ async function crearAlumno() {
 async function toggleEstadoAlumno(id, nombre, reactivar) {
   const accion = reactivar ? 'Reactivar' : 'Desactivar';
   if (!confirm(`¿${accion} a ${nombre}?`)) return;
-  
-  await fetch(`/admin/alumnos/${id}`, { method: 'DELETE', headers: H }); 
-  
+  await fetch(`/admin/alumnos/${id}`, { method: 'DELETE', headers: H });
   showToast(`✅ Alumno actualizado`);
   loadAlumnos();
 }
 
 async function verQR(studentId) {
   try {
-    // 1. Buscamos el código en la base de datos eterna (Supabase)
     const res = await fetch(`/credentials/${studentId}`, { headers: H });
     const data = await res.json();
-    
-    let codeStr = "";
-    
+    let codeStr = '';
     if (data.length > 0) {
-      // Si ya existe, tomamos el texto
       codeStr = data[0].code;
     } else {
-      // Si no existe, le decimos al backend que lo genere y nos devuelva el texto
       showToast('Generando nuevo QR...', 'ok');
       const gen = await fetch(`/credentials/generate/${studentId}`, { method: 'POST', headers: H });
       const d = await gen.json();
       codeStr = d.code;
     }
-    
-    // Usamos una herramienta pública y gratuita 
-    // para dibujar el QR en pantalla al instante, sin usar el disco de Railway.
     const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${codeStr}`;
-    
-    // Abrimos la imagen gigante lista para imprimir
     window.open(qrImageUrl, '_blank');
-    
-  } catch (error) {
+  } catch {
     showToast('❌ Error al obtener el QR.', 'error');
   }
 }
 
-// ── CAJA FUERTE / BATIDOS (Renovaciones) ───────────────
+// ── CAJA / PAGOS — BÚSQUEDA POR NOMBRE ───────────────────
+let searchDebounce = null;
+let chipActivo = 'todos';
+let alumnoSeleccionado = null;
+
 function loadCreditos() {
   const container = document.getElementById('creditos-result');
   if (!container) return;
-  container.innerHTML = '<p style="color:var(--gray);font-family:var(--font-cond)">Ingresa el DNI y haz clic en Buscar.</p>';
-  const dniInput = document.getElementById('batidos-dni-search');
-  if (dniInput) {
-    dniInput.value = '';
-    dniInput.onkeypress = (e) => { if (e.key === 'Enter') buscarAlumnoPorDni(); };
+  container.innerHTML = `
+    <div class="empty-search-state">
+      <div class="empty-icon">👆</div>
+      <p>Escribe el nombre del alumno para buscarlo</p>
+    </div>`;
+  const input = document.getElementById('batidos-nombre-search');
+  if (input) {
+    input.value = '';
+    cerrarDropdown();
+  }
+  alumnoSeleccionado = null;
+  actualizarBtnClear();
+}
+
+function onSearchInput() {
+  clearTimeout(searchDebounce);
+  actualizarBtnClear();
+  const q = document.getElementById('batidos-nombre-search')?.value?.trim();
+  if (!q || q.length < 2) {
+    cerrarDropdown();
+    return;
+  }
+  searchDebounce = setTimeout(() => buscarPorNombre(q), 380);
+}
+
+function onSearchKeydown(e) {
+  const dropdown = document.getElementById('search-dropdown');
+  const items = dropdown.querySelectorAll('.dropdown-item');
+  const focused = dropdown.querySelector('.dropdown-item.focused');
+  let idx = Array.from(items).indexOf(focused);
+
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (idx < items.length - 1) {
+      if (focused) focused.classList.remove('focused');
+      items[idx + 1].classList.add('focused');
+      items[idx + 1].scrollIntoView({ block: 'nearest' });
+    }
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (idx > 0) {
+      if (focused) focused.classList.remove('focused');
+      items[idx - 1].classList.add('focused');
+      items[idx - 1].scrollIntoView({ block: 'nearest' });
+    }
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (focused) focused.click();
+  } else if (e.key === 'Escape') {
+    cerrarDropdown();
   }
 }
 
-async function buscarAlumnoPorDni() {
-  const dni = document.getElementById('batidos-dni-search')?.value?.trim();
-  if (!dni || dni.length < 6) {
-    showToast('Ingresa un DNI válido (mín. 6 dígitos)', 'error');
-    return;
-  }
-  const container = document.getElementById('creditos-result');
-  container.innerHTML = '<p style="color:var(--gray)">Buscando…</p>';
+let ultimosResultados = []; // Cache del último resultado de búsqueda
+
+async function buscarPorNombre(q) {
+  const dropdown = document.getElementById('search-dropdown');
+  dropdown.innerHTML = '<div class="dropdown-loading">Buscando…</div>';
+  dropdown.classList.add('visible');
   try {
-    const res = await fetch(`/admin/alumnos/by-dni/${encodeURIComponent(dni)}`, { headers: H });
+    const res = await fetch(`/admin/alumnos/buscar?q=${encodeURIComponent(q)}`, { headers: H });
     if (res.status === 401) { logout(); return; }
-    if (res.status === 404) {
-      container.innerHTML = '<p style="color:var(--red2);font-family:var(--font-cond)">Alumno no encontrado. Verifica el DNI.</p>';
+    let resultados = await res.json();
+    ultimosResultados = resultados; // Guardar en cache
+
+    // Aplicar filtro de chip activo
+    resultados = filtrarPorChip(resultados);
+
+    if (!resultados.length) {
+      dropdown.innerHTML = '<div class="dropdown-empty">No se encontraron alumnos</div>';
       return;
     }
-    const a = await res.json();
-    
-    // Lógica visual Antifrágil
+
+    dropdown.innerHTML = resultados.map(a => {
+      const dias = a.dias_restantes || 0;
+      const estado = !a.is_active ? '<span class="dd-badge inactivo">Inactivo</span>'
+        : dias > 0 ? `<span class="dd-badge al-dia">Al Día · ${dias}d</span>`
+          : '<span class="dd-badge vencido">Vencido</span>';
+      return `<div class="dropdown-item" onclick="seleccionarAlumno('${a.id}')">
+        <div class="dd-nombre">${a.full_name}</div>
+        <div class="dd-meta">
+          <span class="dd-horario">${a.horario || 'LMV'}</span>
+          ${estado}
+        </div>
+      </div>`;
+    }).join('');
+  } catch {
+    dropdown.innerHTML = '<div class="dropdown-empty">Error de conexión</div>';
+  }
+}
+
+function filtrarPorChip(lista) {
+  if (chipActivo === 'todos') return lista;
+  const hoy = new Date();
+  return lista.filter(a => {
+    if (chipActivo === 'lmv') return a.horario === 'LMV';
+    if (chipActivo === 'mjs') return a.horario === 'MJS';
+    if (!a.is_active) return false;
+    if (chipActivo === 'al-dia') return a.dias_restantes > 0;
+    if (chipActivo === 'vencido') return a.dias_restantes <= 0;
+    return true;
+  });
+}
+
+function setChip(chip, ev) {
+  chipActivo = chip;
+  document.querySelectorAll('.filtro-chip').forEach(c => c.classList.remove('active'));
+  document.getElementById(`chip-${chip}`).classList.add('active');
+  // Re-buscar si hay texto
+  const q = document.getElementById('batidos-nombre-search')?.value?.trim();
+  if (q && q.length >= 2) buscarPorNombre(q);
+}
+
+function cerrarDropdown() {
+  const d = document.getElementById('search-dropdown');
+  if (d) { d.innerHTML = ''; d.classList.remove('visible'); }
+}
+
+function actualizarBtnClear() {
+  const val = document.getElementById('batidos-nombre-search')?.value || '';
+  const btn = document.getElementById('btn-clear-search');
+  if (btn) btn.style.display = val ? 'flex' : 'none';
+}
+
+function limpiarBusqueda() {
+  const input = document.getElementById('batidos-nombre-search');
+  if (input) input.value = '';
+  cerrarDropdown();
+  actualizarBtnClear();
+  document.getElementById('creditos-result').innerHTML = `
+    <div class="empty-search-state">
+      <div class="empty-icon">👆</div>
+      <p>Escribe el nombre del alumno para buscarlo</p>
+    </div>`;
+  alumnoSeleccionado = null;
+}
+
+async function seleccionarAlumno(id) {
+  cerrarDropdown();
+  alumnoSeleccionado = id;
+
+  const container = document.getElementById('creditos-result');
+  container.innerHTML = '<p style="color:var(--gray);padding:1rem">Cargando…</p>';
+
+  try {
+    // Buscar en el cache primero, si no hay, hacer fetch puntual
+    let a = ultimosResultados.find(x => x.id === id);
+
+    if (!a) {
+      // Fetch de respaldo: buscar por ID en la lista completa
+      const res = await fetch('/admin/alumnos', { headers: H });
+      if (res.status === 401) { logout(); return; }
+      const todos = await res.json();
+      // Calcular días restantes
+      const hoyDate = new Date();
+      a = todos.find(x => x.id === id);
+      if (a && a.valid_until) {
+        const fv = new Date(a.valid_until);
+        fv.setMinutes(fv.getMinutes() + fv.getTimezoneOffset());
+        a.dias_restantes = Math.max(0, Math.floor((fv - hoyDate) / (1000 * 60 * 60 * 24)));
+      }
+    }
+
+    if (!a) {
+      container.innerHTML = '<p style="color:var(--red2)">Alumno no encontrado.</p>';
+      return;
+    }
+
+    // Poner nombre en el input
+    const input = document.getElementById('batidos-nombre-search');
+    if (input) input.value = a.full_name;
+    actualizarBtnClear();
+
     const dias = a.dias_restantes || 0;
-    const estadoMensualidad = dias > 0 
-      ? `<span style="color:#00ff88; font-weight:bold;">ACTIVO (${dias} días)</span>` 
-      : `<span style="color:var(--red2); font-weight:bold;">VENCIDO</span>`;
+    const estadoMensualidad = dias > 0
+      ? `<span style="color:#00ff88;font-weight:bold">ACTIVO (${dias} días restantes)</span>`
+      : `<span style="color:var(--red2);font-weight:bold">VENCIDO</span>`;
 
     container.innerHTML = `
-      <div class="form-card">
-        <div class="form-card-title">👤 ${a.full_name}</div>
-        <p style="font-family:var(--font-cond);color:var(--gray);font-size:.9rem;margin-bottom:1rem">
-          DNI: ${a.dni || '—'} | Estado: ${estadoMensualidad}
-        </p>
-        
-        <div class="credit-row" style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border);">
-          <span class="credit-name" style="color:var(--gold); font-weight:bold;">Mensualidad (S/ 80)</span>
-          <button class="btn btn-outline" style="border-color:var(--gold); color:var(--gold);" onclick="pagarMensualidad('${a.id}')">💵 Cobrar Mes</button>
+      <div class="form-card alumno-pago-card">
+        <div class="alumno-pago-header">
+          <div>
+            <div class="form-card-title" style="margin-bottom:.3rem">👤 ${a.full_name}</div>
+            <div style="font-family:var(--font-cond);color:var(--gray);font-size:.88rem">
+              DNI: ${a.dni || '—'} &nbsp;·&nbsp; Horario: <span class="badge badge-gold">${a.horario || 'LMV'}</span>
+            </div>
+          </div>
+          <div style="text-align:right;font-family:var(--font-cond);font-size:.88rem">
+            ${estadoMensualidad}
+          </div>
         </div>
 
-        <div class="credit-row">
-          <span class="credit-name">Créditos de Batido</span>
-          <span class="credit-bal">${a.batido_credits ?? 0} cr.</span>
-          <input class="input-jr credit-input" type="number" min="1" max="20" value="4" id="cr-${a.id}">
-          <button class="btn btn-gold" onclick="recargar('${a.id}')">+ Recargar</button>
+        <div class="pago-acciones">
+          <div class="pago-opcion" onclick="pagarMensualidad('${a.id}')">
+            <div class="pago-opcion-icon">💵</div>
+            <div class="pago-opcion-info">
+              <div class="pago-opcion-titulo">Mensualidad</div>
+              <div class="pago-opcion-precio">S/ 80.00 / mes</div>
+            </div>
+            <button class="btn btn-gold pago-opcion-btn">Cobrar</button>
+          </div>
+
+          <div class="pago-opcion">
+            <div class="pago-opcion-icon">🥤</div>
+            <div class="pago-opcion-info">
+              <div class="pago-opcion-titulo">Créditos Batidos</div>
+              <div class="pago-opcion-precio">${a.batido_credits ?? 0} créditos actuales</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:.5rem;flex-shrink:0">
+              <input class="input-jr credit-input" type="number" min="1" max="20" value="4" id="cr-${a.id}">
+              <button class="btn btn-outline pago-opcion-btn" style="border-color:var(--gold);color:var(--gold)" onclick="recargar('${a.id}')">+ Recargar</button>
+            </div>
+          </div>
         </div>
       </div>`;
   } catch {
@@ -291,8 +537,8 @@ async function buscarAlumnoPorDni() {
 async function pagarMensualidad(id) {
   const confirmacion = confirm('¿Confirmar el cobro de S/ 80 por 1 mes de entrenamiento?');
   if (!confirmacion) return;
-  
-  let metodo = prompt("¿Cómo pagó? (Escribe: Efectivo, Yape o Plin):", "Efectivo");
+
+  let metodo = prompt('¿Cómo pagó? (Escribe: Efectivo, Yape o Plin):', 'Efectivo');
   if (!metodo) return;
 
   const res = await fetch('/admin/mensualidades/pagar', {
@@ -300,11 +546,11 @@ async function pagarMensualidad(id) {
     headers: H,
     body: JSON.stringify({ student_id: id, monto: 80.00, metodo: metodo })
   });
-  
+
   if (res.ok) {
     const d = await res.json();
     showToast(`✅ Pago registrado. Vence el: ${d.nueva_fecha_vencimiento}`);
-    buscarAlumnoPorDni(); 
+    seleccionarAlumno(id);
   } else {
     showToast('❌ Error al procesar el pago', 'error');
   }
@@ -320,11 +566,16 @@ async function recargar(id) {
   const d = await res.json();
   if (res.ok) {
     showToast(`✅ ${d.alumno}: ahora tiene ${d.creditos_nuevos} cr.`);
-    buscarAlumnoPorDni();
+    seleccionarAlumno(id);
   } else {
     showToast('❌ Error al recargar', 'error');
   }
 }
+
+// Cerrar dropdown al click fuera
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.search-autocomplete-wrap')) cerrarDropdown();
+});
 
 // ── NOTICIAS ───────────────────────────────────────────
 async function loadNoticias() {

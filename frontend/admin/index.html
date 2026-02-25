@@ -11,6 +11,9 @@
 </head>
 <body>
 <div class="topbar">
+  <button class="hamburger-btn" id="menu-toggle" onclick="toggleSidebar()" aria-label="Menú">
+    <span></span><span></span><span></span>
+  </button>
   <a href="/" class="topbar-brand">
     <div class="topbar-logo-circle">
       <img src="/static/img/logo.png" alt="logo" onload="this.classList.add('loaded')" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
@@ -20,34 +23,40 @@
   </a>
   <div class="topbar-right">
     <span style="font-family:var(--font-mono);font-size:.75rem;color:var(--gray)" id="admin-email"></span>
-    <a href="/" class="btn btn-outline">← Inicio</a>
+    <a href="/" class="btn btn-outline topbar-home-btn">← Inicio</a>
   </div>
 </div>
 
+<!-- Overlay para el sidebar en móvil -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
 <div class="admin-layout">
 
-  <nav class="sidebar">
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-close-row">
+      <button class="sidebar-close-btn" onclick="closeSidebar()">✕</button>
+    </div>
     <div class="sidebar-section">Principal</div>
-    <div class="sidebar-item active" onclick="goTo('stats', event)">
+    <div class="sidebar-item active" id="nav-stats" onclick="goTo('stats', event)">
       <span class="sidebar-icon">📊</span> Estadísticas
     </div>
-    <div class="sidebar-item" onclick="goTo('scanner', event)">
+    <div class="sidebar-item" id="nav-scanner" onclick="goTo('scanner', event)">
       <span class="sidebar-icon">📷</span> Scanner
     </div>
 
     <div class="sidebar-section">Gestión</div>
-    <div class="sidebar-item" onclick="goTo('alumnos', event)">
+    <div class="sidebar-item" id="nav-alumnos" onclick="goTo('alumnos', event)">
       <span class="sidebar-icon">👥</span> Alumnos
     </div>
-    <div class="sidebar-item" onclick="goTo('batidos', event)">
+    <div class="sidebar-item" id="nav-batidos" onclick="goTo('batidos', event)">
       <span class="sidebar-icon">💰</span> Caja / Pagos
     </div>
 
     <div class="sidebar-section">Contenido</div>
-    <div class="sidebar-item" onclick="goTo('noticias', event)">
+    <div class="sidebar-item" id="nav-noticias" onclick="goTo('noticias', event)">
       <span class="sidebar-icon">📢</span> Noticias
     </div>
-    <div class="sidebar-item" onclick="goTo('fotos', event)">
+    <div class="sidebar-item" id="nav-fotos" onclick="goTo('fotos', event)">
       <span class="sidebar-icon">🖼️</span> Galería
     </div>
 
@@ -60,6 +69,7 @@
 
   <main class="main-content">
 
+    <!-- ── STATS ── -->
     <div class="page active" id="page-stats">
       <div class="page-header">
         <div class="page-title">Panel <span>Admin</span></div>
@@ -76,6 +86,7 @@
       </div>
     </div>
 
+    <!-- ── SCANNER ── -->
     <div class="page" id="page-scanner">
       <div class="page-header">
         <div class="page-title">📷 <span>Scanner</span></div>
@@ -94,6 +105,7 @@
       </div>
     </div>
 
+    <!-- ── ALUMNOS ── -->
     <div class="page" id="page-alumnos">
       <div class="page-header">
         <div class="page-title">👥 <span>Alumnos</span></div>
@@ -160,32 +172,89 @@
         <button class="btn btn-gold" style="margin-top: 1rem;" onclick="crearAlumno()">✅ Inscribir y Cobrar</button>
       </div>
 
-      <div class="form-card-title" style="margin-top: 2rem; margin-bottom: 1rem;">📋 Directorio de Alumnos</div>
-      <div id="alumnos-list"></div>
-    </div>
-
-    <div class="page" id="page-batidos">
-      <div class="page-header">
-        <div class="page-title">💰 <span>Caja & Mensualidades</span></div>
-      </div>
-      <div class="form-card" style="margin-bottom:1.5rem;">
-        <div class="form-card-title">💡 Buscar alumno para cobrar</div>
-        <p style="font-family:var(--font-cond);font-size:.9rem;color:var(--gray);line-height:1.6;margin-bottom:1rem">
-          Ingresa el DNI del niño para cobrar la mensualidad (S/ 80) o recargar créditos de batidos.
-        </p>
-        <div class="form-row">
-          <div class="form-group" style="max-width:200px">
-            <label class="form-label">DNI del niño</label>
-            <input class="input-jr" id="batidos-dni-search" type="text" placeholder="12345678">
+      <!-- Filtros para la lista de alumnos -->
+      <div class="filtros-bar">
+        <div class="form-card-title" style="margin:0;font-size:1rem">📋 Directorio de Alumnos</div>
+        <div class="filtros-controles">
+          <div class="filtro-group">
+            <label class="form-label">Estado</label>
+            <select class="select-jr select-sm" id="filtro-estado" onchange="aplicarFiltros()">
+              <option value="">Todos</option>
+              <option value="al-dia">✅ Al Día</option>
+              <option value="vencido">⚠️ Vencido</option>
+              <option value="inactivo">🔴 Inactivo</option>
+            </select>
           </div>
-          <div class="form-group" style="align-self:flex-end">
-            <button class="btn btn-gold" onclick="buscarAlumnoPorDni()">🔍 Buscar</button>
+          <div class="filtro-group">
+            <label class="form-label">Horario</label>
+            <select class="select-jr select-sm" id="filtro-horario" onchange="aplicarFiltros()">
+              <option value="">Todos</option>
+              <option value="LMV">LMV</option>
+              <option value="MJS">MJS</option>
+            </select>
+          </div>
+          <div class="filtro-group">
+            <label class="form-label">Buscar</label>
+            <input class="input-jr input-sm" id="filtro-busqueda" placeholder="Nombre..." oninput="aplicarFiltros()">
           </div>
         </div>
       </div>
-      <div id="creditos-result"></div>
+
+      <div id="alumnos-list"></div>
     </div>
 
+    <!-- ── CAJA / PAGOS ── -->
+    <div class="page" id="page-batidos">
+      <div class="page-header">
+        <div class="page-title">💰 <span>Caja & Pagos</span></div>
+      </div>
+
+      <div class="form-card" style="margin-bottom:1.5rem;">
+        <div class="form-card-title">🔍 Buscar alumno para cobrar</div>
+        <p style="font-family:var(--font-cond);font-size:.9rem;color:var(--gray);line-height:1.6;margin-bottom:1rem">
+          Escribe el nombre o apellido del niño para cobrar la mensualidad (S/ 80) o recargar créditos de batidos.
+        </p>
+
+        <!-- Buscador con autocompletado -->
+        <div class="search-autocomplete-wrap">
+          <div class="search-input-group">
+            <span class="search-icon">🔍</span>
+            <input
+              class="input-jr search-input"
+              id="batidos-nombre-search"
+              type="text"
+              placeholder="Ej: Juan Pérez..."
+              autocomplete="off"
+              oninput="onSearchInput()"
+              onkeydown="onSearchKeydown(event)"
+            >
+            <button class="btn-clear-search" id="btn-clear-search" onclick="limpiarBusqueda()" title="Limpiar">✕</button>
+          </div>
+
+          <!-- Filtros rápidos -->
+          <div class="search-filtros">
+            <span class="filtro-label">Filtrar:</span>
+            <button class="filtro-chip active" id="chip-todos" onclick="setChip('todos', event)">Todos</button>
+            <button class="filtro-chip" id="chip-al-dia" onclick="setChip('al-dia', event)">✅ Al Día</button>
+            <button class="filtro-chip" id="chip-vencido" onclick="setChip('vencido', event)">⚠️ Vencido</button>
+            <button class="filtro-chip" id="chip-lmv" onclick="setChip('lmv', event)">LMV</button>
+            <button class="filtro-chip" id="chip-mjs" onclick="setChip('mjs', event)">MJS</button>
+          </div>
+
+          <!-- Dropdown de sugerencias -->
+          <div class="search-dropdown" id="search-dropdown"></div>
+        </div>
+      </div>
+
+      <div id="creditos-result">
+        <div class="empty-search-state">
+          <div class="empty-icon">👆</div>
+          <p>Escribe el nombre del alumno para buscarlo</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── NOTICIAS ── -->
     <div class="page" id="page-noticias">
       <div class="page-header">
         <div class="page-title">📢 <span>Noticias</span></div>
@@ -229,6 +298,7 @@
       <div id="noticias-list"></div>
     </div>
 
+    <!-- ── GALERÍA ── -->
     <div class="page" id="page-fotos">
       <div class="page-header">
         <div class="page-title">🖼️ <span>Galería</span></div>
@@ -250,11 +320,30 @@
           💡 Para subir fotos: Supabase → Storage → New bucket "fotos" → Upload → Copy URL
         </p>
       </div>
-      <div id="fotos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:1rem;margin-top:1rem;"></div>
+      <div id="fotos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-top:1rem;"></div>
     </div>
 
   </main>
 </div>
+
+<!-- Barra de navegación inferior para móvil -->
+<nav class="bottom-nav" id="bottom-nav">
+  <button class="bottom-nav-item active" id="bnav-stats" onclick="goTo('stats', event); setBottomNav('stats')">
+    <span>📊</span><span class="bnav-label">Stats</span>
+  </button>
+  <button class="bottom-nav-item" id="bnav-alumnos" onclick="goTo('alumnos', event); setBottomNav('alumnos')">
+    <span>👥</span><span class="bnav-label">Alumnos</span>
+  </button>
+  <button class="bottom-nav-item" id="bnav-batidos" onclick="goTo('batidos', event); setBottomNav('batidos')">
+    <span>💰</span><span class="bnav-label">Caja</span>
+  </button>
+  <button class="bottom-nav-item" id="bnav-scanner" onclick="goTo('scanner', event); setBottomNav('scanner')">
+    <span>📷</span><span class="bnav-label">Scanner</span>
+  </button>
+  <button class="bottom-nav-item" id="bnav-noticias" onclick="goTo('noticias', event); setBottomNav('noticias')">
+    <span>📢</span><span class="bnav-label">Noticias</span>
+  </button>
+</nav>
 
 <div class="toast" id="toast"></div>
 

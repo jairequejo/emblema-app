@@ -180,6 +180,32 @@ def get_alumno_by_dni(dni: str, admin=Depends(verify_admin)):
     return alumno
 
 
+@router.get("/alumnos/buscar")
+def buscar_alumno_por_nombre(q: str = "", admin=Depends(verify_admin)):
+    """Busca alumnos por nombre completo (búsqueda parcial). Devuelve hasta 10 coincidencias."""
+    if len(q.strip()) < 2:
+        return []
+    res = supabase.table("students") \
+        .select("id, full_name, dni, batido_credits, valid_until, is_active, horario") \
+        .ilike("full_name", f"%{q.strip()}%") \
+        .order("full_name") \
+        .limit(10) \
+        .execute()
+    
+    hoy = datetime.now(timezone.utc).date()
+    alumnos = []
+    for alumno in (res.data or []):
+        dias_restantes = 0
+        if alumno.get("valid_until"):
+            vencimiento = datetime.strptime(alumno["valid_until"], "%Y-%m-%d").date()
+            dias_restantes = (vencimiento - hoy).days
+            if dias_restantes < 0:
+                dias_restantes = 0
+        alumno["dias_restantes"] = dias_restantes
+        alumnos.append(alumno)
+    return alumnos
+
+
 # ── BÓVEDA FINANCIERA (Renovación de Mensualidades) ─────────
 
 class PagoMensualidad(BaseModel):
