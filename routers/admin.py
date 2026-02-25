@@ -30,7 +30,7 @@ class CreditoUpdate(BaseModel):
 
 # ── DEPENDENCIA JWT ───────────────────────────────────────
 def verify_admin(authorization: Optional[str] = Header(None)):
-    """Verifica que el token JWT sea válido en Supabase."""
+    """Verifica que el token JWT sea válido y que el usuario tenga rol 'admin'."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Token requerido")
 
@@ -39,9 +39,17 @@ def verify_admin(authorization: Optional[str] = Header(None)):
         user = supabase.auth.get_user(token)
         if not user or not user.user:
             raise HTTPException(status_code=401, detail="Token inválido")
-        return user.user
     except Exception:
         raise HTTPException(status_code=401, detail="Token inválido o expirado")
+
+    # Verificar rol admin en tabla user_roles
+    email = user.user.email
+    res = supabase.table("user_roles").select("role").eq("email", email).execute()
+    if not res.data or res.data[0].get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Acceso denegado: se requiere rol admin")
+
+    return user.user
+
 
 
 # ── LOGIN ─────────────────────────────────────────────────

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JR Stars — Panel Entrenador</title>
+    <link rel="stylesheet" href="/static/theme.css">
+    <link rel="stylesheet" href="/static/entrenador/entrenador.css">
+    <link rel="icon" href="/static/favicon-admin.ico" type="image/x-icon">
+    <script src="https://unpkg.com/html5-qrcode"></script>
+</head>
+
+<body>
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+        <a href="/" class="topbar-brand">
+            <div class="topbar-logo-circle">
+                <img src="/static/img/logo.png" alt="logo" onload="this.classList.add('loaded')"
+                    onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+                <span class="logo-fallback">⭐</span>
+            </div>
+            <span class="topbar-name">JR <span>STARS</span></span>
+        </a>
+        <div class="topbar-right">
+            <span class="topbar-role-badge">🏃 Entrenador</span>
+            <span class="topbar-email" id="coach-email"></span>
+            <button class="btn btn-outline topbar-logout-btn" onclick="logout()">Salir</button>
+        </div>
+    </div>
+
+    <!-- OVERLAY FLASH DE PANTALLA COMPLETA -->
+    <div class="flash-overlay" id="flash-overlay">
+        <div class="flash-icon" id="flash-icon"></div>
+        <div class="flash-name" id="flash-name"></div>
+        <div class="flash-status" id="flash-status"></div>
+        <div class="flash-detalle" id="flash-detalle"></div>
+        <div class="flash-bar" id="flash-bar"></div>
+    </div>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <div class="coach-layout">
+
+        <!-- ── TAB: SCANNER ── -->
+        <div class="tab-page active" id="tab-scanner">
+            <div class="page-header">
+                <div class="page-title">📷 <span>Scanner</span></div>
+                <div class="nfc-badge" id="nfc-badge">NFC</div>
+            </div>
+
+            <div class="scanner-wrap">
+                <div class="scanner-box">
+                    <div id="reader"></div>
+                    <div class="scan-hint">Acerca el QR o medallón NFC del alumno</div>
+                </div>
+                <div class="scan-history-panel">
+                    <div class="history-title">ÚLTIMOS REGISTROS</div>
+                    <ul id="scan-history"></ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── TAB: ASISTENCIA ── -->
+        <div class="tab-page" id="tab-asistencia">
+            <div class="page-header">
+                <div class="page-title">📋 <span>Asistencia Hoy</span></div>
+                <button class="btn btn-outline" onclick="loadAsistencia()">⟳ Actualizar</button>
+            </div>
+
+            <div class="asistencia-stats" id="asistencia-stats"></div>
+
+            <div class="asistencia-filtros">
+                <button class="chip active" id="chip-todos" onclick="setFiltroAsist('todos', this)">Todos</button>
+                <button class="chip" id="chip-presentes" onclick="setFiltroAsist('presentes', this)">✅
+                    Presentes</button>
+                <button class="chip" id="chip-ausentes" onclick="setFiltroAsist('ausentes', this)">❌ Ausentes</button>
+                <button class="chip chip-rojo" id="chip-deudores" onclick="setFiltroAsist('deudores', this)">⚠️
+                    Deben</button>
+            </div>
+
+            <div id="asistencia-list">
+                <div class="loading-msg">Cargando...</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- NAV INFERIOR -->
+    <nav class="bottom-nav">
+        <button class="bnav-btn active" id="bnav-scanner" onclick="goTab('scanner', this)">
+            <span>📷</span><span class="bnav-label">Scanner</span>
+        </button>
+        <button class="bnav-btn" id="bnav-asistencia" onclick="goTab('asistencia', this)">
+            <span>📋</span><span class="bnav-label">Asistencia</span>
+        </button>
+    </nav>
+
+    <script src="/static/entrenador/entrenador.js"></script>
+</body>
+
+</html>

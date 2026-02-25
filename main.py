@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from routers import students, credentials, attendance, batidos, admin
+from routers import students, credentials, attendance, batidos, admin, entrenador
 from database import supabase
 
 app = FastAPI()
@@ -29,6 +29,7 @@ app.include_router(students.router)
 app.include_router(credentials.router)
 app.include_router(attendance.router)
 app.include_router(batidos.router)
+app.include_router(entrenador.router)
 
 # --- PÁGINAS ---
 @app.get("/")
@@ -58,6 +59,14 @@ def admin_login_page():
 @app.get("/admin")
 def admin_panel():
     return FileResponse("frontend/admin/index.html")
+
+@app.get("/entrenador/login")
+def entrenador_login_page():
+    return FileResponse("frontend/entrenador/login.html")
+
+@app.get("/entrenador")
+def entrenador_panel():
+    return FileResponse("frontend/entrenador/index.html")
 
 @app.get("/status")
 def status():

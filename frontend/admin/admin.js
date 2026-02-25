@@ -105,17 +105,26 @@ function initScanner() {
       const el = document.getElementById('scan-result');
       el.style.display = 'block';
       el.className = `scan-result ${d.status}`;
-      el.innerHTML = d.message;
+
+      if (d.status === 'debe') {
+        el.innerHTML = `🚫 <strong>${d.student_name}</strong><br>
+          <span style="color:#ff6ec7;font-size:.85rem">MENSUALIDAD VENCIDA</span><br>
+          <span style="font-size:.8rem;opacity:.8">${d.detalle || ''}</span>`;
+      } else {
+        el.innerHTML = d.message;
+      }
 
       const li = document.createElement('li');
       li.style.cssText = 'padding:.5rem 0;border-bottom:1px solid var(--border);font-family:var(--font-cond);font-size:.9rem';
-      li.innerHTML = `<strong style="color:var(--gold)">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong> — ${d.student_name || clean}`;
+      const color = d.status === 'debe' ? '#e91e8c' : 'var(--gold)';
+      li.innerHTML = `<strong style="color:${color}">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong> — ${d.student_name || clean}`;
       document.getElementById('scan-history').prepend(li);
 
-      setTimeout(() => { el.style.display = 'none'; scanner.resume(); }, 2500);
+      setTimeout(() => { el.style.display = 'none'; scanner.resume(); }, 3000);
     } catch { setTimeout(() => scanner.resume(), 2000); }
   });
 }
+
 
 // ── ALUMNOS (Registro + Cobro Inicial y Tabla Semáforo) ──
 let alumnosData = []; // cache para filtros

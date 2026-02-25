@@ -2,7 +2,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from database import supabase
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 router = APIRouter(prefix="/attendance", tags=["attendance"])
 
@@ -12,7 +12,7 @@ class ScanRequest(BaseModel):
 @router.post("/scan")
 def scan_credential(scan: ScanRequest):
     res = supabase.table("credentials") \
-        .select("id, student_id, students(full_name)") \
+        .select("id, student_id, students(full_name, valid_until, is_active)") \
         .eq("code", scan.code) \
         .eq("is_active", True) \
         .execute()
@@ -26,10 +26,37 @@ def scan_credential(scan: ScanRequest):
     st_info = raw_data.get("students")
     if isinstance(st_info, list) and len(st_info) > 0:
         nombre_final = st_info[0].get("full_name", "Sin Nombre")
+        valid_until  = st_info[0].get("valid_until")
+        is_active    = st_info[0].get("is_active", True)
     elif isinstance(st_info, dict):
         nombre_final = st_info.get("full_name", "Sin Nombre")
+        valid_until  = st_info.get("valid_until")
+        is_active    = st_info.get("is_active", True)
     else:
         nombre_final = "Sin Nombre"
+        valid_until  = None
+        is_active    = True
+
+    # ── VERIFICAR DEUDA ──────────────────────────────────────
+    if not is_active:
+        return {
+            "status": "debe",
+            "message": f"{nombre_final} — Alumno inactivo",
+            "student_name": nombre_final,
+            "detalle": "Este alumno está marcado como inactivo."
+        }
+
+    if valid_until:
+        hoy = datetime.now(timezone.utc).date()
+        fecha_venc = datetime.strptime(valid_until, "%Y-%m-%d").date()
+        if fecha_venc < hoy:
+            dias_vencido = (hoy - fecha_venc).days
+            return {
+                "status": "debe",
+                "message": f"{nombre_final} — Mensualidad vencida",
+                "student_name": nombre_final,
+                "detalle": f"Venció hace {dias_vencido} día{'s' if dias_vencido != 1 else ''}. Contactar al administrador."
+            }
 
     twelve_ago = (datetime.now() - timedelta(hours=12)).isoformat()
     recent = supabase.table("attendance").select("id") \

@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JR Stars — Entrenador</title>
+    <link rel="stylesheet" href="/static/theme.css">
+    <link rel="icon" href="/static/favicon-admin.ico" type="image/x-icon">
+    <style>
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--black);
+            position: relative;
+            overflow: hidden;
+        }
+
+        body::after {
+            content: '';
+            position: fixed;
+            top: -20%;
+            right: -20%;
+            width: 60%;
+            height: 140%;
+            background: linear-gradient(135deg, #1a6b2e 0%, #003a10 100%);
+            clip-path: polygon(30% 0%, 100% 0%, 100% 100%, 0% 100%);
+            opacity: .08;
+            pointer-events: none;
+        }
+
+        .login-box {
+            width: 100%;
+            max-width: 400px;
+            padding: 2.5rem;
+            background: var(--card);
+            border: 1px solid var(--border);
+            position: relative;
+            animation: fadeUp .5s ease;
+        }
+
+        .login-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #2ecc71, var(--gold));
+        }
+
+        .login-brand {
+            display: flex;
+            align-items: center;
+            gap: .8rem;
+            margin-bottom: 2rem;
+        }
+
+        .login-logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 2px solid #2ecc71;
+            background: var(--dark);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            overflow: hidden;
+        }
+
+        .login-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        .login-logo img.loaded {
+            display: block;
+        }
+
+        .login-logo .logo-fallback {
+            display: block;
+        }
+
+        .login-logo img.loaded~.logo-fallback {
+            display: none;
+        }
+
+        .login-title {
+            font-family: var(--font-display);
+            font-size: 1.8rem;
+            letter-spacing: .1em;
+        }
+
+        .login-title span {
+            color: var(--gold);
+        }
+
+        .login-tag {
+            font-family: var(--font-cond);
+            font-size: .7rem;
+            font-weight: 700;
+            letter-spacing: .3em;
+            text-transform: uppercase;
+            color: #2ecc71;
+            margin-bottom: 1.5rem;
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-label {
+            font-family: var(--font-cond);
+            font-size: .75rem;
+            font-weight: 700;
+            letter-spacing: .2em;
+            text-transform: uppercase;
+            color: var(--gray);
+            display: block;
+            margin-bottom: .4rem;
+        }
+
+        .login-error {
+            background: var(--red-bg);
+            border: 1px solid var(--red);
+            padding: .7rem 1rem;
+            font-family: var(--font-cond);
+            font-size: .85rem;
+            color: var(--red2);
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .login-error.visible {
+            display: block;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: .9rem;
+            font-family: var(--font-display);
+            font-size: 1.2rem;
+            letter-spacing: .15em;
+            color: var(--black);
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+            border: none;
+            cursor: pointer;
+            clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
+            transition: filter .2s, transform .2s;
+            margin-top: .5rem;
+        }
+
+        .btn-login:hover {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+        }
+
+        .btn-login:disabled {
+            opacity: .6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-family: var(--font-cond);
+            font-size: .75rem;
+            color: var(--gray2);
+            letter-spacing: .08em;
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 1rem;
+            font-family: var(--font-cond);
+            font-size: .75rem;
+            color: var(--gray);
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            color: var(--gold);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-box">
+        <div class="login-brand">
+            <div class="login-logo">
+                <img src="/static/img/logo.png" alt="logo" onload="this.classList.add('loaded')"
+                    onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+                <span class="logo-fallback">🏃</span>
+            </div>
+            <div class="login-title">JR <span>STARS</span></div>
+        </div>
+
+        <span class="login-tag">// Acceso Entrenador</span>
+
+        <div class="login-error" id="login-error">❌ Acceso denegado o credenciales incorrectas</div>
+
+        <div class="form-group">
+            <label class="form-label">Correo</label>
+            <input class="input-jr" type="email" id="email" placeholder="entrenador@jrstars.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+            <label class="form-label">Contraseña</label>
+            <input class="input-jr" type="password" id="password" placeholder="••••••••"
+                autocomplete="current-password">
+        </div>
+
+        <button class="btn-login" id="btn-login" onclick="login()">ENTRAR AL PANEL</button>
+
+        <a href="/admin/login" class="back-link">← Acceso Admin</a>
+        <div class="login-footer">JR Stars · Solo entrenadores autorizados</div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem('jr_entrenador_token');
+        if (token) window.location.href = '/entrenador';
+
+        async function login() {
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const btn = document.getElementById('btn-login');
+            const errDiv = document.getElementById('login-error');
+
+            if (!email || !password) return;
+
+            btn.disabled = true;
+            btn.textContent = 'VERIFICANDO...';
+            errDiv.classList.remove('visible');
+
+            try {
+                const res = await fetch('/entrenador/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                if (!res.ok) throw new Error();
+                const data = await res.json();
+
+                localStorage.setItem('jr_entrenador_token', data.access_token);
+                localStorage.setItem('jr_entrenador_email', data.user_email);
+                window.location.href = '/entrenador';
+
+            } catch {
+                errDiv.classList.add('visible');
+                btn.disabled = false;
+                btn.textContent = 'ENTRAR AL PANEL';
+            }
+        }
+
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Enter') login();
+        });
+    </script>
+</body>
+
+</html>

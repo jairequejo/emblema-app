@@ -3,12 +3,12 @@
 
 // ── BLOQUEAR BOTÓN ATRÁS ──────────────────────────────
 window.history.pushState(null, null, window.location.href);
-window.onpopstate = function() { window.history.go(1); };
+window.onpopstate = function () { window.history.go(1); };
 
 // ── WAKE LOCK (pantalla no se apaga) ─────────────────
 async function requestWakeLock() {
     if ('wakeLock' in navigator) {
-        try { await navigator.wakeLock.request('screen'); } catch(e) {}
+        try { await navigator.wakeLock.request('screen'); } catch (e) { }
     }
 }
 requestWakeLock();
@@ -17,17 +17,17 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ── RELOJ ─────────────────────────────────────────────
-const DIAS  = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
 function updateClock() {
     const now = new Date();
-    const h = String(now.getHours()).padStart(2,'0');
-    const m = String(now.getMinutes()).padStart(2,'0');
+    const h = String(now.getHours()).padStart(2, '0');
+    const m = String(now.getMinutes()).padStart(2, '0');
     const clockEl = document.getElementById('clock');
-    const dateEl  = document.getElementById('date-display');
+    const dateEl = document.getElementById('date-display');
     if (clockEl) clockEl.textContent = `${h}:${m}`;
-    if (dateEl)  dateEl.textContent  = `${DIAS[now.getDay()]} ${now.getDate()} ${MESES[now.getMonth()]}`;
+    if (dateEl) dateEl.textContent = `${DIAS[now.getDay()]} ${now.getDate()} ${MESES[now.getMonth()]}`;
 }
 updateClock();
 setInterval(updateClock, 1000);
@@ -79,8 +79,8 @@ const FLASH_DURATION = 3500;
 function showFlash(estado, nombre, mensaje) {
     const flashBg = document.getElementById('flash-bg');
     const overlay = document.getElementById('result-overlay');
-    const nameEl  = document.getElementById('result-name');
-    const msgEl   = document.getElementById('result-msg');
+    const nameEl = document.getElementById('result-name');
+    const msgEl = document.getElementById('result-msg');
 
     if (!flashBg || !overlay || !nameEl) return;
 
@@ -89,7 +89,8 @@ function showFlash(estado, nombre, mensaje) {
     nameEl.textContent = nombre || 'Desconocido';
     if (msgEl) {
         msgEl.textContent = estado === 'success' ? '¡BIENVENIDO!' :
-                            estado === 'warning'  ? 'YA REGISTRADO' : 'RECHAZADO';
+            estado === 'warning' ? 'YA REGISTRADO' :
+                estado === 'debe' ? 'MENSUALIDAD VENCIDA' : 'RECHAZADO';
     }
 
     // Barra de progreso: recrear el elemento para reiniciar la animación
@@ -114,7 +115,7 @@ function addHistory(estado, nombre) {
     const strip = document.getElementById('history-strip');
     if (!strip) return;
 
-    const hora = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+    const hora = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     historyItems.unshift({ type: estado, name: nombre, hora });
     if (historyItems.length > 15) historyItems.pop();
 
@@ -153,32 +154,33 @@ function handleScan(decodedText) {
         },
         body: JSON.stringify({ code })
     })
-    .then(res => res.text())
-    .then(rawText => {
-        let data;
-        try { data = JSON.parse(rawText); }
-        catch(e) {
+        .then(res => res.text())
+        .then(rawText => {
+            let data;
+            try { data = JSON.parse(rawText); }
+            catch (e) {
+                playError();
+                showFlash('error', 'ERROR', 'Conexión fallida');
+                resume(); return;
+            }
+
+            const nombre = data.student_name || 'Desconocido';
+            const estado = data.status || 'error';
+
+            if (estado === 'success') playSuccess();
+            else if (estado === 'warning') playWarning();
+            else if (estado === 'debe') playWarning(); // doble tono de advertencia
+            else playError();
+
+            showFlash(estado, nombre, data.message);
+
+            if (estado !== 'error') addHistory(estado, nombre);
+        })
+        .catch(() => {
             playError();
-            showFlash('error', 'ERROR', 'Conexión fallida');
-            resume(); return;
-        }
-
-        const nombre = data.student_name || 'Desconocido';
-        const estado = data.status || 'error';
-
-        if (estado === 'success')      playSuccess();
-        else if (estado === 'warning') playWarning();
-        else                           playError();
-
-        showFlash(estado, nombre, data.message);
-
-        if (estado !== 'error') addHistory(estado, nombre);
-    })
-    .catch(() => {
-        playError();
-        showFlash('error', 'SIN CONEXIÓN', '');
-        resume();
-    });
+            showFlash('error', 'SIN CONEXIÓN', '');
+            resume();
+        });
 }
 
 function resume() {
@@ -201,7 +203,7 @@ function initScanner() {
     document.getElementById('scanner-frame').style.display = 'block';
 
     const frame = document.getElementById('scanner-frame');
-    const size  = frame ? Math.min(frame.clientWidth, frame.clientHeight) - 20 : 300;
+    const size = frame ? Math.min(frame.clientWidth, frame.clientHeight) - 20 : 300;
 
     html5QrcodeScanner = new Html5QrcodeScanner(
         "reader",
@@ -261,12 +263,12 @@ async function initNFC() {
         ndef.addEventListener('reading', ({ message }) => {
             for (const record of message.records) {
                 const decoder = new TextDecoder(record.encoding || 'utf-8');
-                const raw  = decoder.decode(record.data).trim();
+                const raw = decoder.decode(record.data).trim();
                 const code = raw.includes('?code=') ? raw.split('?code=')[1] : raw;
                 handleScan(code);
             }
         });
-    } catch(e) {
+    } catch (e) {
         console.warn('NFC no disponible:', e.message);
     }
 }
