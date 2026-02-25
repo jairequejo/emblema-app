@@ -6,6 +6,9 @@ from database import supabase
 from datetime import datetime, timedelta, timezone
 import secrets
 import string
+from passlib.context import CryptContext
+
+_pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -336,4 +339,44 @@ def agregar_foto(body: FotoCreate, admin=Depends(verify_admin)):
 @router.delete("/fotos/{foto_id}")
 def eliminar_foto(foto_id: str, admin=Depends(verify_admin)):
     supabase.table("galeria").update({"activa": False}).eq("id", foto_id).execute()
+    return {"ok": True}
+
+
+# ── ENTRENADORES (gestión desde admin) ───────────────────
+class EntrenadorCreate(BaseModel):
+    nombre: str
+    email: str
+    password: str
+
+@router.get("/entrenadores")
+def listar_entrenadores(admin=Depends(verify_admin)):
+    res = supabase.table("entrenadores") \
+        .select("id, nombre, email, is_active, created_at") \
+        .order("nombre").execute()
+    return res.data or []
+
+@router.post("/entrenadores")
+def crear_entrenador(body: EntrenadorCreate, admin=Depends(verify_admin)):
+    email = body.email.strip().lower()
+    # Verificar que no existe
+    existe = supabase.table("entrenadores").select("id").eq("email", email).execute()
+    if existe.data:
+        raise HTTPException(status_code=409, detail="Ya existe un entrenador con ese correo")
+
+    password_hash = _pwd_ctx.hash(body.password)
+    res = supabase.table("entrenadores").insert({
+        "nombre": body.nombre.strip(),
+        "email": email,
+        "password_hash": password_hash,
+        "is_active": True
+    }).execute()
+    if not res.data:
+        raise HTTPException(status_code=500, detail="Error al crear el entrenador")
+    # No devolver el hash
+    e = res.data[0]
+    return {"id": e["id"], "nombre": e["nombre"], "email": e["email"], "is_active": e["is_active"]}
+
+@router.delete("/entrenadores/{ent_id}")
+def toggle_entrenador(ent_id: str, reactivar: bool = False, admin=Depends(verify_admin)):
+    supabase.table("entrenadores").update({"is_active": reactivar}).eq("id", ent_id).execute()
     return {"ok": True}

@@ -54,6 +54,7 @@ function goTo(page, ev) {
   if (page === 'batidos') loadCreditos();
   if (page === 'noticias') loadNoticias();
   if (page === 'fotos') loadFotos();
+  if (page === 'entrenadores') loadEntrenadores();
   if (page === 'scanner' && !scannerInit) initScanner();
 }
 
@@ -677,3 +678,76 @@ async function eliminarFoto(id) {
 
 // ── INIT ──────────────────────────────────────────────
 loadStats();
+
+// ── ENTRENADORES ──────────────────────────────────────
+let _entrenadoresData = [];
+
+async function loadEntrenadores() {
+  const el = document.getElementById('entrenadores-list');
+  if (!el) return;
+  el.innerHTML = '<p style="color:var(--gray);font-family:var(--font-cond)">Cargando...</p>';
+  try {
+    const res = await fetch('/admin/entrenadores', { headers: H });
+    if (res.status === 401) { logout(); return; }
+    _entrenadoresData = await res.json();
+    renderEntrenadores();
+  } catch {
+    el.innerHTML = '<p style="color:var(--red2);font-family:var(--font-cond)">Error al cargar.</p>';
+  }
+}
+
+function renderEntrenadores() {
+  const el = document.getElementById('entrenadores-list');
+  if (!_entrenadoresData.length) {
+    el.innerHTML = '<p style="color:var(--gray);font-family:var(--font-cond)">No hay entrenadores creados aún.</p>';
+    return;
+  }
+  el.innerHTML = _entrenadoresData.map(e => `
+    <div class="alumno-card" style="opacity:${e.is_active ? '1' : '0.5'}">
+      <div class="alumno-card-header">
+        <div>
+          <div class="alumno-card-name">🏃 ${e.nombre}</div>
+          <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--gray)">${e.email}</div>
+        </div>
+        <span style="color:${e.is_active ? '#00ff88' : 'var(--gray)'};font-weight:bold;font-size:.8rem;font-family:var(--font-cond)">
+          ${e.is_active ? 'ACTIVO' : 'INACTIVO'}
+        </span>
+      </div>
+      <div class="alumno-card-actions">
+        ${e.is_active
+      ? `<button class="btn btn-red" style="font-size:.75rem;padding:.3rem .9rem"
+               onclick="toggleEntrenador('${e.id}', '${e.nombre.replace(/'/g, "\\'")}', false)">Desactivar</button>`
+      : `<button class="btn btn-outline" style="font-size:.75rem;padding:.3rem .9rem;border-color:#00ff88;color:#00ff88"
+               onclick="toggleEntrenador('${e.id}', '${e.nombre.replace(/'/g, "\\'")}', true)">Reactivar</button>`
+    }
+      </div>
+    </div>`).join('');
+}
+
+async function crearEntrenador() {
+  const nombre = document.getElementById('ent-nombre')?.value.trim();
+  const email = document.getElementById('ent-email')?.value.trim();
+  const password = document.getElementById('ent-password')?.value;
+  if (!nombre || !email || !password) return showToast('Completa todos los campos', 'error');
+  if (password.length < 6) return showToast('La contraseña debe tener al menos 6 caracteres', 'error');
+
+  const res = await fetch('/admin/entrenadores', {
+    method: 'POST', headers: H,
+    body: JSON.stringify({ nombre, email, password })
+  });
+  if (res.status === 409) return showToast('Ya existe un entrenador con ese correo', 'error');
+  if (!res.ok) return showToast('❌ Error al crear', 'error');
+
+  document.getElementById('ent-nombre').value = '';
+  document.getElementById('ent-email').value = '';
+  document.getElementById('ent-password').value = '';
+  showToast('✅ Entrenador creado. Ya puede ingresar.');
+  loadEntrenadores();
+}
+
+async function toggleEntrenador(id, nombre, reactivar) {
+  if (!confirm(`¿${reactivar ? 'Reactivar' : 'Desactivar'} a ${nombre}?`)) return;
+  await fetch(`/admin/entrenadores/${id}?reactivar=${reactivar}`, { method: 'DELETE', headers: H });
+  showToast('✅ Actualizado');
+  loadEntrenadores();
+}

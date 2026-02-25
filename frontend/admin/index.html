@@ -1,352 +1,400 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
-    <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>JR Stars — Admin Panel</title>
-    <link rel="stylesheet" href="/static/theme.css">
-    <link rel="stylesheet" href="/static/admin/admin.css">
-    <link rel="icon" href="/static/favicon-admin.ico" type="image/x-icon">
-    <script src="https://unpkg.com/html5-qrcode"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JR Stars — Admin Panel</title>
+  <link rel="stylesheet" href="/static/theme.css">
+  <link rel="stylesheet" href="/static/admin/admin.css">
+  <link rel="icon" href="/static/favicon-admin.ico" type="image/x-icon">
+  <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
+
 <body>
-<div class="topbar">
-  <button class="hamburger-btn" id="menu-toggle" onclick="toggleSidebar()" aria-label="Menú">
-    <span></span><span></span><span></span>
-  </button>
-  <a href="/" class="topbar-brand">
-    <div class="topbar-logo-circle">
-      <img src="/static/img/logo.png" alt="logo" onload="this.classList.add('loaded')" onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-      <span class="logo-fallback">⭐</span>
-    </div>
-    <span class="topbar-name">JR <span>STARS</span></span>
-  </a>
-  <div class="topbar-right">
-    <span style="font-family:var(--font-mono);font-size:.75rem;color:var(--gray)" id="admin-email"></span>
-    <a href="/" class="btn btn-outline topbar-home-btn">← Inicio</a>
-  </div>
-</div>
-
-<!-- Overlay para el sidebar en móvil -->
-<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
-
-<div class="admin-layout">
-
-  <nav class="sidebar" id="sidebar">
-    <div class="sidebar-close-row">
-      <button class="sidebar-close-btn" onclick="closeSidebar()">✕</button>
-    </div>
-    <div class="sidebar-section">Principal</div>
-    <div class="sidebar-item active" id="nav-stats" onclick="goTo('stats', event)">
-      <span class="sidebar-icon">📊</span> Estadísticas
-    </div>
-    <div class="sidebar-item" id="nav-scanner" onclick="goTo('scanner', event)">
-      <span class="sidebar-icon">📷</span> Scanner
-    </div>
-
-    <div class="sidebar-section">Gestión</div>
-    <div class="sidebar-item" id="nav-alumnos" onclick="goTo('alumnos', event)">
-      <span class="sidebar-icon">👥</span> Alumnos
-    </div>
-    <div class="sidebar-item" id="nav-batidos" onclick="goTo('batidos', event)">
-      <span class="sidebar-icon">💰</span> Caja / Pagos
-    </div>
-
-    <div class="sidebar-section">Contenido</div>
-    <div class="sidebar-item" id="nav-noticias" onclick="goTo('noticias', event)">
-      <span class="sidebar-icon">📢</span> Noticias
-    </div>
-    <div class="sidebar-item" id="nav-fotos" onclick="goTo('fotos', event)">
-      <span class="sidebar-icon">🖼️</span> Galería
-    </div>
-
-    <div class="sidebar-logout">
-      <div class="sidebar-item" onclick="logout()" style="color:var(--red2)">
-        <span class="sidebar-icon">🚪</span> Cerrar sesión
+  <div class="topbar">
+    <button class="hamburger-btn" id="menu-toggle" onclick="toggleSidebar()" aria-label="Menú">
+      <span></span><span></span><span></span>
+    </button>
+    <a href="/" class="topbar-brand">
+      <div class="topbar-logo-circle">
+        <img src="/static/img/logo.png" alt="logo" onload="this.classList.add('loaded')"
+          onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+        <span class="logo-fallback">⭐</span>
       </div>
+      <span class="topbar-name">JR <span>STARS</span></span>
+    </a>
+    <div class="topbar-right">
+      <span style="font-family:var(--font-mono);font-size:.75rem;color:var(--gray)" id="admin-email"></span>
+      <a href="/" class="btn btn-outline topbar-home-btn">← Inicio</a>
     </div>
+  </div>
+
+  <!-- Overlay para el sidebar en móvil -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+  <div class="admin-layout">
+
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-close-row">
+        <button class="sidebar-close-btn" onclick="closeSidebar()">✕</button>
+      </div>
+      <div class="sidebar-section">Principal</div>
+      <div class="sidebar-item active" id="nav-stats" onclick="goTo('stats', event)">
+        <span class="sidebar-icon">📊</span> Estadísticas
+      </div>
+      <div class="sidebar-item" id="nav-scanner" onclick="goTo('scanner', event)">
+        <span class="sidebar-icon">📷</span> Scanner
+      </div>
+
+      <div class="sidebar-section">Gestión</div>
+      <div class="sidebar-item" id="nav-alumnos" onclick="goTo('alumnos', event)">
+        <span class="sidebar-icon">👥</span> Alumnos
+      </div>
+      <div class="sidebar-item" id="nav-batidos" onclick="goTo('batidos', event)">
+        <span class="sidebar-icon">💰</span> Caja / Pagos
+      </div>
+
+      <div class="sidebar-section">Contenido</div>
+      <div class="sidebar-item" id="nav-noticias" onclick="goTo('noticias', event)">
+        <span class="sidebar-icon">📢</span> Noticias
+      </div>
+      <div class="sidebar-item" id="nav-fotos" onclick="goTo('fotos', event)">
+        <span class="sidebar-icon">🖼️</span> Galería
+      </div>
+
+      <div class="sidebar-section">Equipo</div>
+      <div class="sidebar-item" id="nav-entrenadores" onclick="goTo('entrenadores', event)">
+        <span class="sidebar-icon">🏃</span> Entrenadores
+      </div>
+
+      <div class="sidebar-logout">
+        <div class="sidebar-item" onclick="logout()" style="color:var(--red2)">
+          <span class="sidebar-icon">🚪</span> Cerrar sesión
+        </div>
+      </div>
+    </nav>
+
+    <main class="main-content">
+
+      <!-- ── STATS ── -->
+      <div class="page active" id="page-stats">
+        <div class="page-header">
+          <div class="page-title">Panel <span>Admin</span></div>
+          <button class="btn btn-gold" onclick="loadStats()">⟳ Actualizar</button>
+        </div>
+        <div class="stats-row" id="stats-row">
+          <div class="stat-box">
+            <div class="stat-box-num white" id="s-total">—</div>
+            <div class="stat-box-label">Total alumnos</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-box-num green" id="s-presentes">—</div>
+            <div class="stat-box-label">Presentes hoy</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-box-num red" id="s-ausentes">—</div>
+            <div class="stat-box-label">Ausentes hoy</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-box-num" id="s-fecha">—</div>
+            <div class="stat-box-label">Fecha</div>
+          </div>
+        </div>
+        <div style="font-family:var(--font-cond);color:var(--gray);font-size:.9rem;letter-spacing:.06em">
+          Selecciona un módulo del menú para gestionar tu academia.
+        </div>
+      </div>
+
+      <!-- ── SCANNER ── -->
+      <div class="page" id="page-scanner">
+        <div class="page-header">
+          <div class="page-title">📷 <span>Scanner</span></div>
+        </div>
+        <div class="scanner-admin-wrap">
+          <div>
+            <div id="admin-reader"></div>
+            <div id="scan-result" class="scan-result"></div>
+          </div>
+          <div>
+            <div style="font-family:var(--font-display);font-size:1.2rem;margin-bottom:1rem;color:var(--gold)">
+              ÚLTIMOS REGISTROS
+            </div>
+            <ul id="scan-history" style="list-style:none;"></ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ALUMNOS ── -->
+      <div class="page" id="page-alumnos">
+        <div class="page-header">
+          <div class="page-title">👥 <span>Alumnos</span></div>
+        </div>
+
+        <div class="form-card">
+          <div class="form-card-title">+ Nuevo alumno (Inscripción y Pago)</div>
+          <p style="font-family:var(--font-cond);font-size:.85rem;color:var(--gray);margin-bottom:1rem">
+            Registrar al niño aquí le otorgará automáticamente 30 días de acceso y registrará el pago inicial.
+          </p>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Nombre completo</label>
+              <input class="input-jr" id="a-nombre" placeholder="Nombre Apellido">
+            </div>
+            <div class="form-group">
+              <label class="form-label">DNI</label>
+              <input class="input-jr" id="a-dni" placeholder="12345678" type="number">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nombre del Apoderado</label>
+              <input class="input-jr" id="a-apoderado" placeholder="Ej: Carlos Pérez">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Teléfono (WhatsApp)</label>
+              <input class="input-jr" id="a-telefono" placeholder="987654321" type="tel">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Horario</label>
+              <select class="select-jr" id="a-horario">
+                <option value="LMV">Lunes, Miércoles, Viernes</option>
+                <option value="MJS">Martes, Jueves, Sábado</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Turno</label>
+              <select class="select-jr" id="a-turno">
+                <option value="">Sin turno</option>
+                <option value="mañana">Mañana</option>
+                <option value="tarde">Tarde</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row"
+            style="background: rgba(255, 215, 0, 0.05); padding: 1rem; border-radius: 8px; margin-top: 1rem; border: 1px solid rgba(255, 215, 0, 0.2);">
+            <div class="form-group">
+              <label class="form-label" style="color:var(--gold)">Pago Mensualidad (S/)</label>
+              <input class="input-jr" id="a-pago-mes" type="number" value="80.00">
+            </div>
+            <div class="form-group">
+              <label class="form-label" style="color:var(--gold)">Matrícula (S/) [Opcional]</label>
+              <input class="input-jr" id="a-pago-mat" type="number" value="0.00">
+            </div>
+            <div class="form-group">
+              <label class="form-label" style="color:var(--gold)">Método de Pago</label>
+              <select class="select-jr" id="a-metodo">
+                <option value="Efectivo">Efectivo</option>
+                <option value="Yape">Yape</option>
+                <option value="Plin">Plin</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="btn btn-gold" style="margin-top: 1rem;" onclick="crearAlumno()">✅ Inscribir y Cobrar</button>
+        </div>
+
+        <!-- Filtros para la lista de alumnos -->
+        <div class="filtros-bar">
+          <div class="form-card-title" style="margin:0;font-size:1rem">📋 Directorio de Alumnos</div>
+          <div class="filtros-controles">
+            <div class="filtro-group">
+              <label class="form-label">Estado</label>
+              <select class="select-jr select-sm" id="filtro-estado" onchange="aplicarFiltros()">
+                <option value="">Todos</option>
+                <option value="al-dia">✅ Al Día</option>
+                <option value="vencido">⚠️ Vencido</option>
+                <option value="inactivo">🔴 Inactivo</option>
+              </select>
+            </div>
+            <div class="filtro-group">
+              <label class="form-label">Horario</label>
+              <select class="select-jr select-sm" id="filtro-horario" onchange="aplicarFiltros()">
+                <option value="">Todos</option>
+                <option value="LMV">LMV</option>
+                <option value="MJS">MJS</option>
+              </select>
+            </div>
+            <div class="filtro-group">
+              <label class="form-label">Buscar</label>
+              <input class="input-jr input-sm" id="filtro-busqueda" placeholder="Nombre..." oninput="aplicarFiltros()">
+            </div>
+          </div>
+        </div>
+
+        <div id="alumnos-list"></div>
+      </div>
+
+      <!-- ── CAJA / PAGOS ── -->
+      <div class="page" id="page-batidos">
+        <div class="page-header">
+          <div class="page-title">💰 <span>Caja & Pagos</span></div>
+        </div>
+
+        <div class="form-card" style="margin-bottom:1.5rem;">
+          <div class="form-card-title">🔍 Buscar alumno para cobrar</div>
+          <p style="font-family:var(--font-cond);font-size:.9rem;color:var(--gray);line-height:1.6;margin-bottom:1rem">
+            Escribe el nombre o apellido del niño para cobrar la mensualidad (S/ 80) o recargar créditos de batidos.
+          </p>
+
+          <!-- Buscador con autocompletado -->
+          <div class="search-autocomplete-wrap">
+            <div class="search-input-group">
+              <span class="search-icon">🔍</span>
+              <input class="input-jr search-input" id="batidos-nombre-search" type="text"
+                placeholder="Ej: Juan Pérez..." autocomplete="off" oninput="onSearchInput()"
+                onkeydown="onSearchKeydown(event)">
+              <button class="btn-clear-search" id="btn-clear-search" onclick="limpiarBusqueda()"
+                title="Limpiar">✕</button>
+            </div>
+
+            <!-- Filtros rápidos -->
+            <div class="search-filtros">
+              <span class="filtro-label">Filtrar:</span>
+              <button class="filtro-chip active" id="chip-todos" onclick="setChip('todos', event)">Todos</button>
+              <button class="filtro-chip" id="chip-al-dia" onclick="setChip('al-dia', event)">✅ Al Día</button>
+              <button class="filtro-chip" id="chip-vencido" onclick="setChip('vencido', event)">⚠️ Vencido</button>
+              <button class="filtro-chip" id="chip-lmv" onclick="setChip('lmv', event)">LMV</button>
+              <button class="filtro-chip" id="chip-mjs" onclick="setChip('mjs', event)">MJS</button>
+            </div>
+
+            <!-- Dropdown de sugerencias -->
+            <div class="search-dropdown" id="search-dropdown"></div>
+          </div>
+        </div>
+
+        <div id="creditos-result">
+          <div class="empty-search-state">
+            <div class="empty-icon">👆</div>
+            <p>Escribe el nombre del alumno para buscarlo</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── NOTICIAS ── -->
+      <div class="page" id="page-noticias">
+        <div class="page-header">
+          <div class="page-title">📢 <span>Noticias</span></div>
+        </div>
+
+        <div class="form-card">
+          <div class="form-card-title">+ Nueva noticia</div>
+          <div class="form-row">
+            <div class="form-group" style="grid-column:span 2">
+              <label class="form-label">Título</label>
+              <input class="input-jr" id="n-titulo" placeholder="Título de la noticia">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Categoría</label>
+              <select class="select-jr" id="n-categoria">
+                <option value="aviso">📢 Aviso</option>
+                <option value="torneo">🏆 Torneo</option>
+                <option value="logro">⭐ Logro</option>
+                <option value="batido">🥤 Batidos</option>
+                <option value="horario">📅 Horario</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Emoji</label>
+              <input class="input-jr" id="n-emoji" placeholder="📢" value="📢" style="max-width:80px">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:1rem">
+            <label class="form-label">Descripción</label>
+            <textarea class="input-jr" id="n-desc" rows="3" placeholder="Descripción de la noticia..."
+              style="resize:vertical;"></textarea>
+          </div>
+          <div class="form-group" style="margin-bottom:1rem">
+            <label class="form-label">URL de imagen (opcional)</label>
+            <input class="input-jr" id="n-imagen" placeholder="https://... (sube la foto a Supabase Storage)">
+          </div>
+          <button class="btn btn-gold" onclick="crearNoticia()">📢 Publicar noticia</button>
+        </div>
+
+        <div id="noticias-list"></div>
+      </div>
+
+      <!-- ── GALERÍA ── -->
+      <div class="page" id="page-fotos">
+        <div class="page-header">
+          <div class="page-title">🖼️ <span>Galería</span></div>
+        </div>
+        <div class="form-card">
+          <div class="form-card-title">+ Agregar foto</div>
+          <div class="form-row">
+            <div class="form-group" style="grid-column:span 2">
+              <label class="form-label">URL de la foto</label>
+              <input class="input-jr" id="f-url" placeholder="https://... (sube a Supabase Storage y pega el link)">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Descripción</label>
+              <input class="input-jr" id="f-desc" placeholder="Ej: Entrenamiento enero 2026">
+            </div>
+          </div>
+          <button class="btn btn-gold" onclick="agregarFoto()">🖼️ Agregar foto</button>
+          <p style="font-family:var(--font-cond);font-size:.78rem;color:var(--gray);margin-top:.8rem">
+            💡 Para subir fotos: Supabase → Storage → New bucket "fotos" → Upload → Copy URL
+          </p>
+        </div>
+        <div id="fotos-grid"
+          style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-top:1rem;">
+        </div>
+      </div>
+
+      <!-- ── ENTRENADORES ── -->
+      <div class="page" id="page-entrenadores">
+        <div class="page-header">
+          <div class="page-title">🏃 <span>Entrenadores</span></div>
+        </div>
+
+        <div class="form-card" style="margin-bottom:1.5rem">
+          <div class="form-card-title">➕ Crear Entrenador</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Nombre completo</label>
+              <input class="input-jr" id="ent-nombre" type="text" placeholder="Carlos Quispe">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Correo</label>
+              <input class="input-jr" id="ent-email" type="email" placeholder="carlos@jrstars.com">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Contraseña</label>
+              <input class="input-jr" id="ent-password" type="password" placeholder="mínimo 6 caracteres">
+            </div>
+          </div>
+          <button class="btn btn-gold" onclick="crearEntrenador()">Crear cuenta</button>
+        </div>
+
+        <div id="entrenadores-list">
+          <p style="color:var(--gray);font-family:var(--font-cond)">Cargando...</p>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Barra de navegación inferior para móvil -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <button class="bottom-nav-item active" id="bnav-stats" onclick="goTo('stats', event); setBottomNav('stats')">
+      <span>📊</span><span class="bnav-label">Stats</span>
+    </button>
+    <button class="bottom-nav-item" id="bnav-alumnos" onclick="goTo('alumnos', event); setBottomNav('alumnos')">
+      <span>👥</span><span class="bnav-label">Alumnos</span>
+    </button>
+    <button class="bottom-nav-item" id="bnav-batidos" onclick="goTo('batidos', event); setBottomNav('batidos')">
+      <span>💰</span><span class="bnav-label">Caja</span>
+    </button>
+    <button class="bottom-nav-item" id="bnav-scanner" onclick="goTo('scanner', event); setBottomNav('scanner')">
+      <span>📷</span><span class="bnav-label">Scanner</span>
+    </button>
+    <button class="bottom-nav-item" id="bnav-noticias" onclick="goTo('noticias', event); setBottomNav('noticias')">
+      <span>📢</span><span class="bnav-label">Noticias</span>
+    </button>
   </nav>
 
-  <main class="main-content">
+  <div class="toast" id="toast"></div>
 
-    <!-- ── STATS ── -->
-    <div class="page active" id="page-stats">
-      <div class="page-header">
-        <div class="page-title">Panel <span>Admin</span></div>
-        <button class="btn btn-gold" onclick="loadStats()">⟳ Actualizar</button>
-      </div>
-      <div class="stats-row" id="stats-row">
-        <div class="stat-box"><div class="stat-box-num white" id="s-total">—</div><div class="stat-box-label">Total alumnos</div></div>
-        <div class="stat-box"><div class="stat-box-num green" id="s-presentes">—</div><div class="stat-box-label">Presentes hoy</div></div>
-        <div class="stat-box"><div class="stat-box-num red"   id="s-ausentes">—</div><div class="stat-box-label">Ausentes hoy</div></div>
-        <div class="stat-box"><div class="stat-box-num"       id="s-fecha">—</div><div class="stat-box-label">Fecha</div></div>
-      </div>
-      <div style="font-family:var(--font-cond);color:var(--gray);font-size:.9rem;letter-spacing:.06em">
-        Selecciona un módulo del menú para gestionar tu academia.
-      </div>
-    </div>
-
-    <!-- ── SCANNER ── -->
-    <div class="page" id="page-scanner">
-      <div class="page-header">
-        <div class="page-title">📷 <span>Scanner</span></div>
-      </div>
-      <div class="scanner-admin-wrap">
-        <div>
-          <div id="admin-reader"></div>
-          <div id="scan-result" class="scan-result"></div>
-        </div>
-        <div>
-          <div style="font-family:var(--font-display);font-size:1.2rem;margin-bottom:1rem;color:var(--gold)">
-            ÚLTIMOS REGISTROS
-          </div>
-          <ul id="scan-history" style="list-style:none;"></ul>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── ALUMNOS ── -->
-    <div class="page" id="page-alumnos">
-      <div class="page-header">
-        <div class="page-title">👥 <span>Alumnos</span></div>
-      </div>
-
-      <div class="form-card">
-        <div class="form-card-title">+ Nuevo alumno (Inscripción y Pago)</div>
-        <p style="font-family:var(--font-cond);font-size:.85rem;color:var(--gray);margin-bottom:1rem">
-          Registrar al niño aquí le otorgará automáticamente 30 días de acceso y registrará el pago inicial.
-        </p>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Nombre completo</label>
-            <input class="input-jr" id="a-nombre" placeholder="Nombre Apellido">
-          </div>
-          <div class="form-group">
-            <label class="form-label">DNI</label>
-            <input class="input-jr" id="a-dni" placeholder="12345678" type="number">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Nombre del Apoderado</label>
-            <input class="input-jr" id="a-apoderado" placeholder="Ej: Carlos Pérez">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Teléfono (WhatsApp)</label>
-            <input class="input-jr" id="a-telefono" placeholder="987654321" type="tel">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Horario</label>
-            <select class="select-jr" id="a-horario">
-              <option value="LMV">Lunes, Miércoles, Viernes</option>
-              <option value="MJS">Martes, Jueves, Sábado</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Turno</label>
-            <select class="select-jr" id="a-turno">
-              <option value="">Sin turno</option>
-              <option value="mañana">Mañana</option>
-              <option value="tarde">Tarde</option>
-            </select>
-          </div>
-        </div>
-        
-        <div class="form-row" style="background: rgba(255, 215, 0, 0.05); padding: 1rem; border-radius: 8px; margin-top: 1rem; border: 1px solid rgba(255, 215, 0, 0.2);">
-          <div class="form-group">
-            <label class="form-label" style="color:var(--gold)">Pago Mensualidad (S/)</label>
-            <input class="input-jr" id="a-pago-mes" type="number" value="80.00">
-          </div>
-          <div class="form-group">
-            <label class="form-label" style="color:var(--gold)">Matrícula (S/) [Opcional]</label>
-            <input class="input-jr" id="a-pago-mat" type="number" value="0.00">
-          </div>
-          <div class="form-group">
-            <label class="form-label" style="color:var(--gold)">Método de Pago</label>
-            <select class="select-jr" id="a-metodo">
-              <option value="Efectivo">Efectivo</option>
-              <option value="Yape">Yape</option>
-              <option value="Plin">Plin</option>
-            </select>
-          </div>
-        </div>
-
-        <button class="btn btn-gold" style="margin-top: 1rem;" onclick="crearAlumno()">✅ Inscribir y Cobrar</button>
-      </div>
-
-      <!-- Filtros para la lista de alumnos -->
-      <div class="filtros-bar">
-        <div class="form-card-title" style="margin:0;font-size:1rem">📋 Directorio de Alumnos</div>
-        <div class="filtros-controles">
-          <div class="filtro-group">
-            <label class="form-label">Estado</label>
-            <select class="select-jr select-sm" id="filtro-estado" onchange="aplicarFiltros()">
-              <option value="">Todos</option>
-              <option value="al-dia">✅ Al Día</option>
-              <option value="vencido">⚠️ Vencido</option>
-              <option value="inactivo">🔴 Inactivo</option>
-            </select>
-          </div>
-          <div class="filtro-group">
-            <label class="form-label">Horario</label>
-            <select class="select-jr select-sm" id="filtro-horario" onchange="aplicarFiltros()">
-              <option value="">Todos</option>
-              <option value="LMV">LMV</option>
-              <option value="MJS">MJS</option>
-            </select>
-          </div>
-          <div class="filtro-group">
-            <label class="form-label">Buscar</label>
-            <input class="input-jr input-sm" id="filtro-busqueda" placeholder="Nombre..." oninput="aplicarFiltros()">
-          </div>
-        </div>
-      </div>
-
-      <div id="alumnos-list"></div>
-    </div>
-
-    <!-- ── CAJA / PAGOS ── -->
-    <div class="page" id="page-batidos">
-      <div class="page-header">
-        <div class="page-title">💰 <span>Caja & Pagos</span></div>
-      </div>
-
-      <div class="form-card" style="margin-bottom:1.5rem;">
-        <div class="form-card-title">🔍 Buscar alumno para cobrar</div>
-        <p style="font-family:var(--font-cond);font-size:.9rem;color:var(--gray);line-height:1.6;margin-bottom:1rem">
-          Escribe el nombre o apellido del niño para cobrar la mensualidad (S/ 80) o recargar créditos de batidos.
-        </p>
-
-        <!-- Buscador con autocompletado -->
-        <div class="search-autocomplete-wrap">
-          <div class="search-input-group">
-            <span class="search-icon">🔍</span>
-            <input
-              class="input-jr search-input"
-              id="batidos-nombre-search"
-              type="text"
-              placeholder="Ej: Juan Pérez..."
-              autocomplete="off"
-              oninput="onSearchInput()"
-              onkeydown="onSearchKeydown(event)"
-            >
-            <button class="btn-clear-search" id="btn-clear-search" onclick="limpiarBusqueda()" title="Limpiar">✕</button>
-          </div>
-
-          <!-- Filtros rápidos -->
-          <div class="search-filtros">
-            <span class="filtro-label">Filtrar:</span>
-            <button class="filtro-chip active" id="chip-todos" onclick="setChip('todos', event)">Todos</button>
-            <button class="filtro-chip" id="chip-al-dia" onclick="setChip('al-dia', event)">✅ Al Día</button>
-            <button class="filtro-chip" id="chip-vencido" onclick="setChip('vencido', event)">⚠️ Vencido</button>
-            <button class="filtro-chip" id="chip-lmv" onclick="setChip('lmv', event)">LMV</button>
-            <button class="filtro-chip" id="chip-mjs" onclick="setChip('mjs', event)">MJS</button>
-          </div>
-
-          <!-- Dropdown de sugerencias -->
-          <div class="search-dropdown" id="search-dropdown"></div>
-        </div>
-      </div>
-
-      <div id="creditos-result">
-        <div class="empty-search-state">
-          <div class="empty-icon">👆</div>
-          <p>Escribe el nombre del alumno para buscarlo</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── NOTICIAS ── -->
-    <div class="page" id="page-noticias">
-      <div class="page-header">
-        <div class="page-title">📢 <span>Noticias</span></div>
-      </div>
-
-      <div class="form-card">
-        <div class="form-card-title">+ Nueva noticia</div>
-        <div class="form-row">
-          <div class="form-group" style="grid-column:span 2">
-            <label class="form-label">Título</label>
-            <input class="input-jr" id="n-titulo" placeholder="Título de la noticia">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Categoría</label>
-            <select class="select-jr" id="n-categoria">
-              <option value="aviso">📢 Aviso</option>
-              <option value="torneo">🏆 Torneo</option>
-              <option value="logro">⭐ Logro</option>
-              <option value="batido">🥤 Batidos</option>
-              <option value="horario">📅 Horario</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Emoji</label>
-            <input class="input-jr" id="n-emoji" placeholder="📢" value="📢" style="max-width:80px">
-          </div>
-        </div>
-        <div class="form-group" style="margin-bottom:1rem">
-          <label class="form-label">Descripción</label>
-          <textarea class="input-jr" id="n-desc" rows="3"
-            placeholder="Descripción de la noticia..."
-            style="resize:vertical;"></textarea>
-        </div>
-        <div class="form-group" style="margin-bottom:1rem">
-          <label class="form-label">URL de imagen (opcional)</label>
-          <input class="input-jr" id="n-imagen" placeholder="https://... (sube la foto a Supabase Storage)">
-        </div>
-        <button class="btn btn-gold" onclick="crearNoticia()">📢 Publicar noticia</button>
-      </div>
-
-      <div id="noticias-list"></div>
-    </div>
-
-    <!-- ── GALERÍA ── -->
-    <div class="page" id="page-fotos">
-      <div class="page-header">
-        <div class="page-title">🖼️ <span>Galería</span></div>
-      </div>
-      <div class="form-card">
-        <div class="form-card-title">+ Agregar foto</div>
-        <div class="form-row">
-          <div class="form-group" style="grid-column:span 2">
-            <label class="form-label">URL de la foto</label>
-            <input class="input-jr" id="f-url" placeholder="https://... (sube a Supabase Storage y pega el link)">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Descripción</label>
-            <input class="input-jr" id="f-desc" placeholder="Ej: Entrenamiento enero 2026">
-          </div>
-        </div>
-        <button class="btn btn-gold" onclick="agregarFoto()">🖼️ Agregar foto</button>
-        <p style="font-family:var(--font-cond);font-size:.78rem;color:var(--gray);margin-top:.8rem">
-          💡 Para subir fotos: Supabase → Storage → New bucket "fotos" → Upload → Copy URL
-        </p>
-      </div>
-      <div id="fotos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-top:1rem;"></div>
-    </div>
-
-  </main>
-</div>
-
-<!-- Barra de navegación inferior para móvil -->
-<nav class="bottom-nav" id="bottom-nav">
-  <button class="bottom-nav-item active" id="bnav-stats" onclick="goTo('stats', event); setBottomNav('stats')">
-    <span>📊</span><span class="bnav-label">Stats</span>
-  </button>
-  <button class="bottom-nav-item" id="bnav-alumnos" onclick="goTo('alumnos', event); setBottomNav('alumnos')">
-    <span>👥</span><span class="bnav-label">Alumnos</span>
-  </button>
-  <button class="bottom-nav-item" id="bnav-batidos" onclick="goTo('batidos', event); setBottomNav('batidos')">
-    <span>💰</span><span class="bnav-label">Caja</span>
-  </button>
-  <button class="bottom-nav-item" id="bnav-scanner" onclick="goTo('scanner', event); setBottomNav('scanner')">
-    <span>📷</span><span class="bnav-label">Scanner</span>
-  </button>
-  <button class="bottom-nav-item" id="bnav-noticias" onclick="goTo('noticias', event); setBottomNav('noticias')">
-    <span>📢</span><span class="bnav-label">Noticias</span>
-  </button>
-</nav>
-
-<div class="toast" id="toast"></div>
-
-<script src="/static/admin/admin.js"></script>
+  <script src="/static/admin/admin.js"></script>
 </body>
+
 </html>
