@@ -10,14 +10,13 @@ const token = localStorage.getItem(TOKEN_KEY);
 if (!token) window.location.href = '/entrenador/login';
 
 document.addEventListener('DOMContentLoaded', () => {
-    const emailEl = document.getElementById('coach-email');
-    if (emailEl) emailEl.textContent = localStorage.getItem(EMAIL_KEY) || '';
+    const nameEl = document.getElementById('coach-email');
+    if (nameEl) nameEl.textContent = sessionStorage.getItem('jr_nombre') || '';
 });
 
 function logout() {
     localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(EMAIL_KEY);
-    sessionStorage.removeItem(SIGNING_KEY_SK);
+    sessionStorage.clear();
     syncWorker?.terminate();
     window.location.href = '/entrenador/login';
 }

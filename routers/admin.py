@@ -1,4 +1,5 @@
 # routers/admin.py
+import os
 from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel
 from typing import Optional
@@ -9,6 +10,14 @@ import string
 from passlib.context import CryptContext
 
 _pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Emails autorizados como admin — configura en Railway:
+# ADMIN_EMAILS=academiajrstars@gmail.com,jairequejo@gmail.com
+_ADMIN_EMAILS = {
+    e.strip().lower()
+    for e in os.getenv("ADMIN_EMAILS", "").split(",")
+    if e.strip()
+}
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -45,11 +54,10 @@ def verify_admin(authorization: Optional[str] = Header(None)):
     except Exception:
         raise HTTPException(status_code=401, detail="Token inválido o expirado")
 
-    # Verificar rol admin en tabla user_roles
-    email = user.user.email
-    res = supabase.table("user_roles").select("role").eq("email", email).execute()
-    if not res.data or res.data[0].get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Acceso denegado: se requiere rol admin")
+    # Verificar que el email está en la lista de admins (env var ADMIN_EMAILS)
+    email = user.user.email.strip().lower()
+    if _ADMIN_EMAILS and email not in _ADMIN_EMAILS:
+        raise HTTPException(status_code=403, detail="Acceso denegado: no eres administrador")
 
     return user.user
 
@@ -345,36 +353,41 @@ def eliminar_foto(foto_id: str, admin=Depends(verify_admin)):
 # ── ENTRENADORES (gestión desde admin) ───────────────────
 class EntrenadorCreate(BaseModel):
     nombre: str
-    email: str
-    password: str
 
 @router.get("/entrenadores")
 def listar_entrenadores(admin=Depends(verify_admin)):
     res = supabase.table("entrenadores") \
-        .select("id, nombre, email, is_active, created_at") \
+        .select("id, nombre, token, is_active, created_at, last_used_at") \
         .order("nombre").execute()
     return res.data or []
 
 @router.post("/entrenadores")
-def crear_entrenador(body: EntrenadorCreate, admin=Depends(verify_admin)):
-    email = body.email.strip().lower()
-    # Verificar que no existe
-    existe = supabase.table("entrenadores").select("id").eq("email", email).execute()
-    if existe.data:
-        raise HTTPException(status_code=409, detail="Ya existe un entrenador con ese correo")
+def crear_entrenador(body: EntrenadorCreate, request_info=None, admin=Depends(verify_admin)):
+    import secrets as _secrets
+    from fastapi import Request
+    nombre = body.nombre.strip()
+    if not nombre:
+        raise HTTPException(status_code=400, detail="El nombre es obligatorio")
 
-    password_hash = _pwd_ctx.hash(body.password)
+    token = _secrets.token_urlsafe(24)   # ~32 chars, URL-safe
+
     res = supabase.table("entrenadores").insert({
-        "nombre": body.nombre.strip(),
-        "email": email,
-        "password_hash": password_hash,
+        "nombre": nombre,
+        "token":  token,
         "is_active": True
     }).execute()
+
     if not res.data:
         raise HTTPException(status_code=500, detail="Error al crear el entrenador")
-    # No devolver el hash
+
     e = res.data[0]
-    return {"id": e["id"], "nombre": e["nombre"], "email": e["email"], "is_active": e["is_active"]}
+    return {
+        "id":          e["id"],
+        "nombre":      e["nombre"],
+        "token":       token,
+        "is_active":   e["is_active"],
+        "magic_link":  f"/entrenador?token={token}"
+    }
 
 @router.delete("/entrenadores/{ent_id}")
 def toggle_entrenador(ent_id: str, reactivar: bool = False, admin=Depends(verify_admin)):

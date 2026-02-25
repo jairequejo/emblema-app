@@ -1,28 +1,18 @@
-# routers/entrenador.py — Auth independiente (sin Supabase Auth)
+# routers/entrenador.py — Magic Token Auth (sin passwords ni emails en login)
 import os
 import hmac
 import hashlib
 import base64
-import secrets
-from datetime import datetime, timedelta, timezone
-from typing import Optional, List
+from datetime import datetime, timezone
+from typing import Optional
 
-import jwt
-from passlib.context import CryptContext
 from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel
 from database import supabase
 
 router = APIRouter(prefix="/entrenador", tags=["entrenador"])
 
-# ── CRYPTO ────────────────────────────────────────────────
-pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-JWT_SECRET  = os.getenv("ENTRENADOR_JWT_SECRET", secrets.token_hex(32))
-JWT_ALG     = "HS256"
-JWT_EXPIRE  = 60 * 24   # 24 horas en minutos
-
-# ── CLAVE HMAC QR (compartida con attendance.py) ──────────
+# ── CLAVE HMAC QR ─────────────────────────────────────────
 _raw_key = os.getenv("QR_SIGNING_KEY", "a" * 64)
 try:
     SIGNING_KEY = bytes.fromhex(_raw_key)
@@ -33,86 +23,55 @@ SIGNING_KEY_HEX = SIGNING_KEY.hex()
 
 
 def _b64u_encode(text: str) -> str:
-    return base64.urlsafe_b64encode(text.encode("utf-8")).rstrip(b"=").decode()
+    return base64.urlsafe_b64encode(text.encode()).rstrip(b"=").decode()
 
 
-def _sign_qr(student_id: str, valid_until_yyyymmdd: str, name: str) -> str:
-    msg = f"{student_id}|{valid_until_yyyymmdd}|{name}".encode("utf-8")
+def _sign_qr(student_id: str, valid_yyyymmdd: str, name: str) -> str:
+    msg = f"{student_id}|{valid_yyyymmdd}|{name}".encode()
     return hmac.new(SIGNING_KEY, msg, hashlib.sha256).digest()[:8].hex()
 
 
-# ── MODELOS ───────────────────────────────────────────────
-class LoginRequest(BaseModel):
-    email: str
-    password: str
-
-
-# ── JWT HELPERS ───────────────────────────────────────────
-def create_token(entrenador_id: str, email: str, nombre: str) -> str:
-    exp = datetime.now(timezone.utc) + timedelta(minutes=JWT_EXPIRE)
-    payload = {
-        "sub":    entrenador_id,
-        "email":  email,
-        "nombre": nombre,
-        "role":   "entrenador",
-        "exp":    exp
-    }
-    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
-
-
-def decode_token(token: str) -> dict:
-    try:
-        return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expirado")
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Token inválido")
-
-
-# ── DEPENDENCIA ───────────────────────────────────────────
-def verify_entrenador(authorization: Optional[str] = Header(None)) -> dict:
+# ── DEPENDENCIA: VERIFICAR TOKEN ──────────────────────────
+def verify_token(authorization: Optional[str] = Header(None)) -> dict:
+    """Lee el token mágico del header y verifica que esté activo en la BD."""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Token requerido")
-    token = authorization.replace("Bearer ", "")
-    payload = decode_token(token)
-    if payload.get("role") != "entrenador":
-        raise HTTPException(status_code=403, detail="Acceso denegado")
-    return payload
 
-
-# ── LOGIN ─────────────────────────────────────────────────
-@router.post("/login")
-def entrenador_login(body: LoginRequest):
-    """Autentica con la tabla 'entrenadores' (sin Supabase Auth)."""
+    token = authorization.replace("Bearer ", "").strip()
     res = supabase.table("entrenadores") \
-        .select("id, nombre, email, password_hash, is_active") \
-        .eq("email", body.email.strip().lower()) \
-        .execute()
+        .select("id, nombre, is_active") \
+        .eq("token", token).execute()
 
     if not res.data:
-        raise HTTPException(status_code=403, detail="Credenciales incorrectas")
+        raise HTTPException(status_code=403, detail="Token inválido")
 
     ent = res.data[0]
-
     if not ent.get("is_active"):
-        raise HTTPException(status_code=403, detail="Cuenta desactivada")
+        raise HTTPException(status_code=403, detail="Acceso revocado por el administrador")
 
-    if not pwd_ctx.verify(body.password, ent["password_hash"]):
-        raise HTTPException(status_code=403, detail="Credenciales incorrectas")
+    # Actualizar last_used_at
+    supabase.table("entrenadores").update({
+        "last_used_at": datetime.now(timezone.utc).isoformat()
+    }).eq("token", token).execute()
 
-    token = create_token(str(ent["id"]), ent["email"], ent["nombre"])
+    return {"id": ent["id"], "nombre": ent["nombre"]}
+
+
+# ── VERIFY ENDPOINT (llamado al cargar el panel) ──────────
+@router.get("/verify")
+def verify_entrenador_token(ent=Depends(verify_token)):
+    """El frontend llama a este endpoint para validar el token al iniciar."""
     return {
-        "access_token": token,
-        "user_email":   ent["email"],
-        "nombre":       ent["nombre"],
-        "signing_key":  SIGNING_KEY_HEX
+        "ok":          True,
+        "nombre":      ent["nombre"],
+        "signing_key": SIGNING_KEY_HEX
     }
 
 
 # ── GENERAR CREDENCIAL FIRMADA PARA UN ALUMNO ─────────────
 @router.post("/credentials/generate-signed/{student_id}")
-def generate_signed_credential(student_id: str, payload=Depends(verify_entrenador)):
-    st = supabase.table("students").select("id, full_name, valid_until, is_active")\
+def generate_signed_credential(student_id: str, ent=Depends(verify_token)):
+    st = supabase.table("students").select("id, full_name, valid_until, is_active") \
         .eq("id", student_id).execute()
     if not st.data:
         raise HTTPException(status_code=404, detail="Alumno no encontrado")
@@ -130,28 +89,28 @@ def generate_signed_credential(student_id: str, payload=Depends(verify_entrenado
     name     = alumno["full_name"]
     name_b64 = _b64u_encode(name)
     sig      = _sign_qr(student_id, valid_yyyymmdd, name)
-    payload_str = f"JRS:{student_id}:{valid_yyyymmdd}:{name_b64}:{sig}"
+    payload  = f"JRS:{student_id}:{valid_yyyymmdd}:{name_b64}:{sig}"
 
     return {
-        "payload":      payload_str,
+        "payload":      payload,
         "student_name": name,
         "valid_until":  valid_until,
-        "qr_url": f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={payload_str}"
+        "qr_url": f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={payload}"
     }
 
 
 # ── ASISTENCIA DEL DÍA ────────────────────────────────────
 @router.get("/asistencia/hoy")
-def get_asistencia_hoy(payload=Depends(verify_entrenador)):
+def get_asistencia_hoy(ent=Depends(verify_token)):
     today_start = datetime.now(timezone.utc).replace(
         hour=0, minute=0, second=0, microsecond=0
     ).isoformat()
 
-    all_students = supabase.table("students")\
-        .select("id, full_name, horario, turno, valid_until")\
+    all_students = supabase.table("students") \
+        .select("id, full_name, horario, turno, valid_until") \
         .eq("is_active", True).order("full_name").execute()
 
-    attended = supabase.table("attendance")\
+    attended = supabase.table("attendance") \
         .select("student_id, created_at").gte("created_at", today_start).execute()
 
     attended_ids = {r["student_id"]: r["created_at"] for r in (attended.data or [])}

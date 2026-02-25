@@ -703,45 +703,55 @@ function renderEntrenadores() {
     return;
   }
   el.innerHTML = _entrenadoresData.map(e => `
-    <div class="alumno-card" style="opacity:${e.is_active ? '1' : '0.5'}">
-      <div class="alumno-card-header">
+    <div class="alumno-card" style="opacity:${e.is_active ? '1' : '0.5'};flex-direction:column;align-items:stretch;gap:1rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
         <div>
           <div class="alumno-card-name">🏃 ${e.nombre}</div>
-          <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--gray)">${e.email}</div>
+          <div style="font-family:var(--font-mono);font-size:.72rem;color:var(--gray)">${e.is_active ? '✅ Acceso habilitado' : '🚫 Acceso revocado'}</div>
         </div>
-        <span style="color:${e.is_active ? '#00ff88' : 'var(--gray)'};font-weight:bold;font-size:.8rem;font-family:var(--font-cond)">
-          ${e.is_active ? 'ACTIVO' : 'INACTIVO'}
-        </span>
-      </div>
-      <div class="alumno-card-actions">
-        ${e.is_active
+        <div class="alumno-card-actions">
+          ${e.is_active
       ? `<button class="btn btn-red" style="font-size:.75rem;padding:.3rem .9rem"
-               onclick="toggleEntrenador('${e.id}', '${e.nombre.replace(/'/g, "\\'")}', false)">Desactivar</button>`
+                 onclick="toggleEntrenador('${e.id}', '${e.nombre.replace(/'/g, "\\'")}', false)">Revocar</button>`
       : `<button class="btn btn-outline" style="font-size:.75rem;padding:.3rem .9rem;border-color:#00ff88;color:#00ff88"
-               onclick="toggleEntrenador('${e.id}', '${e.nombre.replace(/'/g, "\\'")}', true)">Reactivar</button>`
+                 onclick="toggleEntrenador('${e.id}', '${e.nombre.replace(/'/g, "\\'")}', true)">Reactivar</button>`
     }
+        </div>
       </div>
+      ${e.is_active ? `
+      <div style="background:var(--dark);padding:10px;border-radius:6px;display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--gold);overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin-right:10px;">
+          /entrenador/login?token=${e.token.substring(0, 8)}...
+        </div>
+        <button class="btn btn-gold" style="font-size:0.75rem;padding:0.4rem 0.8rem;" onclick="copyMagicLink('${e.token}')">📋 Copiar Enlace</button>
+      </div>` : ''}
     </div>`).join('');
+}
+
+function copyMagicLink(token) {
+  const url = window.location.origin + '/entrenador/login?token=' + token;
+  navigator.clipboard.writeText(url).then(() => {
+    showToast('✅ Enlace copiado. Envíalo por WhatsApp.');
+  }).catch(err => {
+    showToast('❌ Error al copiar enlace', 'error');
+  });
 }
 
 async function crearEntrenador() {
   const nombre = document.getElementById('ent-nombre')?.value.trim();
-  const email = document.getElementById('ent-email')?.value.trim();
-  const password = document.getElementById('ent-password')?.value;
-  if (!nombre || !email || !password) return showToast('Completa todos los campos', 'error');
-  if (password.length < 6) return showToast('La contraseña debe tener al menos 6 caracteres', 'error');
+  if (!nombre) return showToast('Completa el nombre', 'error');
 
   const res = await fetch('/admin/entrenadores', {
     method: 'POST', headers: H,
-    body: JSON.stringify({ nombre, email, password })
+    body: JSON.stringify({ nombre })
   });
-  if (res.status === 409) return showToast('Ya existe un entrenador con ese correo', 'error');
   if (!res.ok) return showToast('❌ Error al crear', 'error');
 
+  const data = await res.json();
   document.getElementById('ent-nombre').value = '';
-  document.getElementById('ent-email').value = '';
-  document.getElementById('ent-password').value = '';
-  showToast('✅ Entrenador creado. Ya puede ingresar.');
+  showToast('✅ Entrenador creado.');
+  // Automáticamente copiar
+  copyMagicLink(data.token);
   loadEntrenadores();
 }
 

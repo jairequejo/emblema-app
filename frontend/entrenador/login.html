@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>JR Stars — Entrenador</title>
+    <title>JR Stars — Acceso Entrenador</title>
     <link rel="stylesheet" href="/static/theme.css">
     <link rel="icon" href="/static/favicon-admin.ico" type="image/x-icon">
     <style>
@@ -14,257 +14,161 @@
             align-items: center;
             justify-content: center;
             background: var(--black);
-            position: relative;
-            overflow: hidden;
+            font-family: var(--font-cond);
         }
 
-        body::after {
-            content: '';
-            position: fixed;
-            top: -20%;
-            right: -20%;
-            width: 60%;
-            height: 140%;
-            background: linear-gradient(135deg, #1a6b2e 0%, #003a10 100%);
-            clip-path: polygon(30% 0%, 100% 0%, 100% 100%, 0% 100%);
-            opacity: .08;
-            pointer-events: none;
+        .access-box {
+            text-align: center;
+            padding: 3rem 2rem;
+            max-width: 360px;
         }
 
-        .login-box {
-            width: 100%;
-            max-width: 400px;
-            padding: 2.5rem;
-            background: var(--card);
-            border: 1px solid var(--border);
-            position: relative;
-            animation: fadeUp .5s ease;
-        }
-
-        .login-box::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, #2ecc71, var(--gold));
-        }
-
-        .login-brand {
-            display: flex;
-            align-items: center;
-            gap: .8rem;
-            margin-bottom: 2rem;
-        }
-
-        .login-logo {
-            width: 48px;
-            height: 48px;
+        .access-logo {
+            width: 72px;
+            height: 72px;
             border-radius: 50%;
             border: 2px solid #2ecc71;
             background: var(--dark);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.4rem;
+            font-size: 2rem;
+            margin: 0 auto 1.5rem;
             overflow: hidden;
         }
 
-        .login-logo img {
+        .access-logo img {
             width: 100%;
             height: 100%;
             object-fit: cover;
             display: none;
         }
 
-        .login-logo img.loaded {
+        .access-logo img.loaded {
             display: block;
         }
 
-        .login-logo .logo-fallback {
-            display: block;
-        }
-
-        .login-logo img.loaded~.logo-fallback {
+        .access-logo img.loaded~span {
             display: none;
         }
 
-        .login-title {
+        .access-title {
             font-family: var(--font-display);
-            font-size: 1.8rem;
+            font-size: 2rem;
             letter-spacing: .1em;
+            margin-bottom: .3rem;
         }
 
-        .login-title span {
+        .access-title span {
             color: var(--gold);
         }
 
-        .login-tag {
-            font-family: var(--font-cond);
-            font-size: .7rem;
-            font-weight: 700;
-            letter-spacing: .3em;
-            text-transform: uppercase;
-            color: #2ecc71;
-            margin-bottom: 1.5rem;
-            display: block;
-        }
-
-        .form-group {
-            margin-bottom: 1rem;
-        }
-
-        .form-label {
-            font-family: var(--font-cond);
-            font-size: .75rem;
-            font-weight: 700;
-            letter-spacing: .2em;
-            text-transform: uppercase;
-            color: var(--gray);
-            display: block;
-            margin-bottom: .4rem;
-        }
-
-        .login-error {
-            background: var(--red-bg);
-            border: 1px solid var(--red);
-            padding: .7rem 1rem;
-            font-family: var(--font-cond);
+        .access-sub {
             font-size: .85rem;
-            color: var(--red2);
-            margin-bottom: 1rem;
-            display: none;
-        }
-
-        .login-error.visible {
-            display: block;
-        }
-
-        .btn-login {
-            width: 100%;
-            padding: .9rem;
-            font-family: var(--font-display);
-            font-size: 1.2rem;
-            letter-spacing: .15em;
-            color: var(--black);
-            background: linear-gradient(135deg, #2ecc71, #27ae60);
-            border: none;
-            cursor: pointer;
-            clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
-            transition: filter .2s, transform .2s;
-            margin-top: .5rem;
-        }
-
-        .btn-login:hover {
-            filter: brightness(1.1);
-            transform: translateY(-1px);
-        }
-
-        .btn-login:disabled {
-            opacity: .6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .login-footer {
-            text-align: center;
-            margin-top: 1.5rem;
-            font-family: var(--font-cond);
-            font-size: .75rem;
-            color: var(--gray2);
-            letter-spacing: .08em;
-        }
-
-        .back-link {
-            display: block;
-            text-align: center;
-            margin-top: 1rem;
-            font-family: var(--font-cond);
-            font-size: .75rem;
             color: var(--gray);
-            text-decoration: none;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            margin-bottom: 2rem;
         }
 
-        .back-link:hover {
-            color: var(--gold);
+        .status-msg {
+            font-size: 1rem;
+            color: var(--gray);
+            margin-bottom: 1rem;
+            min-height: 2rem;
+        }
+
+        .status-msg.error {
+            color: var(--red2);
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid rgba(46, 204, 113, .2);
+            border-top-color: #2ecc71;
+            border-radius: 50%;
+            animation: spin .8s linear infinite;
+            margin: 1rem auto;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .no-access {
+            display: none;
+            color: var(--gray);
+            font-size: .85rem;
+            line-height: 1.7;
+            margin-top: 1rem;
         }
     </style>
 </head>
 
 <body>
-    <div class="login-box">
-        <div class="login-brand">
-            <div class="login-logo">
-                <img src="/static/img/logo.png" alt="logo" onload="this.classList.add('loaded')"
-                    onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
-                <span class="logo-fallback">🏃</span>
-            </div>
-            <div class="login-title">JR <span>STARS</span></div>
+    <div class="access-box">
+        <div class="access-logo">
+            <img src="/static/img/logo.png" alt="logo" onload="this.classList.add('loaded')">
+            <span>🏃</span>
         </div>
+        <div class="access-title">JR <span>STARS</span></div>
+        <div class="access-sub">// Panel Entrenador</div>
 
-        <span class="login-tag">// Acceso Entrenador</span>
-
-        <div class="login-error" id="login-error">❌ Acceso denegado o credenciales incorrectas</div>
-
-        <div class="form-group">
-            <label class="form-label">Correo</label>
-            <input class="input-jr" type="email" id="email" placeholder="entrenador@jrstars.com" autocomplete="email">
+        <div class="spinner" id="spinner"></div>
+        <div class="status-msg" id="status-msg">Verificando acceso...</div>
+        <div class="no-access" id="no-access">
+            Este enlace es inválido o fue revocado.<br>
+            Solicita un nuevo acceso al administrador.
         </div>
-        <div class="form-group">
-            <label class="form-label">Contraseña</label>
-            <input class="input-jr" type="password" id="password" placeholder="••••••••"
-                autocomplete="current-password">
-        </div>
-
-        <button class="btn-login" id="btn-login" onclick="login()">ENTRAR AL PANEL</button>
-
-        <a href="/admin/login" class="back-link">← Acceso Admin</a>
-        <div class="login-footer">JR Stars · Solo entrenadores autorizados</div>
     </div>
 
     <script>
-        const token = localStorage.getItem('jr_entrenador_token');
-        if (token) window.location.href = '/entrenador';
+        const TOKEN_KEY = 'jr_entrenador_token';
 
-        async function login() {
-            const email = document.getElementById('email').value.trim();
-            const password = document.getElementById('password').value;
-            const btn = document.getElementById('btn-login');
-            const errDiv = document.getElementById('login-error');
+        async function init() {
+            const urlToken = new URLSearchParams(location.search).get('token');
 
-            if (!email || !password) return;
+            // Si llegó un token nuevo en la URL, guardarlo y limpiar la URL
+            if (urlToken) {
+                localStorage.setItem(TOKEN_KEY, urlToken);
+                history.replaceState({}, '', '/entrenador/login');
+            }
 
-            btn.disabled = true;
-            btn.textContent = 'VERIFICANDO...';
-            errDiv.classList.remove('visible');
+            const token = localStorage.getItem(TOKEN_KEY);
+            if (!token) return showNoAccess();
 
+            // Verificar con el backend
             try {
-                const res = await fetch('/entrenador/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
+                const res = await fetch('/entrenador/verify', {
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
-
-                if (!res.ok) throw new Error();
-                const data = await res.json();
-
-                localStorage.setItem('jr_entrenador_token', data.access_token);
-                localStorage.setItem('jr_entrenador_email', data.user_email);
-                // Guardar clave HMAC para validación offline
-                if (data.signing_key) sessionStorage.setItem('jr_signing_key', data.signing_key);
-                window.location.href = '/entrenador';
-
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.signing_key) sessionStorage.setItem('jr_signing_key', data.signing_key);
+                    sessionStorage.setItem('jr_nombre', data.nombre || '');
+                    document.getElementById('status-msg').textContent = `¡Hola, ${data.nombre}! Abriendo scanner...`;
+                    setTimeout(() => { window.location.href = '/entrenador'; }, 600);
+                } else {
+                    localStorage.removeItem(TOKEN_KEY);
+                    showNoAccess();
+                }
             } catch {
-                errDiv.classList.add('visible');
-                btn.disabled = false;
-                btn.textContent = 'ENTRAR AL PANEL';
+                document.getElementById('status-msg').textContent = 'Sin conexión. Reintenta en un momento.';
+                document.getElementById('status-msg').classList.add('error');
+                document.getElementById('spinner').style.display = 'none';
             }
         }
 
-        document.addEventListener('keydown', e => {
-            if (e.key === 'Enter') login();
-        });
+        function showNoAccess() {
+            document.getElementById('spinner').style.display = 'none';
+            document.getElementById('status-msg').style.display = 'none';
+            document.getElementById('no-access').style.display = 'block';
+        }
+
+        init();
     </script>
 </body>
 

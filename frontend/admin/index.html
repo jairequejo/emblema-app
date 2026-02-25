@@ -349,17 +349,9 @@
         <div class="form-card" style="margin-bottom:1.5rem">
           <div class="form-card-title">➕ Crear Entrenador</div>
           <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Nombre completo</label>
-              <input class="input-jr" id="ent-nombre" type="text" placeholder="Carlos Quispe">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Correo</label>
-              <input class="input-jr" id="ent-email" type="email" placeholder="carlos@jrstars.com">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Contraseña</label>
-              <input class="input-jr" id="ent-password" type="password" placeholder="mínimo 6 caracteres">
+            <div class="form-group" style="grid-column: span 2;">
+              <label class="form-label">Nombre completo del profesor</label>
+              <input class="input-jr" id="ent-nombre" type="text" placeholder="Ej. Carlos Quispe">
             </div>
           </div>
           <button class="btn btn-gold" onclick="crearEntrenador()">Crear cuenta</button>
