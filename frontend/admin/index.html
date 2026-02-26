@@ -483,6 +483,100 @@
     </button>
   </nav>
 
+  <!-- ── MODAL EDITAR ALUMNO ── -->
+  <div id="modal-editar-alumno" class="modal-overlay hidden" onclick="cerrarModalEdicionOutside(event)">
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="modal-edit-title">
+      <div class="modal-header">
+        <div class="modal-title" id="modal-edit-title">✏️ Editar <span>Alumno</span></div>
+        <button class="modal-close-btn" onclick="cerrarModalEdicion()" aria-label="Cerrar">✕</button>
+      </div>
+
+      <form id="form-editar-alumno" onsubmit="guardarEdicionAlumno(event)" autocomplete="off">
+        <input type="hidden" id="edit-id">
+
+        <!-- ── Datos Personales ── -->
+        <div class="modal-section-title">👤 Datos Personales</div>
+        <div class="form-row">
+          <div class="form-group" style="grid-column:span 2">
+            <label class="form-label">Nombre completo</label>
+            <input class="input-jr" id="edit-full-name" type="text" placeholder="Nombre Apellido" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">DNI</label>
+            <input class="input-jr" id="edit-dni" type="text" placeholder="12345678" maxlength="8">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Fecha de nacimiento</label>
+            <input class="input-jr" id="edit-fecha-nacimiento" type="date">
+          </div>
+        </div>
+
+        <!-- ── Contacto ── -->
+        <div class="modal-section-title">📞 Contacto</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Nombre del apoderado</label>
+            <input class="input-jr" id="edit-parent-name" type="text" placeholder="Ej: Carlos Pérez">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Teléfono (WhatsApp)</label>
+            <input class="input-jr" id="edit-parent-phone" type="tel" placeholder="987654321">
+          </div>
+        </div>
+
+        <!-- ── Datos Deportivos ── -->
+        <div class="modal-section-title">⚽ Datos Deportivos</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Sede</label>
+            <input class="input-jr" id="edit-sede" type="text" placeholder="Ej: Centro">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Turno</label>
+            <select class="select-jr" id="edit-turno">
+              <option value="">Sin turno</option>
+              <option value="mañana">Mañana</option>
+              <option value="tarde">Tarde</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Horario</label>
+            <select class="select-jr" id="edit-horario">
+              <option value="LMV">Lunes, Miércoles, Viernes</option>
+              <option value="MJS">Martes, Jueves, Sábado</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Grupo</label>
+            <input class="input-jr" id="edit-grupo" type="text" placeholder="Ej: Sub-12">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Categoría</label>
+            <input class="input-jr" id="edit-categoria" type="text" placeholder="Ej: Benjamín">
+          </div>
+        </div>
+
+        <!-- ── Facturación ── -->
+        <div class="modal-section-title">💰 Facturación</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Tarifa mensual (S/)</label>
+            <input class="input-jr" id="edit-tarifa" type="number" step="0.50" placeholder="80.00">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Código legacy</label>
+            <input class="input-jr" id="edit-codigo-legacy" type="text" placeholder="Ej: JR-2024-001">
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn btn-outline" onclick="cerrarModalEdicion()">Cancelar</button>
+          <button type="submit" class="btn btn-gold">💾 Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script src="/static/admin/admin.js"></script>

@@ -209,6 +209,7 @@ function renderAlumnos(data) {
         </div>
         <div class="alumno-card-actions">
           <button class="btn btn-outline" style="font-size:.75rem;padding:.3rem .9rem" onclick="verQR('${a.id}')">📱 QR</button>
+          <button class="btn btn-outline" style="font-size:.75rem;padding:.3rem .9rem;border-color:var(--gold);color:var(--gold)" onclick="abrirModalEdicion('${a.id}')">✏️ Editar</button>
           ${a.is_active
           ? `<button class="btn btn-red" style="font-size:.75rem;padding:.3rem .9rem" onclick="toggleEstadoAlumno('${a.id}','${a.full_name.replace(/'/g, "\\'")}', false)">Desactivar</button>`
           : `<button class="btn btn-outline" style="font-size:.75rem;padding:.3rem .9rem;border-color:#00ff88;color:#00ff88" onclick="toggleEstadoAlumno('${a.id}','${a.full_name.replace(/'/g, "\\'")}', true)">Reactivar</button>`
@@ -241,6 +242,7 @@ function renderAlumnos(data) {
             <td><span class="badge badge-gold">${a.horario || 'LMV'}</span></td>
             <td>
               <button class="btn btn-outline" style="font-size:.75rem;padding:.3rem .7rem" onclick="verQR('${a.id}')">QR</button>
+              <button class="btn btn-outline" style="font-size:.75rem;padding:.3rem .7rem;margin-left:.3rem;border-color:var(--gold);color:var(--gold)" onclick="abrirModalEdicion('${a.id}')">✏️ Editar</button>
               ${a.is_active
           ? `<button class="btn btn-red" style="font-size:.75rem;padding:.3rem .7rem;margin-left:.3rem" onclick="toggleEstadoAlumno('${a.id}','${a.full_name.replace(/'/g, "\\'")}', false)">Desactivar</button>`
           : `<button class="btn btn-outline" style="font-size:.75rem;padding:.3rem .7rem;margin-left:.3rem;border-color:#00ff88;color:#00ff88" onclick="toggleEstadoAlumno('${a.id}','${a.full_name.replace(/'/g, "\\'")}', true)">Reactivar</button>`
@@ -320,6 +322,125 @@ async function verQR(studentId) {
     showToast('❌ Error al obtener el QR.', 'error');
   }
 }
+
+// ── MODAL EDITAR ALUMNO ────────────────────────────────────
+function abrirModalEdicion(student_id) {
+  const a = alumnosData.find(x => x.id === student_id);
+  if (!a) { showToast('Alumno no encontrado en caché. Recarga la lista.', 'error'); return; }
+
+  // Rellenar campos
+  document.getElementById('edit-id').value = a.id;
+  document.getElementById('edit-full-name').value = a.full_name || '';
+  document.getElementById('edit-dni').value = a.dni || '';
+  document.getElementById('edit-fecha-nacimiento').value = a.fecha_nacimiento || '';
+  document.getElementById('edit-parent-name').value = a.parent_name || '';
+  document.getElementById('edit-parent-phone').value = a.parent_phone || '';
+  document.getElementById('edit-sede').value = a.sede || '';
+  document.getElementById('edit-turno').value = a.turno || '';
+  document.getElementById('edit-horario').value = a.horario || 'LMV';
+  document.getElementById('edit-grupo').value = a.grupo || '';
+  document.getElementById('edit-categoria').value = a.categoria || '';
+  document.getElementById('edit-tarifa').value = a.tarifa_mensual != null ? a.tarifa_mensual : '';
+  document.getElementById('edit-codigo-legacy').value = a.codigo_legacy || '';
+
+  document.getElementById('modal-editar-alumno').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function cerrarModalEdicion() {
+  document.getElementById('modal-editar-alumno').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+
+function cerrarModalEdicionOutside(event) {
+  // Solo cerrar si el click fue en el overlay (no en el modal-box)
+  if (event.target === document.getElementById('modal-editar-alumno')) {
+    cerrarModalEdicion();
+  }
+}
+
+async function guardarEdicionAlumno(event) {
+  event.preventDefault();
+
+  const id = document.getElementById('edit-id').value;
+  if (!id) return;
+
+  // Recopilar y normalizar campos. Excluir strings vacíos → null para no enviarlos
+  const val = (id) => {
+    const el = document.getElementById(id);
+    return el ? el.value.trim() : null;
+  };
+
+  const payload = {};
+  const fullName = val('edit-full-name');
+  if (fullName) payload.full_name = fullName;
+
+  const dni = val('edit-dni');
+  if (dni) payload.dni = dni;
+
+  const fechaNac = val('edit-fecha-nacimiento');
+  if (fechaNac) payload.fecha_nacimiento = fechaNac;
+
+  const parentName = val('edit-parent-name');
+  if (parentName) payload.parent_name = parentName;
+
+  const parentPhone = val('edit-parent-phone');
+  if (parentPhone) payload.parent_phone = parentPhone;
+
+  const sede = val('edit-sede');
+  if (sede) payload.sede = sede;
+
+  const turno = document.getElementById('edit-turno').value;
+  if (turno) payload.turno = turno;
+
+  const horario = document.getElementById('edit-horario').value;
+  if (horario) payload.horario = horario;
+
+  const grupo = val('edit-grupo');
+  if (grupo) payload.grupo = grupo;
+
+  const categoria = val('edit-categoria');
+  if (categoria) payload.categoria = categoria;
+
+  const tarifa = document.getElementById('edit-tarifa').value;
+  if (tarifa !== '') payload.tarifa_mensual = parseFloat(tarifa);
+
+  const codigoLegacy = val('edit-codigo-legacy');
+  if (codigoLegacy) payload.codigo_legacy = codigoLegacy;
+
+  if (!Object.keys(payload).length) {
+    showToast('No hay cambios para guardar', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch(`/admin/alumnos/${id}`, {
+      method: 'PATCH',
+      headers: H,
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      cerrarModalEdicion();
+      showToast('✅ Alumno actualizado correctamente');
+      loadAlumnos();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      const msg = err.detail || 'Error al actualizar';
+      showToast(`❌ ${msg}`, 'error');
+    }
+  } catch {
+    showToast('❌ Error de conexión', 'error');
+  }
+}
+
+// Cerrar modal con tecla Escape
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('modal-editar-alumno');
+    if (modal && !modal.classList.contains('hidden')) cerrarModalEdicion();
+  }
+});
 
 // ── CAJA / PAGOS — BÚSQUEDA POR NOMBRE ───────────────────
 let searchDebounce = null;

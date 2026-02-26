@@ -168,6 +168,57 @@ def crear_alumno(body: AlumnoCreate, admin=Depends(verify_admin)):
 
     return nuevo_alumno
 
+class StudentUpdate(BaseModel):
+    full_name:      Optional[str]   = None
+    dni:            Optional[str]   = None
+    fecha_nacimiento: Optional[str] = None   # ISO date string "YYYY-MM-DD"
+    parent_name:    Optional[str]   = None
+    parent_phone:   Optional[str]   = None
+    sede:           Optional[str]   = None
+    turno:          Optional[str]   = None
+    horario:        Optional[str]   = None
+    grupo:          Optional[str]   = None
+    tarifa_mensual: Optional[float] = None
+    codigo_legacy:  Optional[str]   = None
+    categoria:      Optional[str]   = None
+
+
+@router.patch("/alumnos/{student_id}")
+def actualizar_alumno(student_id: str, body: StudentUpdate, admin=Depends(verify_admin)):
+    """Actualiza únicamente los campos enviados en el payload."""
+    # Construir payload solo con los campos presentes (no None)
+    payload = {k: v for k, v in body.model_dump().items() if v is not None}
+
+    if not payload:
+        raise HTTPException(status_code=400, detail="No se enviaron campos para actualizar")
+
+    # Validar unicidad de DNI: buscar si OTRO alumno ya tiene ese DNI
+    if "dni" in payload:
+        dup = (
+            supabase.table("students")
+            .select("id")
+            .eq("dni", payload["dni"])
+            .neq("id", student_id)
+            .execute()
+        )
+        if dup.data:
+            raise HTTPException(
+                status_code=400,
+                detail=f"El DNI {payload['dni']} ya pertenece a otro alumno"
+            )
+
+    res = (
+        supabase.table("students")
+        .update(payload)
+        .eq("id", student_id)
+        .execute()
+    )
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Alumno no encontrado")
+
+    return res.data[0]
+
+
 @router.delete("/alumnos/{student_id}")
 def eliminar_alumno(student_id: str, admin=Depends(verify_admin)):
     """Desactiva lógicamente a un alumno o lo reactiva si ya estaba desactivado."""
