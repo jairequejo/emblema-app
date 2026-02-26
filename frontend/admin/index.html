@@ -172,7 +172,28 @@
             </div>
             <div class="form-group">
               <label class="form-label">Grupo</label>
-              <input class="input-jr" id="a-grupo" placeholder="Ej: Sub-12">
+              <select class="select-jr" id="a-grupo">
+                <option value="">Sin grupo</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
+                <option value="E">E</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Categoría (año)</label>
+              <select class="select-jr" id="a-categoria">
+                <option value="">Sin categoría</option>
+                <option value="2013">2013</option>
+                <option value="2014">2014</option>
+                <option value="2015">2015</option>
+                <option value="2016">2016</option>
+                <option value="2017">2017</option>
+                <option value="2018">2018</option>
+                <option value="2019">2019</option>
+                <option value="2020">2020</option>
+              </select>
             </div>
             <div class="form-group">
               <label class="form-label">Horario</label>
@@ -233,6 +254,27 @@
                 <option value="">Todos</option>
                 <option value="LMV">LMV</option>
                 <option value="MJS">MJS</option>
+              </select>
+            </div>
+            <div class="filtro-group">
+              <label class="form-label">Sede</label>
+              <select class="select-jr select-sm" id="filtro-sede" onchange="aplicarFiltros()">
+                <option value="">Todas</option>
+                <option value="El Bosque">El Bosque</option>
+                <option value="Centro">Centro</option>
+                <option value="Norte">Norte</option>
+                <option value="Sur">Sur</option>
+              </select>
+            </div>
+            <div class="filtro-group">
+              <label class="form-label">Grupo</label>
+              <select class="select-jr select-sm" id="filtro-grupo" onchange="aplicarFiltros()">
+                <option value="">Todos</option>
+                <option value="A">A</option>
+                <option value="B">B</option>
+                <option value="C">C</option>
+                <option value="D">D</option>
+                <option value="E">E</option>
               </select>
             </div>
             <div class="filtro-group">
@@ -547,7 +589,13 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Sede</label>
-            <input class="input-jr" id="edit-sede" type="text" placeholder="Ej: Centro">
+            <select class="select-jr" id="edit-sede">
+              <option value="">Sin sede</option>
+              <option value="El Bosque">El Bosque</option>
+              <option value="Centro">Centro</option>
+              <option value="Norte">Norte</option>
+              <option value="Sur">Sur</option>
+            </select>
           </div>
           <div class="form-group">
             <label class="form-label">Turno</label>
@@ -566,11 +614,28 @@
           </div>
           <div class="form-group">
             <label class="form-label">Grupo</label>
-            <input class="input-jr" id="edit-grupo" type="text" placeholder="Ej: Sub-12">
+            <select class="select-jr" id="edit-grupo">
+              <option value="">Sin grupo</option>
+              <option value="A">A</option>
+              <option value="B">B</option>
+              <option value="C">C</option>
+              <option value="D">D</option>
+              <option value="E">E</option>
+            </select>
           </div>
           <div class="form-group">
-            <label class="form-label">Categoría</label>
-            <input class="input-jr" id="edit-categoria" type="text" placeholder="Ej: Benjamín">
+            <label class="form-label">Categoría (año)</label>
+            <select class="select-jr" id="edit-categoria">
+              <option value="">Sin categoría</option>
+              <option value="2013">2013</option>
+              <option value="2014">2014</option>
+              <option value="2015">2015</option>
+              <option value="2016">2016</option>
+              <option value="2017">2017</option>
+              <option value="2018">2018</option>
+              <option value="2019">2019</option>
+              <option value="2020">2020</option>
+            </select>
           </div>
         </div>
 
@@ -578,8 +643,13 @@
         <div class="modal-section-title">💰 Facturación</div>
         <div class="form-row">
           <div class="form-group">
-            <label class="form-label">Tarifa mensual (S/)</label>
-            <input class="input-jr" id="edit-tarifa" type="number" step="0.50" placeholder="80.00">
+            <label class="form-label" style="color:var(--gold)">Tarifa mensual (S/)</label>
+            <input class="input-jr" id="edit-tarifa" type="number" step="0.01" min="0"
+              placeholder="Ej: 80.00 (Dejar vacío para default)">
+            <small
+              style="color:var(--gray);font-family:var(--font-cond);font-size:.75rem;margin-top:.25rem;display:block">
+              Pon <strong style="color:#00ff88">0</strong> para BECADO. Deja vacío para tarifa por defecto (S/ 80).
+            </small>
           </div>
           <div class="form-group">
             <label class="form-label">Código legacy</label>

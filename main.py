@@ -223,7 +223,7 @@ def ranking_publico(categoria: str = None, sede: str = None, campo: str = "talla
 
 @app.get("/public/student/{dni}/info")
 def student_public_info(dni: str):
-    from datetime import datetime
+    from datetime import datetime, timedelta
     from fastapi import HTTPException
 
     # 1. Buscar atleta activo — solo columnas que existen en students
@@ -246,12 +246,40 @@ def student_public_info(dni: str):
     else:
         debe = True
 
-    # 3. Racha del mes actual
+    # 3. Racha consecutiva real (sesiones sin romper la cadena)
+    #    - Trae últimas 90 días de asistencia, ordenado más reciente primero
+    #    - Gap permitido: ≤ 4 días (cubre fines de semana + horario LMV/MJS)
+    #    - Si el gap entre dos sesiones > 4 días, la racha se rompe
     ahora_lima = datetime.now(PERU_TZ)
-    first_day = ahora_lima.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
-    att_res = supabase.table("attendance").select("id") \
-        .eq("student_id", sid).gte("created_at", first_day).execute()
-    racha = len(att_res.data) if att_res.data else 0
+    noventa_dias = (ahora_lima - timedelta(days=90)).isoformat()
+    att_res = supabase.table("attendance").select("created_at") \
+        .eq("student_id", sid) \
+        .gte("created_at", noventa_dias) \
+        .order("created_at", desc=True).execute()
+
+    racha = 0
+    if att_res.data:
+        # Convertir timestamps a fechas únicas (1 por día como máximo)
+        fechas_vistas = set()
+        fechas_ord = []
+        for r in att_res.data:
+            try:
+                ts = datetime.fromisoformat(r["created_at"].replace("Z", "+00:00"))
+                dia = ts.astimezone(PERU_TZ).date()
+            except Exception:
+                continue
+            if dia not in fechas_vistas:
+                fechas_vistas.add(dia)
+                fechas_ord.append(dia)
+        # fechas_ord está ordenada de más reciente a más antigua
+        if fechas_ord:
+            racha = 1
+            for i in range(1, len(fechas_ord)):
+                gap = (fechas_ord[i - 1] - fechas_ord[i]).days
+                if gap <= 4:
+                    racha += 1
+                else:
+                    break
 
     # 4+5. Biometria real desde tabla biometria — sin datos inventados
     bio_res = supabase.table("biometria") \

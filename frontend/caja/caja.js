@@ -1,6 +1,5 @@
 // --- LÓGICA DEL PIN ---
 let pinActual = "";
-const PIN_CORRECTO = "1234";
 let html5QrcodeScanner = null;
 
 function addPin(num) {
@@ -11,9 +10,9 @@ function addPin(num) {
   }
 }
 
-function clearPin() { 
-  pinActual = ""; 
-  actualizarDots(); 
+function clearPin() {
+  pinActual = "";
+  actualizarDots();
 }
 
 function actualizarDots() {
@@ -21,14 +20,23 @@ function actualizarDots() {
   dots.forEach((dot, i) => { dot.className = i < pinActual.length ? 'pin-dot filled' : 'pin-dot'; });
 }
 
-function verificarPin() {
-  if (pinActual === PIN_CORRECTO) {
-    document.getElementById('pin-screen').style.display = 'none';
-    document.getElementById('caja-layout').style.display = 'block';
-    initNFC(); 
-    initQR(); // Encendemos la cámara QR
-  } else {
-    setTimeout(() => { alert("PIN Incorrecto"); clearPin(); }, 100);
+async function verificarPin() {
+  try {
+    const res = await fetch('/batidos/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pin: pinActual })
+    });
+    if (res.ok) {
+      document.getElementById('pin-screen').style.display = 'none';
+      document.getElementById('caja-layout').style.display = 'block';
+      initNFC();
+      initQR();
+    } else {
+      setTimeout(() => { alert("PIN Incorrecto"); clearPin(); }, 100);
+    }
+  } catch {
+    setTimeout(() => { alert("Error de conexión"); clearPin(); }, 100);
   }
 }
 
@@ -38,7 +46,7 @@ function playBeep(tipo) {
   const osc = audioCtx.createOscillator();
   osc.connect(audioCtx.destination);
   osc.frequency.setValueAtTime(tipo === 'ok' ? 880 : 300, audioCtx.currentTime);
-  osc.start(); 
+  osc.start();
   osc.stop(audioCtx.currentTime + 0.15);
 }
 
@@ -71,14 +79,14 @@ async function initNFC() {
         const decoder = new TextDecoder(record.encoding || 'utf-8');
         const raw = decoder.decode(record.data).trim();
         const code = raw.includes('?code=') ? raw.split('?code=')[1] : raw;
-        
+
         if (html5QrcodeScanner) html5QrcodeScanner.pause(); // Pausamos QR si usó NFC
         playBeep('ok');
         document.getElementById('status-nfc').innerHTML = "⏳ Buscando NFC...";
         await consultarAtleta(code);
       }
     });
-  } catch(e) { console.warn("NFC Error", e); }
+  } catch (e) { console.warn("NFC Error", e); }
 }
 
 // --- LÓGICA DE COBRO (AMBOS MÉTODOS) ---
@@ -88,16 +96,16 @@ async function consultarAtleta(code) {
   try {
     // 1. Volvemos a tu ruta original, que SÍ funciona para QRs sanos.
     const res = await fetch(`/batidos/nfc/${code}`);
-    
+
     if (!res.ok) throw new Error("Código no encontrado en el Kiosko");
-    
+
     const data = await res.json();
-    
+
     alumnoActual = data;
     // Adaptamos el nombre por si el backend devuelve 'name' o 'full_name'
     document.getElementById('c-nombre').textContent = data.name || data.full_name;
     document.getElementById('c-num').textContent = data.batido_credits ?? 0;
-    
+
     document.getElementById('cliente-box').classList.add('active');
     document.getElementById('menu-grid').classList.add('active');
     document.getElementById('status-nfc').innerHTML = "✅ Listo para cobrar";
@@ -134,14 +142,14 @@ async function cobrar(nombreBatido, costo, emoji) {
     });
 
     if (!res.ok) throw new Error();
-    
+
     playBeep('ok');
     alumnoActual.batido_credits -= costo;
     document.getElementById('c-num').textContent = alumnoActual.batido_credits;
     document.getElementById('status-nfc').innerHTML = "✅ ¡Cobrado! Pasa otro atleta.";
-    
+
     setTimeout(resetCaja, 3000);
-    
+
   } catch {
     playBeep('error');
     alert("Error en el servidor");

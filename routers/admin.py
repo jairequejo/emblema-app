@@ -114,6 +114,7 @@ class AlumnoCreate(BaseModel):
     sede: Optional[str] = None
     turno: Optional[str] = None
     grupo: Optional[str] = None
+    tarifa_mensual: Optional[float] = None  # None = usa default 80, 0 = becado
     pago_mensualidad: float = 80.00
     pago_matricula: float = 0.00
     metodo_pago: str = "Efectivo"
@@ -126,7 +127,7 @@ def crear_alumno(body: AlumnoCreate, admin=Depends(verify_admin)):
     fecha_vencimiento_str = (hoy_date + timedelta(days=30)).strftime("%Y-%m-%d")
 
     # 1. Crear el alumno
-    res = supabase.table("students").insert({
+    insert_data = {
         "full_name": body.full_name,
         "dni": body.dni,
         "fecha_nacimiento": body.fecha_nacimiento,
@@ -138,8 +139,13 @@ def crear_alumno(body: AlumnoCreate, admin=Depends(verify_admin)):
         "batido_credits": 0,
         "valid_until": fecha_vencimiento_str,
         "parent_name": body.parent_name,
-        "parent_phone": body.parent_phone
-    }).execute()
+        "parent_phone": body.parent_phone,
+    }
+    # Persistir tarifa_mensual si fue enviada (incluyendo 0 para becados)
+    if body.tarifa_mensual is not None:
+        insert_data["tarifa_mensual"] = body.tarifa_mensual
+
+    res = supabase.table("students").insert(insert_data).execute()
     
     nuevo_alumno = res.data[0]
     
@@ -336,6 +342,28 @@ def pagar_mensualidad(body: PagoMensualidad, admin=Depends(verify_admin)):
         "nueva_fecha_vencimiento": fecha_str,
         "dias_agregados": 30
     }
+
+@router.get("/mensualidades/{student_id}")
+def historial_mensualidades(student_id: str, admin=Depends(verify_admin)):
+    """Historial completo de pagos de un alumno, ordenado del más reciente al más antiguo."""
+    res = supabase.table("mensualidades") \
+        .select("id, monto, metodo_pago, fecha_vencimiento, created_at") \
+        .eq("student_id", student_id) \
+        .order("created_at", desc=True) \
+        .limit(24) \
+        .execute()
+
+    return [
+        {
+            "id":                r["id"],
+            "monto":             r["monto"],
+            "metodo_pago":       r.get("metodo_pago"),
+            "fecha_pago":        r.get("created_at"),
+            "fecha_vencimiento": r.get("fecha_vencimiento"),
+        }
+        for r in (res.data or [])
+    ]
+
 
 # ── CRÉDITOS DE BATIDOS ───────────────────────────────────
 @router.post("/batidos/recargar")

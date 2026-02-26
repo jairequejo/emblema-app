@@ -156,7 +156,7 @@ def scan_credential(scan: ScanRequest):
                     "student_name": nombre_final,
                     "detalle": f"Venció hace {dias} día{'s' if dias != 1 else ''}. Contactar al administrador."}
 
-    twelve_ago = (datetime.now() - timedelta(hours=12)).isoformat()
+    twelve_ago = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
     recent = supabase.table("attendance").select("id").eq("student_id", student_id)\
         .gte("created_at", twelve_ago).execute()
     if recent.data:
@@ -171,15 +171,17 @@ def scan_credential(scan: ScanRequest):
 def sync_batch(req: BatchScanRequest):
     """
     Acepta lotes de registros de asistencia generados offline.
-    Autentica el token del entrenador antes de insertar.
+    Autentica el Magic Token del entrenador contra la tabla `entrenadores`.
     """
-    # Verificar token
-    try:
-        user = supabase.auth.get_user(req.token)
-        if not user or not user.user:
-            raise HTTPException(status_code=401, detail="Token inválido")
-    except Exception:
-        raise HTTPException(status_code=401, detail="Token inválido o expirado")
+    # Verificar Magic Token del entrenador (igual que entrenador.py)
+    ent_res = supabase.table("entrenadores") \
+        .select("id, is_active") \
+        .eq("token", req.token).execute()
+
+    if not ent_res.data:
+        raise HTTPException(status_code=401, detail="Token de entrenador inválido")
+    if not ent_res.data[0].get("is_active"):
+        raise HTTPException(status_code=403, detail="Acceso revocado por el administrador")
 
     inserted = 0
     duplicates = 0

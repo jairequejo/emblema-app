@@ -80,6 +80,30 @@
                     Deben</button>
             </div>
 
+            <!-- Filtros de Sede y Grupo -->
+            <div class="asistencia-filtros" style="margin-top:.5rem;flex-wrap:wrap;gap:.5rem">
+                <select id="filtro-ent-sede" class="select-jr" style="font-size:.82rem;padding:.35rem .6rem;width:auto"
+                    onchange="renderAsistencia()">
+                    <option value="">Todas las sedes</option>
+                    <option value="El Bosque">El Bosque</option>
+                    <option value="Centro">Centro</option>
+                    <option value="Norte">Norte</option>
+                    <option value="Sur">Sur</option>
+                </select>
+                <select id="filtro-ent-grupo" class="select-jr" style="font-size:.82rem;padding:.35rem .6rem;width:auto"
+                    onchange="renderAsistencia()">
+                    <option value="">Todos los grupos</option>
+                    <option value="A">Grupo A</option>
+                    <option value="B">Grupo B</option>
+                    <option value="C">Grupo C</option>
+                    <option value="D">Grupo D</option>
+                    <option value="E">Grupo E</option>
+                </select>
+                <input type="text" id="filtro-ent-nombre" class="input-jr"
+                    style="font-size:.82rem;padding:.35rem .6rem;max-width:160px" placeholder="🔍 Buscar nombre..."
+                    oninput="renderAsistencia()">
+            </div>
+
             <div id="asistencia-list">
                 <div class="loading-msg">Cargando...</div>
             </div>

@@ -141,6 +141,8 @@ async function loadAlumnos() {
 function aplicarFiltros() {
   const estado = document.getElementById('filtro-estado')?.value || '';
   const horario = document.getElementById('filtro-horario')?.value || '';
+  const sede = document.getElementById('filtro-sede')?.value || '';
+  const grupo = document.getElementById('filtro-grupo')?.value || '';
   const busqueda = (document.getElementById('filtro-busqueda')?.value || '').toLowerCase().trim();
   const hoy = new Date();
 
@@ -149,18 +151,20 @@ function aplicarFiltros() {
     if (busqueda && !a.full_name.toLowerCase().includes(busqueda)) return false;
     // Filtro horario
     if (horario && a.horario !== horario) return false;
+    // Filtro sede
+    if (sede && a.sede !== sede) return false;
+    // Filtro grupo
+    if (grupo && a.grupo !== grupo) return false;
     // Filtro estado
     if (estado) {
       if (estado === 'inactivo' && a.is_active !== false) return false;
       if (estado !== 'inactivo' && !a.is_active) return false;
       if (estado === 'al-dia') {
-        // Sin fecha de vencimiento = sin pago = no está al día
         if (!a.valid_until) return false;
         const f = new Date(a.valid_until); f.setMinutes(f.getMinutes() + f.getTimezoneOffset());
         if (f < hoy) return false;
       }
       if (estado === 'vencido') {
-        // Sin fecha de vencimiento = sin pago = se considera vencido
         if (!a.valid_until) return true;
         const f = new Date(a.valid_until); f.setMinutes(f.getMinutes() + f.getTimezoneOffset());
         if (f >= hoy) return false;
@@ -262,7 +266,8 @@ async function crearAlumno() {
   const apoderado = document.getElementById('a-apoderado').value.trim();
   const telefono = document.getElementById('a-telefono').value.trim();
   const sede = document.getElementById('a-sede')?.value || null;
-  const grupo = document.getElementById('a-grupo')?.value.trim() || null;
+  const grupo = document.getElementById('a-grupo')?.value || null;
+  const categoria = document.getElementById('a-categoria')?.value || null;
   const pagoMes = parseFloat(document.getElementById('a-pago-mes').value) || 0;
   const pagoMat = parseFloat(document.getElementById('a-pago-mat').value) || 0;
   const metodo = document.getElementById('a-metodo').value;
@@ -280,6 +285,7 @@ async function crearAlumno() {
       parent_phone: telefono || null,
       sede: sede || null,
       grupo: grupo || null,
+      categoria: categoria || null,
       horario: document.getElementById('a-horario').value,
       turno: document.getElementById('a-turno')?.value || null,
       pago_mensualidad: pagoMes,
@@ -296,6 +302,7 @@ async function crearAlumno() {
     document.getElementById('a-telefono').value = '';
     document.getElementById('a-sede').value = '';
     document.getElementById('a-grupo').value = '';
+    document.getElementById('a-categoria').value = '';
     showToast('✅ Alumno inscrito. Cobro registrado.');
     loadAlumnos();
   } else {
@@ -349,7 +356,9 @@ function abrirModalEdicion(student_id) {
   document.getElementById('edit-horario').value = a.horario || 'LMV';
   document.getElementById('edit-grupo').value = a.grupo || '';
   document.getElementById('edit-categoria').value = a.categoria || '';
-  document.getElementById('edit-tarifa').value = a.tarifa_mensual != null ? a.tarifa_mensual : '';
+  // tarifa_mensual: '' vacío → null (reset a default), número → valor (0 = becado)
+  const tarifaRaw = document.getElementById('edit-tarifa').value;
+  document.getElementById('edit-tarifa').value = tarifaRaw !== '' && tarifaRaw != null ? tarifaRaw : '';
   document.getElementById('edit-codigo-legacy').value = a.codigo_legacy || '';
 
   document.getElementById('modal-editar-alumno').classList.remove('hidden');
@@ -411,8 +420,9 @@ async function guardarEdicionAlumno(event) {
   const categoria = val('edit-categoria');
   if (categoria) payload.categoria = categoria;
 
-  const tarifa = document.getElementById('edit-tarifa').value;
-  if (tarifa !== '') payload.tarifa_mensual = parseFloat(tarifa);
+  // tarifa_mensual: siempre incluir en el payload para poder enviar null o 0
+  const tarifaInput = document.getElementById('edit-tarifa').value;
+  payload.tarifa_mensual = tarifaInput === '' ? null : parseFloat(tarifaInput);
 
   const codigoLegacy = val('edit-codigo-legacy');
   if (codigoLegacy) payload.codigo_legacy = codigoLegacy;
@@ -571,8 +581,8 @@ function renderListaPagos(lista) {
 
     const btnCobrar = a.is_active ? `
       <button class="btn btn-gold" style="font-size:.78rem;padding:.35rem 1rem;flex-shrink:0"
-        onclick="abrirPagoAlumno('${a.id}', ${tarifa}, '${a.full_name.replace(/'/g, "\\'")}')">
-        💵 Cobrar S/${tarifa}
+        onclick="abrirPagoAlumno('${a.id}', '${a.full_name.replace(/'/g, "\\'")}')">
+        💵 Cobrar
       </button>` : '';
 
     return `
@@ -591,30 +601,53 @@ function renderListaPagos(lista) {
 }
 
 // Abre un mini-panel de pago para el alumno seleccionado
-function abrirPagoAlumno(id, tarifa, nombre) {
+function abrirPagoAlumno(id, nombre) {
   const a = todosPagosData.find(x => x.id === id);
   const creditos = a?.batido_credits ?? 0;
 
+  // ── Lógica de tarifa inteligente ──
+  // tarifa_mensual null → default S/80 | 0 → BECADO | número → tarifa real
+  const tarifaRaw = a?.tarifa_mensual;
+  let tarifa, tarifaLabel, esBecado;
+  if (tarifaRaw === 0) {
+    tarifa = 0;
+    esBecado = true;
+    tarifaLabel = `<span style="color:#00ff88;font-weight:700">BECADO (S/ 0.00)</span>`;
+  } else if (tarifaRaw == null) {
+    tarifa = 80;
+    esBecado = false;
+    tarifaLabel = `S/ 80.00 / mes <span style="color:var(--gray);font-size:.75rem">(Por defecto)</span>`;
+  } else {
+    tarifa = tarifaRaw;
+    esBecado = false;
+    tarifaLabel = `S/ ${tarifa.toFixed(2)} / mes`;
+  }
+
   const overlay = document.createElement('div');
   overlay.id = 'pago-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:490;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.dataset.tarifa = tarifa;  // guardamos para pagarMensualidad
+  overlay.dataset.studentId = id;
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:490;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem;overflow-y:auto';
   overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
 
   overlay.innerHTML = `
-    <div style="background:#111114;border:1px solid rgba(212,160,23,.25);border-radius:12px;padding:2rem;width:100%;max-width:420px;animation:slideUp .2s ease">
+    <div style="background:#111114;border:1px solid rgba(212,160,23,.25);border-radius:12px;padding:2rem;width:100%;max-width:440px;animation:slideUp .2s ease">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.4rem;padding-bottom:.8rem;border-bottom:1px solid rgba(212,160,23,.15)">
         <div style="font-family:var(--font-display);font-size:1.3rem">💰 <span style="color:var(--gold)">${nombre}</span></div>
         <button onclick="document.getElementById('pago-overlay').remove()"
           style="background:none;border:1px solid var(--border);color:var(--gray);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:.9rem">✕</button>
       </div>
 
-      <div class="pago-opcion" style="cursor:pointer" onclick="pagarMensualidad('${id}', ${tarifa}); document.getElementById('pago-overlay').remove()">
-        <div class="pago-opcion-icon">💵</div>
+      <div class="pago-opcion" style="cursor:pointer" onclick="pagarMensualidad('${id}'); document.getElementById('pago-overlay').remove()">
+        <div class="pago-opcion-icon">${esBecado ? '🎓' : '💵'}</div>
         <div class="pago-opcion-info">
           <div class="pago-opcion-titulo">Mensualidad</div>
-          <div class="pago-opcion-precio">S/ ${tarifa.toFixed(2)} / mes</div>
+          <div class="pago-opcion-precio">${tarifaLabel}</div>
         </div>
-        <button class="btn btn-gold pago-opcion-btn">Cobrar</button>
+        <button class="btn ${esBecado ? 'btn-outline' : 'btn-gold'} pago-opcion-btn"
+          style="${esBecado ? 'border-color:#00ff88;color:#00ff88' : ''}">
+          ${esBecado ? 'Renovar Gratis' : 'Cobrar'}
+        </button>
       </div>
 
       <div class="pago-opcion" style="margin-top:.8rem">
@@ -629,9 +662,16 @@ function abrirPagoAlumno(id, tarifa, nombre) {
             onclick="recargar('${id}')">+ Recargar</button>
         </div>
       </div>
+
+      <!-- Historial de pagos -->
+      <div id="historial-pagos-wrap" style="margin-top:1.2rem;border-top:1px solid rgba(255,255,255,.06);padding-top:1rem">
+        <div style="font-family:var(--font-cond);font-size:.72rem;letter-spacing:.2em;color:var(--gold);margin-bottom:.6rem">// HISTORIAL DE PAGOS</div>
+        <p style="color:var(--gray);font-family:var(--font-cond);font-size:.85rem">Cargando...</p>
+      </div>
     </div>`;
 
   document.body.appendChild(overlay);
+  loadHistorialPagos(id);
 }
 
 function actualizarBtnClear() {
@@ -653,13 +693,63 @@ function cerrarDropdown() {
   if (d) { d.innerHTML = ''; d.classList.remove('visible'); }
 }
 
-async function pagarMensualidad(id, tarifa = 80) {
-  const confirmacion = confirm(`¿Confirmar el cobro de S/ ${tarifa} por 1 mes de entrenamiento?`);
+async function loadHistorialPagos(student_id) {
+  const wrap = document.getElementById('historial-pagos-wrap');
+  if (!wrap) return;
+  try {
+    const res = await fetch(`/admin/mensualidades/${student_id}`, { headers: H });
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    if (!data.length) {
+      wrap.innerHTML = `
+        <div style="font-family:var(--font-cond);font-size:.72rem;letter-spacing:.2em;color:var(--gold);margin-bottom:.6rem">// HISTORIAL DE PAGOS</div>
+        <p style="color:var(--gray);font-family:var(--font-cond);font-size:.85rem">No hay pagos registrados.</p>`;
+      return;
+    }
+    wrap.innerHTML = `
+      <div style="font-family:var(--font-cond);font-size:.72rem;letter-spacing:.2em;color:var(--gold);margin-bottom:.6rem">// HISTORIAL DE PAGOS</div>
+      <div style="display:flex;flex-direction:column;gap:.3rem">
+        ${data.map(p => {
+      const fecha = p.fecha_pago
+        ? new Date(p.fecha_pago).toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })
+        : '—';
+      const monto = (p.monto ?? 0) === 0
+        ? '<span style="color:#00ff88">BECADO</span>'
+        : `<span style="color:var(--white);font-weight:700">S/ ${Number(p.monto).toFixed(2)}</span>`;
+      const metodo = p.metodo_pago || '—';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:.35rem 0;border-bottom:1px solid rgba(255,255,255,.05);font-family:var(--font-cond);font-size:.82rem">
+            <span style="color:var(--gray)">${fecha}</span>
+            ${monto}
+            <span style="color:var(--gray2);font-size:.76rem">${metodo}</span>
+          </div>`;
+    }).join('')}
+      </div>`;
+  } catch {
+    wrap.innerHTML = `
+      <div style="font-family:var(--font-cond);font-size:.72rem;letter-spacing:.2em;color:var(--gold);margin-bottom:.6rem">// HISTORIAL DE PAGOS</div>
+      <p style="color:var(--gray);font-family:var(--font-cond);font-size:.85rem">Error al cargar historial.</p>`;
+  }
+}
+
+async function pagarMensualidad(id) {
+  // Leer tarifa dinámica del overlay (dataset guardado en abrirPagoAlumno)
+  const overlay = document.getElementById('pago-overlay');
+  const tarifa = parseFloat(overlay?.dataset?.tarifa ?? 80);
+  const esBecado = tarifa === 0;
+
+  const msgConfirm = esBecado
+    ? `¿Renovar 1 mes GRATIS (BECADO) a este alumno?`
+    : `¿Confirmar el cobro de S/ ${tarifa.toFixed(2)} por 1 mes de entrenamiento?`;
+
+  const confirmacion = confirm(msgConfirm);
   if (!confirmacion) return;
 
-  let metodo = prompt('¿Cómo pagó? (Escribe: Efectivo, Yape o Plin):', 'Efectivo');
-  if (metodo === null) return;
-  metodo = metodo.trim() || 'Efectivo';
+  let metodo = 'Becado';
+  if (!esBecado) {
+    metodo = prompt('¿Cómo pagó? (Efectivo, Yape o Plin):', 'Efectivo');
+    if (metodo === null) return;
+    metodo = metodo.trim() || 'Efectivo';
+  }
 
   const res = await fetch('/admin/mensualidades/pagar', {
     method: 'POST',
@@ -669,8 +759,10 @@ async function pagarMensualidad(id, tarifa = 80) {
 
   if (res.ok) {
     const d = await res.json();
-    showToast(`✅ S/${tarifa} registrados. Vence: ${d.nueva_fecha_vencimiento}`);
-    loadCreditos(); // Refrescar toda la lista
+    showToast(esBecado
+      ? `🎓 Mes renovado gratis. Vence: ${d.nueva_fecha_vencimiento}`
+      : `✅ S/${tarifa.toFixed(2)} registrados. Vence: ${d.nueva_fecha_vencimiento}`);
+    loadCreditos();
   } else {
     showToast('❌ Error al procesar el pago', 'error');
   }
@@ -699,94 +791,6 @@ document.addEventListener('click', (e) => {
 });
 
 
-// ── NOTICIAS ───────────────────────────────────────────
-async function loadNoticias() {
-  const res = await fetch('/admin/noticias', { headers: H });
-  const data = await res.json();
-  const container = document.getElementById('noticias-list');
-  if (!data.length) { container.innerHTML = '<p style="color:var(--gray);font-family:var(--font-cond)">No hay noticias publicadas.</p>'; return; }
-  container.innerHTML = data.map(n => `
-    <div class="noticia-admin-card">
-      <span class="emoji">${n.emoji || '📢'}</span>
-      <div class="info">
-        <div class="titulo">${n.titulo}</div>
-        <div class="desc">${n.descripcion}</div>
-        <div class="meta">${new Date(n.created_at).toLocaleDateString('es-PE')} · ${n.categoria}</div>
-      </div>
-      <button class="btn btn-red" style="font-size:.75rem;padding:.3rem .7rem;flex-shrink:0"
-        onclick="eliminarNoticia('${n.id}')">✕</button>
-    </div>
-  `).join('');
-}
-
-async function crearNoticia() {
-  const titulo = document.getElementById('n-titulo').value.trim();
-  const desc = document.getElementById('n-desc').value.trim();
-  if (!titulo || !desc) return;
-  const res = await fetch('/admin/noticias', {
-    method: 'POST',
-    headers: H,
-    body: JSON.stringify({
-      titulo,
-      descripcion: desc,
-      categoria: document.getElementById('n-categoria').value,
-      emoji: document.getElementById('n-emoji').value || '📢',
-      imagen_url: document.getElementById('n-imagen').value || null
-    })
-  });
-  if (res.ok) {
-    document.getElementById('n-titulo').value = '';
-    document.getElementById('n-desc').value = '';
-    showToast('✅ Noticia publicada');
-    loadNoticias();
-  } else showToast('❌ Error al publicar', 'error');
-}
-
-async function eliminarNoticia(id) {
-  await fetch(`/admin/noticias/${id}`, { method: 'DELETE', headers: H });
-  showToast('✅ Noticia eliminada');
-  loadNoticias();
-}
-
-// ── FOTOS ─────────────────────────────────────────────
-async function loadFotos() {
-  const res = await fetch('/admin/fotos', { headers: H });
-  const data = await res.json();
-  const grid = document.getElementById('fotos-grid');
-  if (!data.length) { grid.innerHTML = '<p style="color:var(--gray);font-family:var(--font-cond)">No hay fotos aún.</p>'; return; }
-  grid.innerHTML = data.map(f => `
-    <div style="position:relative;aspect-ratio:1;background:var(--card);border:1px solid var(--border);overflow:hidden">
-      <img src="${f.url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='<div style=padding:1rem;font-size:.75rem;color:var(--gray)>Error al cargar</div>'">
-      <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(8,8,8,.8);padding:.4rem .6rem;font-family:var(--font-cond);font-size:.72rem;color:var(--gray)">
-        ${f.descripcion || ''}
-        <button onclick="eliminarFoto('${f.id}')" style="float:right;background:none;border:none;color:var(--red2);cursor:pointer;font-size:.9rem">✕</button>
-      </div>
-    </div>
-  `).join('');
-}
-
-async function agregarFoto() {
-  const url = document.getElementById('f-url').value.trim();
-  const desc = document.getElementById('f-desc').value.trim();
-  if (!url) return;
-  const res = await fetch('/admin/fotos', {
-    method: 'POST',
-    headers: H,
-    body: JSON.stringify({ url, descripcion: desc })
-  });
-  if (res.ok) {
-    document.getElementById('f-url').value = '';
-    document.getElementById('f-desc').value = '';
-    showToast('✅ Foto agregada');
-    loadFotos();
-  } else showToast('❌ Error al agregar foto', 'error');
-}
-
-async function eliminarFoto(id) {
-  await fetch(`/admin/fotos/${id}`, { method: 'DELETE', headers: H });
-  showToast('✅ Foto eliminada');
-  loadFotos();
-}
 
 // ── INIT ──────────────────────────────────────────────
 loadStats();

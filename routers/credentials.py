@@ -1,15 +1,16 @@
 # routers/credentials.py
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from database import supabase
+from routers.admin import verify_admin
 import secrets
 import string
 
 router = APIRouter(prefix="/credentials", tags=["credentials"])
 
 @router.post("/generate/{student_id}")
-def generate_credential(student_id: str):
+def generate_credential(student_id: str, admin=Depends(verify_admin)):
     # 1. Verificamos que el alumno existe
-    student = supabase.table("students").select("*").eq("id", student_id).execute()
+    student = supabase.table("students").select("id").eq("id", student_id).execute()
     if not student.data:
         raise HTTPException(status_code=404, detail="Estudiante no existe")
 
@@ -25,15 +26,13 @@ def generate_credential(student_id: str):
         "is_active": True
     }).execute()
 
-    # 4. DESTRUCCIÓN CREATIVA: Ya no guardamos la imagen física (.png)
-    # Devolvemos el texto puro para que el frontend lo dibuje en el aire
     return {
         "message": "Credencial creada",
         "code": code
     }
 
 @router.get("/{student_id}")
-def get_credential(student_id: str):
+def get_credential(student_id: str, admin=Depends(verify_admin)):
     # Busca si el alumno ya tiene un QR asignado
     response = supabase.table("credentials") \
         .select("*") \
