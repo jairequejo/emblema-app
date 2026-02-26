@@ -152,11 +152,15 @@ function aplicarFiltros() {
     if (estado) {
       if (estado === 'inactivo' && a.is_active !== false) return false;
       if (estado !== 'inactivo' && !a.is_active) return false;
-      if (estado === 'al-dia' && a.valid_until) {
+      if (estado === 'al-dia') {
+        // Sin fecha de vencimiento = sin pago = no está al día
+        if (!a.valid_until) return false;
         const f = new Date(a.valid_until); f.setMinutes(f.getMinutes() + f.getTimezoneOffset());
         if (f < hoy) return false;
       }
-      if (estado === 'vencido' && a.valid_until) {
+      if (estado === 'vencido') {
+        // Sin fecha de vencimiento = sin pago = se considera vencido
+        if (!a.valid_until) return true;
         const f = new Date(a.valid_until); f.setMinutes(f.getMinutes() + f.getTimezoneOffset());
         if (f >= hoy) return false;
       }
@@ -336,6 +340,11 @@ function loadCreditos() {
   }
   alumnoSeleccionado = null;
   actualizarBtnClear();
+  // Resetear chip activo al navegar a esta sección
+  chipActivo = 'todos';
+  document.querySelectorAll('.filtro-chip').forEach(c => c.classList.remove('active'));
+  const chipTodos = document.getElementById('chip-todos');
+  if (chipTodos) chipTodos.classList.add('active');
 }
 
 function onSearchInput() {
@@ -417,13 +426,13 @@ async function buscarPorNombre(q) {
 
 function filtrarPorChip(lista) {
   if (chipActivo === 'todos') return lista;
-  const hoy = new Date();
   return lista.filter(a => {
     if (chipActivo === 'lmv') return a.horario === 'LMV';
     if (chipActivo === 'mjs') return a.horario === 'MJS';
+    // Para filtros de estado, excluir inactivos
     if (!a.is_active) return false;
-    if (chipActivo === 'al-dia') return a.dias_restantes > 0;
-    if (chipActivo === 'vencido') return a.dias_restantes <= 0;
+    if (chipActivo === 'al-dia') return (a.dias_restantes ?? 0) > 0;
+    if (chipActivo === 'vencido') return (a.dias_restantes ?? 0) <= 0;
     return true;
   });
 }
@@ -431,10 +440,16 @@ function filtrarPorChip(lista) {
 function setChip(chip, ev) {
   chipActivo = chip;
   document.querySelectorAll('.filtro-chip').forEach(c => c.classList.remove('active'));
-  document.getElementById(`chip-${chip}`).classList.add('active');
-  // Re-buscar si hay texto
+  const chipEl = document.getElementById(`chip-${chip}`);
+  if (chipEl) chipEl.classList.add('active');
+  // Re-buscar si hay texto en el input
   const q = document.getElementById('batidos-nombre-search')?.value?.trim();
-  if (q && q.length >= 2) buscarPorNombre(q);
+  if (q && q.length >= 2) {
+    buscarPorNombre(q);
+  } else {
+    // Sin texto: cerrar dropdown para no mostrar resultados vacíos
+    cerrarDropdown();
+  }
 }
 
 function cerrarDropdown() {

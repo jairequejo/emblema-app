@@ -901,7 +901,7 @@ body {
   }
 
   .page-title {
-    font-size: 1.4rem;
+    font-size: 1.5rem;
   }
 
   .page-header {
@@ -978,21 +978,152 @@ body {
   .pago-opcion {
     gap: 0.6rem;
   }
+
+  /* ── MEJORAS DE LEGIBILIDAD MÓVIL ── */
+
+  /* Labels de formulario */
+  .form-label {
+    font-size: 0.82rem;
+    letter-spacing: 0.12em;
+  }
+
+  /* Nombres en cards de alumnos */
+  .alumno-card-name {
+    font-size: 1.1rem;
+  }
+
+  /* Subtexto de DNI / meta info */
+  .alumno-card .alumno-meta,
+  .alumno-card [style*="font-size:.72rem"],
+  .alumno-card [style*="font-size:.75rem"] {
+    font-size: 0.82rem !important;
+  }
+
+  /* Título de tarjeta (form-card-title) */
+  .form-card-title {
+    font-size: 1.15rem;
+  }
+
+  /* Chips de filtro rápido */
+  .filtro-chip {
+    font-size: 0.88rem;
+    padding: 0.35rem 0.95rem;
+  }
+
+  /* Texto del filtro label */
+  .filtro-label {
+    font-size: 0.8rem;
+  }
+
+  /* Selects y inputs de filtros */
+  .select-sm,
+  .input-sm {
+    font-size: 0.92rem;
+    padding: 0.45rem 0.7rem;
+  }
+
+  /* Input de búsqueda principal */
+  .search-input {
+    font-size: 1.05rem !important;
+  }
+
+  /* Dropdown de sugerencias */
+  .dd-nombre {
+    font-size: 1.02rem;
+  }
+
+  .dd-horario {
+    font-size: 0.82rem;
+  }
+
+  .dd-badge {
+    font-size: 0.82rem;
+    padding: 0.14rem 0.55rem;
+  }
+
+  .dropdown-item {
+    padding: 0.85rem 1rem;
+  }
+
+  /* Tarjeta de pago seleccionado */
+  .pago-opcion-titulo {
+    font-size: 1.05rem;
+  }
+
+  .pago-opcion-precio {
+    font-size: 0.9rem;
+  }
+
+  /* Sidebar items al abrir en móvil */
+  .sidebar-item {
+    font-size: 1.05rem;
+    padding: 0.8rem 1.2rem;
+  }
+
+  .sidebar-section {
+    font-size: 0.72rem;
+  }
+
+  /* Barra inferior — labels */
+  .bnav-label {
+    font-size: 0.68rem;
+  }
+
+  /* Toast */
+  .toast {
+    font-size: 1rem;
+  }
 }
 
 /* ── RESPONSIVE: MÓVIL PEQUEÑO (≤ 380px) ── */
 @media (max-width: 380px) {
   .page-title {
-    font-size: 1.2rem;
+    font-size: 1.25rem;
   }
 
   .filtro-chip {
-    font-size: 0.75rem;
-    padding: 0.22rem 0.6rem;
+    font-size: 0.82rem;
+    padding: 0.28rem 0.72rem;
+  }
+
+  .form-label {
+    font-size: 0.78rem;
+  }
+
+  .alumno-card-name {
+    font-size: 1rem;
+  }
+
+  .dd-nombre {
+    font-size: 0.95rem;
   }
 
   .stats-row {
     grid-template-columns: 1fr 1fr;
     gap: 1px;
+  }
+}
+
+/* ── CORRECCIÓN INLINE STYLES EN MÓVIL ──────────────────── */
+/* Los textos pequeños generados por JS (.72–.75rem) se hacen
+   más legibles en pantallas < 700px sin tocar el JS ni el desktop */
+@media (max-width: 700px) {
+
+  /* DNI y textos grises dentro de las cards de alumnos */
+  .alumno-card span[style],
+  .alumno-card div[style] {
+    font-size: max(0.8rem, 1em) !important;
+  }
+
+  /* Excepciones: badges y etiquetas de estado no crecen */
+  .alumno-card .badge,
+  .alumno-card [style*="font-weight:bold"] {
+    font-size: 0.85rem !important;
+  }
+
+  /* Texto de "Vence:" y meta del pago */
+  .alumno-pago-card span[style],
+  .alumno-pago-card div[style] {
+    font-size: max(0.85rem, 1em) !important;
   }
 }

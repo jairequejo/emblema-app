@@ -6,106 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>JR Stars — Acceso Entrenador</title>
     <link rel="stylesheet" href="/static/theme.css">
+    <link rel="stylesheet" href="/static/entrenador/login.css">
     <link rel="icon" href="/static/favicon-entrenador.ico" type="image/x-icon">
-    <style>
-        body {
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--black);
-            font-family: var(--font-cond);
-        }
-
-        .access-box {
-            text-align: center;
-            padding: 3rem 2rem;
-            max-width: 360px;
-        }
-
-        .access-logo {
-            width: 72px;
-            height: 72px;
-            border-radius: 50%;
-            border: 2px solid #2ecc71;
-            background: var(--dark);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-            margin: 0 auto 1.5rem;
-            overflow: hidden;
-        }
-
-        .access-logo img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            display: none;
-        }
-
-        .access-logo img.loaded {
-            display: block;
-        }
-
-        .access-logo img.loaded~span {
-            display: none;
-        }
-
-        .access-title {
-            font-family: var(--font-display);
-            font-size: 2rem;
-            letter-spacing: .1em;
-            margin-bottom: .3rem;
-        }
-
-        .access-title span {
-            color: var(--gold);
-        }
-
-        .access-sub {
-            font-size: .85rem;
-            color: var(--gray);
-            letter-spacing: .1em;
-            text-transform: uppercase;
-            margin-bottom: 2rem;
-        }
-
-        .status-msg {
-            font-size: 1rem;
-            color: var(--gray);
-            margin-bottom: 1rem;
-            min-height: 2rem;
-        }
-
-        .status-msg.error {
-            color: var(--red2);
-        }
-
-        .spinner {
-            width: 32px;
-            height: 32px;
-            border: 3px solid rgba(46, 204, 113, .2);
-            border-top-color: #2ecc71;
-            border-radius: 50%;
-            animation: spin .8s linear infinite;
-            margin: 1rem auto;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        .no-access {
-            display: none;
-            color: var(--gray);
-            font-size: .85rem;
-            line-height: 1.7;
-            margin-top: 1rem;
-        }
-    </style>
 </head>
 
 <body>
@@ -125,51 +27,7 @@
         </div>
     </div>
 
-    <script>
-        const TOKEN_KEY = 'jr_entrenador_token';
-
-        async function init() {
-            const urlToken = new URLSearchParams(location.search).get('token');
-
-            // Si llegó un token nuevo en la URL, guardarlo y limpiar la URL
-            if (urlToken) {
-                localStorage.setItem(TOKEN_KEY, urlToken);
-                history.replaceState({}, '', '/entrenador/login');
-            }
-
-            const token = localStorage.getItem(TOKEN_KEY);
-            if (!token) return showNoAccess();
-
-            // Verificar con el backend
-            try {
-                const res = await fetch('/entrenador/verify', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.signing_key) sessionStorage.setItem('jr_signing_key', data.signing_key);
-                    sessionStorage.setItem('jr_nombre', data.nombre || '');
-                    document.getElementById('status-msg').textContent = `¡Hola, ${data.nombre}! Abriendo scanner...`;
-                    setTimeout(() => { window.location.href = '/entrenador'; }, 600);
-                } else {
-                    localStorage.removeItem(TOKEN_KEY);
-                    showNoAccess();
-                }
-            } catch {
-                document.getElementById('status-msg').textContent = 'Sin conexión. Reintenta en un momento.';
-                document.getElementById('status-msg').classList.add('error');
-                document.getElementById('spinner').style.display = 'none';
-            }
-        }
-
-        function showNoAccess() {
-            document.getElementById('spinner').style.display = 'none';
-            document.getElementById('status-msg').style.display = 'none';
-            document.getElementById('no-access').style.display = 'block';
-        }
-
-        init();
-    </script>
+    <script src="/static/entrenador/login.js"></script>
 </body>
 
 </html>

@@ -669,3 +669,96 @@
 .history-item.offline_ok .h-dot {
     background: #4db8ff;
 }
+
+/* ── MEJORAS DE LEGIBILIDAD MÓVIL (≤ 640px) ──────────────── */
+@media (max-width: 640px) {
+
+    /* Títulos de página */
+    .page-title {
+        font-size: 1.4rem;
+    }
+
+    /* Cards de alumnos: nombre más grande */
+    .alumno-nombre {
+        font-size: 1rem;
+        white-space: normal;
+    }
+
+    /* Meta info (horario, estado) */
+    .alumno-meta {
+        font-size: 0.8rem;
+    }
+
+    /* Badges de estado */
+    .alumno-badge {
+        font-size: 0.78rem;
+        padding: 0.22rem 0.6rem;
+    }
+
+    /* Stats de asistencia */
+    .stat-pill-num {
+        font-size: 2rem;
+    }
+
+    .stat-pill-label {
+        font-size: 0.8rem;
+    }
+
+    /* Grid de alumnos: una sola columna */
+    .asistencia-grid {
+        grid-template-columns: 1fr;
+    }
+
+    /* Chips de filtro de asistencia */
+    .chip {
+        font-size: 0.88rem;
+        padding: 0.42rem 1rem;
+    }
+
+    /* Historial de escaneos */
+    .history-item {
+        font-size: 0.92rem;
+        padding: 0.6rem 0.4rem;
+    }
+
+    .h-time {
+        font-size: 0.82rem;
+    }
+
+    /* Etiqueta del historial */
+    .history-title {
+        font-size: 1rem;
+    }
+
+    /* Texto de hint del scanner */
+    .scan-hint {
+        font-size: 0.88rem;
+    }
+
+    /* Bottom nav: labels más grandes */
+    .bnav-label {
+        font-size: 0.72rem;
+    }
+
+    /* Topbar: nombre del usuario y badge */
+    .topbar-email {
+        font-size: 0.78rem;
+    }
+
+    .topbar-role-badge {
+        font-size: 0.78rem;
+    }
+
+    /* Flash overlay */
+    .flash-name {
+        font-size: 1.9rem;
+    }
+
+    .flash-status {
+        font-size: 1.2rem;
+    }
+
+    .flash-detalle {
+        font-size: 0.95rem;
+    }
+}
