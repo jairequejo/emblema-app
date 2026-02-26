@@ -7,6 +7,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from routers import students, credentials, attendance, batidos, admin, entrenador
 from database import supabase
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from backports.zoneinfo import ZoneInfo
+
+# Zona horaria oficial: Lima, Perú (UTC-5)
+PERU_TZ = ZoneInfo("America/Lima")
 
 app = FastAPI()
 
@@ -40,13 +47,6 @@ def home():
 def scanner():
     return FileResponse("frontend/scanner/index.html")
 
-@app.get("/dashboard")
-def dashboard():
-    return FileResponse("frontend/dashboard/index.html")
-
-@app.get("/kiosko")
-def kiosko_page():
-    return FileResponse("frontend/kiosko/index.html")
 
 @app.get("/caja")
 def caja_page():
@@ -76,8 +76,8 @@ def status():
 @app.get("/public/leaderboard/month")
 def leaderboard_mes():
     from datetime import datetime
-    today = datetime.now()
-    first_day = today.replace(day=1, hour=0, minute=0, second=0).isoformat()
+    today = datetime.now(PERU_TZ)
+    first_day = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
 
     res = supabase.table("attendance").select("student_id").gte("created_at", first_day).execute()
     if not res.data:
@@ -238,7 +238,7 @@ def student_public_info(dni: str):
     sid = student["id"]
 
     # 2. Estado de pago
-    hoy = datetime.now().date()
+    hoy = datetime.now(PERU_TZ).date()
     valid_until_str = student.get("valid_until")
     if valid_until_str:
         fecha_venc = datetime.strptime(valid_until_str, "%Y-%m-%d").date()
@@ -247,7 +247,8 @@ def student_public_info(dni: str):
         debe = True
 
     # 3. Racha del mes actual
-    first_day = datetime.now().replace(day=1, hour=0, minute=0, second=0).isoformat()
+    ahora_lima = datetime.now(PERU_TZ)
+    first_day = ahora_lima.replace(day=1, hour=0, minute=0, second=0, microsecond=0).isoformat()
     att_res = supabase.table("attendance").select("id") \
         .eq("student_id", sid).gte("created_at", first_day).execute()
     racha = len(att_res.data) if att_res.data else 0

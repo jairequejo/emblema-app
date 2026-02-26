@@ -54,6 +54,7 @@ function goTo(page, ev) {
   if (page === 'batidos') loadCreditos();
   if (page === 'rendimiento') resetBioSearch();
   if (page === 'ranking') cargarRanking();
+  if (page === 'calendario') loadCalendario();
   if (page === 'entrenadores') loadEntrenadores();
   if (page === 'scanner' && !scannerInit) initScanner();
 }
@@ -694,7 +695,212 @@ async function eliminarFoto(id) {
 // ── INIT ──────────────────────────────────────────────
 loadStats();
 
-// ── RENDIMIENTO FÍSICO (BIOMETRÍA) ────────────────────
+// ── ASISTENCIA GLOBAL (CALENDARIO MAESTRO) ────────────
+const CAL_MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const CAL_DIAS = ['Do', 'Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sa'];
+const CAL_SCHEDULE = { 'LMV': [1, 3, 5], 'MJS': [2, 4, 6] };
+
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+let _calStudents = [];
+let _calAttMap = {};
+
+function updateCalLabel() {
+  const el = document.getElementById('cal-month-label');
+  if (el) el.textContent = `${CAL_MESES[calMonth]} ${calYear}`;
+}
+
+function calChangeMonth(delta) {
+  calMonth += delta;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0) { calMonth = 11; calYear--; }
+  loadCalendario();
+}
+
+async function loadCalendario() {
+  const loading = document.getElementById('cal-loading');
+  const container = document.getElementById('cal-table-container');
+  if (!loading || !container) return;
+
+  loading.style.display = 'flex';
+  container.innerHTML = '';
+  updateCalLabel();
+
+  try {
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const mm = String(calMonth + 1).padStart(2, '0');
+    const dd = String(daysInMonth).padStart(2, '0');
+    const first = `${calYear}-${mm}-01T00:00:00`;
+    const last = `${calYear}-${mm}-${dd}T23:59:59`;
+    const ts = Date.now();
+
+    const [studRes, rangeRes] = await Promise.all([
+      fetch(`/admin/students?_=${ts}`, { headers: H }),
+      fetch(`/admin/attendance/range?start=${first}&end=${last}&_=${ts}`, { headers: H })
+    ]);
+
+    if (studRes.status === 401 || rangeRes.status === 401) { logout(); return; }
+    if (!studRes.ok) throw new Error(`Error alumnos: ${studRes.status}`);
+    if (!rangeRes.ok) throw new Error(`Error asistencia: ${rangeRes.status}`);
+
+    _calStudents = await studRes.json();
+    const attData = await rangeRes.json();
+
+    // Mapear student_id + fecha → true
+    _calAttMap = {};
+    attData.forEach(r => {
+      if (r.student_id && r.created_at) {
+        const fecha = r.created_at.substring(0, 10);
+        _calAttMap[`${r.student_id}_${fecha}`] = true;
+      }
+    });
+
+    // Filtro de sede dinámico
+    const sedeSelect = document.getElementById('cal-filter-sede');
+    const sedes = [...new Set(_calStudents.map(s => s.sede).filter(Boolean))];
+    sedeSelect.innerHTML = '<option value="">Todas las sedes</option>';
+    sedes.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s; opt.textContent = s;
+      sedeSelect.appendChild(opt);
+    });
+
+    renderCalendario();
+
+    const lu = document.getElementById('cal-last-update');
+    if (lu) lu.textContent = `Actualizado: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+  } catch (e) {
+    loading.innerHTML = `<span style="color:var(--red2);font-family:var(--font-cond)">❌ ${e.message}</span>`;
+    return;
+  }
+
+  loading.style.display = 'none';
+}
+
+function renderCalendario() {
+  const turnoFilter = document.getElementById('cal-filter-turno')?.value || '';
+  const sedeFilter = document.getElementById('cal-filter-sede')?.value || '';
+  const searchFilter = (document.getElementById('cal-search')?.value || '').toLowerCase();
+
+  const students = _calStudents.filter(s => {
+    const matchSearch = (s.full_name || '').toLowerCase().includes(searchFilter);
+    const matchTurno = !turnoFilter || (s.turno || '') === turnoFilter;
+    const matchSede = !sedeFilter || (s.sede || '') === sedeFilter;
+    return matchSearch && matchTurno && matchSede;
+  });
+
+  const today = new Date();
+  const isCurrentMonth = today.getMonth() === calMonth && today.getFullYear() === calYear;
+  const todayDay = today.getDate();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const mm = String(calMonth + 1).padStart(2, '0');
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+  const days = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    days.push({ day: d, dow: new Date(calYear, calMonth, d).getDay() });
+  }
+
+  // Stats globales
+  let totalPresencias = 0, totalEsperadas = 0, presentHoy = 0;
+  students.forEach(s => {
+    const schedule = CAL_SCHEDULE[s.horario] || null;
+    days.forEach(({ day, dow }) => {
+      if (dow === 0) return;
+      const dateStr = `${calYear}-${mm}-${String(day).padStart(2, '0')}`;
+      if (new Date(calYear, calMonth, day) > today) return;
+      if (schedule && !schedule.includes(dow)) return;
+      if (dow === 6 && (!schedule || !schedule.includes(6))) return;
+      totalEsperadas++;
+      if (_calAttMap[`${s.id}_${dateStr}`]) {
+        totalPresencias++;
+        if (dateStr === todayStr) presentHoy++;
+      }
+    });
+  });
+
+  const elTotal = document.getElementById('cal-total');
+  const elPresent = document.getElementById('cal-present');
+  const elAbsent = document.getElementById('cal-absent');
+  const elPct = document.getElementById('cal-pct');
+  if (elTotal) elTotal.textContent = students.length;
+  if (elPresent) elPresent.textContent = presentHoy;
+  if (elAbsent) elAbsent.textContent = Math.max(0, students.length - presentHoy);
+  if (elPct) elPct.textContent = totalEsperadas > 0
+    ? `${Math.round((totalPresencias / totalEsperadas) * 100)}%` : '—';
+
+  const container = document.getElementById('cal-table-container');
+  if (!container) return;
+
+  if (!students.length) {
+    container.innerHTML = `<div class="empty-state"><div class="big">—</div><p>No se encontraron alumnos</p></div>`;
+    return;
+  }
+
+  let html = `<table class="attendance-table"><thead><tr>
+    <th style="min-width:160px">Alumno</th>`;
+
+  days.forEach(({ day, dow }) => {
+    const isToday = isCurrentMonth && day === todayDay;
+    const isWeekend = dow === 0 || dow === 6;
+    const cls = isToday ? 'day-col today-h' : isWeekend ? 'day-col weekend-h' : 'day-col';
+    html += `<th class="${cls}">${CAL_DIAS[dow]}<br>${day}</th>`;
+  });
+  html += `<th style="min-width:52px;border-left:1px solid var(--border);text-align:center">%</th>
+    </tr></thead><tbody>`;
+
+  students.forEach(s => {
+    const schedule = CAL_SCHEDULE[s.horario] || null;
+    let presentCount = 0, workdayCount = 0;
+    const horarioBadge = s.horario
+      ? `<span style="font-size:.65rem;font-family:var(--font-cond);letter-spacing:.1em;color:var(--gold);margin-left:.4rem">${s.horario}</span>`
+      : '';
+
+    html += `<tr>
+      <td>
+        <div class="student-name">${s.full_name}${horarioBadge}</div>
+        ${s.sede ? `<div class="student-sede">${s.sede}</div>` : ''}
+      </td>`;
+
+    days.forEach(({ day, dow }) => {
+      const isToday = isCurrentMonth && day === todayDay;
+      const dateStr = `${calYear}-${mm}-${String(day).padStart(2, '0')}`;
+      const isFuture = new Date(calYear, calMonth, day) > today;
+      const isPresent = _calAttMap[`${s.id}_${dateStr}`];
+      const todayCls = isToday ? ' day-today' : '';
+      const isDomingo = dow === 0;
+      const isSabado = dow === 6;
+      const esDiaAlumno = schedule
+        ? schedule.includes(dow)
+        : (!isDomingo && !isSabado);
+
+      if (isDomingo || (isSabado && (!schedule || !schedule.includes(6)))) {
+        html += `<td><div class="day-cell day-weekend">—</div></td>`;
+      } else if (!esDiaAlumno) {
+        html += `<td><div class="day-cell day-weekend" style="opacity:.3">·</div></td>`;
+      } else if (isFuture) {
+        html += `<td><div class="day-cell day-future">·</div></td>`;
+      } else {
+        workdayCount++;
+        if (isPresent) {
+          presentCount++;
+          html += `<td><div class="day-cell day-present${todayCls}" title="${dateStr}">✓</div></td>`;
+        } else {
+          html += `<td><div class="day-cell day-absent${todayCls}" title="${dateStr}">✗</div></td>`;
+        }
+      }
+    });
+
+    const pct = workdayCount > 0 ? Math.round((presentCount / workdayCount) * 100) : 0;
+    const pctClass = pct >= 80 ? 'pct-high' : pct >= 50 ? 'pct-mid' : 'pct-low';
+    html += `<td style="text-align:center"><span class="pct-cell ${pctClass}">${pct}%</span></td></tr>`;
+  });
+
+  html += '</tbody></table>';
+  container.innerHTML = html;
+}
+
 let _bioStudents = [];
 let _bioSelected = null;
 

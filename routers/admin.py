@@ -5,9 +5,16 @@ from pydantic import BaseModel
 from typing import Optional
 from database import supabase
 from datetime import datetime, timedelta, timezone
+try:
+    from zoneinfo import ZoneInfo          # Python 3.9+
+except ImportError:
+    from backports.zoneinfo import ZoneInfo # pip install backports.zoneinfo
 import secrets
 import string
 from passlib.context import CryptContext
+
+# Zona horaria oficial del proyecto: Lima, Perú (UTC-5)
+PERU_TZ = ZoneInfo("America/Lima")
 
 _pwd_ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -27,12 +34,6 @@ class LoginRequest(BaseModel):
     email: str
     password: str
 
-class NoticiaCreate(BaseModel):
-    titulo: str
-    descripcion: str
-    categoria: str = "aviso"
-    emoji: str = "📢"
-    imagen_url: Optional[str] = None
 
 class CreditoUpdate(BaseModel):
     student_id: str
@@ -84,12 +85,12 @@ def admin_login(body: LoginRequest):
 @router.get("/stats")
 def get_stats(admin=Depends(verify_admin)):
     """Estadísticas rápidas del día de hoy."""
-    hoy = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    hoy = datetime.now(PERU_TZ).strftime("%Y-%m-%d")
 
     total = supabase.table("students").select("id", count="exact").eq("is_active", True).execute()
     presentes_hoy = supabase.table("attendance").select("id", count="exact") \
-        .gte("created_at", f"{hoy}T00:00:00") \
-        .lte("created_at", f"{hoy}T23:59:59").execute()
+        .gte("created_at", f"{hoy}T00:00:00-05:00") \
+        .lte("created_at", f"{hoy}T23:59:59-05:00").execute()
 
     return {
         "total_alumnos": total.count or 0,
@@ -119,7 +120,7 @@ class AlumnoCreate(BaseModel):
 
 @router.post("/alumnos")
 def crear_alumno(body: AlumnoCreate, admin=Depends(verify_admin)):
-    hoy_date = datetime.now(timezone.utc).date()
+    hoy_date = datetime.now(PERU_TZ).date()
     fecha_vencimiento_str = (hoy_date + timedelta(days=30)).strftime("%Y-%m-%d")
 
     # 1. Crear el alumno
@@ -190,7 +191,7 @@ def get_alumno_by_dni(dni: str, admin=Depends(verify_admin)):
     dias_restantes = 0
     if alumno.get("valid_until"):
         vencimiento = datetime.strptime(alumno["valid_until"], "%Y-%m-%d").date()
-        hoy = datetime.now(timezone.utc).date()
+        hoy = datetime.now(PERU_TZ).date()
         dias_restantes = (vencimiento - hoy).days
         if dias_restantes < 0:
             dias_restantes = 0
@@ -211,7 +212,7 @@ def buscar_alumno_por_nombre(q: str = "", admin=Depends(verify_admin)):
         .limit(10) \
         .execute()
     
-    hoy = datetime.now(timezone.utc).date()
+    hoy = datetime.now(PERU_TZ).date()
     alumnos = []
     for alumno in (res.data or []):
         dias_restantes = 0
@@ -235,7 +236,7 @@ class PagoMensualidad(BaseModel):
 @router.post("/mensualidades/pagar")
 def pagar_mensualidad(body: PagoMensualidad, admin=Depends(verify_admin)):
     """Registra el pago de una RENOVACIÓN de mensualidad."""
-    hoy = datetime.now(timezone.utc).date()
+    hoy = datetime.now(PERU_TZ).date()
     
     res_alumno = supabase.table("students").select("id, valid_until, full_name").eq("id", body.student_id).single().execute()
     if not res_alumno.data:
@@ -301,53 +302,33 @@ def recargar_creditos(body: CreditoUpdate, admin=Depends(verify_admin)):
     }
 
 
-# ── NOTICIAS ──────────────────────────────────────────────
-@router.get("/noticias")
-def get_noticias(admin=Depends(verify_admin)):
-    res = supabase.table("noticias").select("*").order("created_at", desc=True).execute()
+# ── CALENDARIO — ASISTENCIA GLOBAL ──────────────────────
+@router.get("/students")
+def get_students_for_calendar(admin=Depends(verify_admin)):
+    """Lista de alumnos activos para el calendario de asistencia global."""
+    res = supabase.table("students") \
+        .select("id, full_name, horario, turno, sede") \
+        .eq("is_active", True) \
+        .order("full_name").execute()
     return res.data or []
 
-@router.post("/noticias")
-def crear_noticia(body: NoticiaCreate, admin=Depends(verify_admin)):
-    res = supabase.table("noticias").insert({
-        "titulo": body.titulo,
-        "descripcion": body.descripcion,
-        "categoria": body.categoria,
-        "emoji": body.emoji,
-        "imagen_url": body.imagen_url,
-        "activa": True
-    }).execute()
-    return res.data[0]
 
-@router.delete("/noticias/{noticia_id}")
-def eliminar_noticia(noticia_id: str, admin=Depends(verify_admin)):
-    supabase.table("noticias").update({"activa": False}).eq("id", noticia_id).execute()
-    return {"ok": True}
-
-
-# ── FOTOS GALERÍA ─────────────────────────────────────────
-@router.get("/fotos")
-def get_fotos(admin=Depends(verify_admin)):
-    res = supabase.table("galeria").select("*").order("created_at", desc=True).execute()
+@router.get("/attendance/range")
+def get_attendance_range(
+    start: str,
+    end: str,
+    admin=Depends(verify_admin)
+):
+    """
+    Registros de asistencia entre start y end (ISO datetime strings).
+    Ejemplo: /admin/attendance/range?start=2026-02-01T00:00:00&end=2026-02-28T23:59:59
+    """
+    res = supabase.table("attendance") \
+        .select("id, student_id, created_at") \
+        .gte("created_at", start) \
+        .lte("created_at", end) \
+        .execute()
     return res.data or []
-
-class FotoCreate(BaseModel):
-    url: str
-    descripcion: Optional[str] = None
-
-@router.post("/fotos")
-def agregar_foto(body: FotoCreate, admin=Depends(verify_admin)):
-    res = supabase.table("galeria").insert({
-        "url": body.url,
-        "descripcion": body.descripcion,
-        "activa": True
-    }).execute()
-    return res.data[0]
-
-@router.delete("/fotos/{foto_id}")
-def eliminar_foto(foto_id: str, admin=Depends(verify_admin)):
-    supabase.table("galeria").update({"activa": False}).eq("id", foto_id).execute()
-    return {"ok": True}
 
 
 # ── ENTRENADORES (gestión desde admin) ───────────────────

@@ -1127,3 +1127,265 @@ body {
     font-size: max(0.85rem, 1em) !important;
   }
 }
+
+/* ── CALENDARIO — ASISTENCIA GLOBAL ──────────────────────── */
+
+/* Controles de mes */
+.month-btn {
+  font-family: var(--font-cond);
+  font-size: 1rem;
+  font-weight: 700;
+  background: var(--card);
+  color: var(--gray);
+  border: 1px solid var(--border);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition);
+  border-radius: 4px;
+}
+
+.month-btn:hover {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+
+.month-label {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  letter-spacing: .1em;
+  color: var(--white);
+  min-width: 160px;
+  text-align: center;
+}
+
+.last-update {
+  font-family: var(--font-mono);
+  font-size: .72rem;
+  color: var(--gray2);
+}
+
+/* Barra de filtros del calendario */
+.filters-bar {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+  padding: .9rem 0;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.filter-tag {
+  font-family: var(--font-cond);
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--gray);
+}
+
+/* Tabla de asistencia */
+.attendance-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: .78rem;
+}
+
+.attendance-table th {
+  font-family: var(--font-cond);
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--gray);
+  background: var(--dark);
+  padding: .6rem .8rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  white-space: nowrap;
+}
+
+.attendance-table th.day-col {
+  text-align: center;
+  min-width: 28px;
+  padding: .6rem .3rem;
+}
+
+.attendance-table td {
+  padding: .55rem .8rem;
+  border-bottom: 1px solid rgba(255, 255, 255, .03);
+  color: var(--white);
+  white-space: nowrap;
+}
+
+.attendance-table tr:hover td {
+  background: rgba(212, 160, 23, .04);
+}
+
+/* Celdas de días */
+.day-cell {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  font-size: .75rem;
+  font-family: var(--font-mono);
+}
+
+.day-present {
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+.day-absent {
+  background: var(--red-bg);
+  color: var(--red2);
+}
+
+.day-weekend {
+  background: rgba(255, 255, 255, .04);
+  color: var(--gray2);
+  font-size: .6rem;
+}
+
+.day-today {
+  box-shadow: 0 0 0 2px var(--gold);
+}
+
+.day-future {
+  color: var(--gray2);
+}
+
+/* Cabeceras de columna */
+.day-col {
+  text-align: center;
+  min-width: 28px;
+  padding: .6rem .3rem;
+}
+
+.today-h {
+  color: var(--gold) !important;
+}
+
+.weekend-h {
+  color: var(--gray2) !important;
+}
+
+/* Nombre e info del alumno en la tabla */
+.student-name {
+  font-family: var(--font-cond);
+  font-size: .95rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+
+.student-sede {
+  font-size: .7rem;
+  color: var(--gray);
+  font-family: var(--font-cond);
+  letter-spacing: .06em;
+}
+
+/* Celda de porcentaje */
+.pct-cell {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+}
+
+.pct-high {
+  color: var(--green);
+}
+
+.pct-mid {
+  color: var(--gold);
+}
+
+.pct-low {
+  color: var(--red2);
+}
+
+/* Leyenda */
+.legend {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  padding: 1rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  font-family: var(--font-cond);
+  font-size: .78rem;
+  letter-spacing: .06em;
+  color: var(--gray);
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.dot-present {
+  background: var(--green);
+}
+
+.dot-absent {
+  background: var(--red2);
+}
+
+.dot-weekend {
+  background: var(--gray2);
+}
+
+.dot-today {
+  background: var(--gold);
+}
+
+/* Empty state para calendario */
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: var(--gray);
+}
+
+.empty-state .big {
+  font-family: var(--font-display);
+  font-size: 3rem;
+  color: var(--card2);
+}
+
+.empty-state p {
+  font-family: var(--font-cond);
+  letter-spacing: .1em;
+  margin-top: .5rem;
+}
+
+@media (max-width: 700px) {
+  .filters-bar {
+    padding: .6rem 0;
+    gap: .5rem;
+  }
+
+  .month-label {
+    font-size: 1.05rem;
+    min-width: 120px;
+  }
+
+  .attendance-table th,
+  .attendance-table td {
+    padding: .4rem .4rem;
+  }
+}
