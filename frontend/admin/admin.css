@@ -1520,3 +1520,49 @@ body {
   border-top: 1px solid var(--border);
   flex-wrap: wrap;
 }
+
+/* ── CAJA / PAGOS — LISTA DE ALUMNOS ───────────────────── */
+.apr-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 0.4rem;
+  background: var(--card);
+  transition: border-color 0.15s, background 0.15s;
+  flex-wrap: wrap;
+}
+
+.apr-row:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.apr-info {
+  flex: 1;
+  min-width: 140px;
+}
+
+.apr-nombre {
+  font-family: var(--font-cond);
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--white);
+  margin-bottom: 0.25rem;
+}
+
+.apr-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.apr-estado {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}

@@ -146,7 +146,11 @@
             </div>
             <div class="form-group">
               <label class="form-label">DNI</label>
-              <input class="input-jr" id="a-dni" placeholder="12345678" type="number">
+              <input class="input-jr" id="a-dni" placeholder="12345678" type="text" maxlength="8">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Fecha de nacimiento</label>
+              <input class="input-jr" id="a-fecha-nacimiento" type="date">
             </div>
             <div class="form-group">
               <label class="form-label">Nombre del Apoderado</label>
@@ -155,6 +159,20 @@
             <div class="form-group">
               <label class="form-label">Teléfono (WhatsApp)</label>
               <input class="input-jr" id="a-telefono" placeholder="987654321" type="tel">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Sede</label>
+              <select class="select-jr" id="a-sede">
+                <option value="">Sin sede</option>
+                <option value="El Bosque">El Bosque</option>
+                <option value="Centro">Centro</option>
+                <option value="Norte">Norte</option>
+                <option value="Sur">Sur</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Grupo</label>
+              <input class="input-jr" id="a-grupo" placeholder="Ej: Sub-12">
             </div>
             <div class="form-group">
               <label class="form-label">Horario</label>

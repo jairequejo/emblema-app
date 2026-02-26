@@ -258,8 +258,11 @@ function renderAlumnos(data) {
 async function crearAlumno() {
   const nombre = document.getElementById('a-nombre').value.trim();
   const dni = document.getElementById('a-dni').value.trim();
+  const fechaNac = document.getElementById('a-fecha-nacimiento')?.value || null;
   const apoderado = document.getElementById('a-apoderado').value.trim();
   const telefono = document.getElementById('a-telefono').value.trim();
+  const sede = document.getElementById('a-sede')?.value || null;
+  const grupo = document.getElementById('a-grupo')?.value.trim() || null;
   const pagoMes = parseFloat(document.getElementById('a-pago-mes').value) || 0;
   const pagoMat = parseFloat(document.getElementById('a-pago-mat').value) || 0;
   const metodo = document.getElementById('a-metodo').value;
@@ -272,11 +275,13 @@ async function crearAlumno() {
     body: JSON.stringify({
       full_name: nombre,
       dni: dni || null,
+      fecha_nacimiento: fechaNac || null,
       parent_name: apoderado || null,
       parent_phone: telefono || null,
+      sede: sede || null,
+      grupo: grupo || null,
       horario: document.getElementById('a-horario').value,
       turno: document.getElementById('a-turno')?.value || null,
-      sede: null,
       pago_mensualidad: pagoMes,
       pago_matricula: pagoMat,
       metodo_pago: metodo
@@ -286,12 +291,16 @@ async function crearAlumno() {
   if (res.ok) {
     document.getElementById('a-nombre').value = '';
     document.getElementById('a-dni').value = '';
+    document.getElementById('a-fecha-nacimiento').value = '';
     document.getElementById('a-apoderado').value = '';
     document.getElementById('a-telefono').value = '';
+    document.getElementById('a-sede').value = '';
+    document.getElementById('a-grupo').value = '';
     showToast('✅ Alumno inscrito. Cobro registrado.');
     loadAlumnos();
   } else {
-    showToast('❌ Error. ¿DNI duplicado?', 'error');
+    const err = await res.json().catch(() => ({}));
+    showToast(`❌ ${err.detail || 'Error. ¿DNI duplicado?'}`, 'error');
   }
 }
 
@@ -442,121 +451,52 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// ── CAJA / PAGOS — BÚSQUEDA POR NOMBRE ───────────────────
+// ── CAJA / PAGOS ─────────────────────────────────────────────
 let searchDebounce = null;
 let chipActivo = 'todos';
-let alumnoSeleccionado = null;
+let todosPagosData = []; // cache completo de alumnos para Caja
 
-function loadCreditos() {
+async function loadCreditos() {
   const container = document.getElementById('creditos-result');
   if (!container) return;
-  container.innerHTML = `
-    <div class="empty-search-state">
-      <div class="empty-icon">👆</div>
-      <p>Escribe el nombre del alumno para buscarlo</p>
-    </div>`;
-  const input = document.getElementById('batidos-nombre-search');
-  if (input) {
-    input.value = '';
-    cerrarDropdown();
-  }
-  alumnoSeleccionado = null;
-  actualizarBtnClear();
-  // Resetear chip activo al navegar a esta sección
+
+  container.innerHTML = '<p style="color:var(--gray);padding:1.5rem;font-family:var(--font-cond);text-align:center">⏳ Cargando alumnos…</p>';
+
+  // Resetear UI
   chipActivo = 'todos';
   document.querySelectorAll('.filtro-chip').forEach(c => c.classList.remove('active'));
   const chipTodos = document.getElementById('chip-todos');
   if (chipTodos) chipTodos.classList.add('active');
+  const input = document.getElementById('batidos-nombre-search');
+  if (input) input.value = '';
+  actualizarBtnClear();
+
+  try {
+    const res = await fetch('/admin/alumnos', { headers: H });
+    if (res.status === 401) { logout(); return; }
+    const data = await res.json();
+
+    const hoy = new Date();
+    todosPagosData = data.map(a => {
+      let dias_restantes = null;
+      if (a.valid_until) {
+        const fv = new Date(a.valid_until);
+        fv.setMinutes(fv.getMinutes() + fv.getTimezoneOffset());
+        dias_restantes = Math.floor((fv - hoy) / (1000 * 60 * 60 * 24));
+      }
+      return { ...a, dias_restantes };
+    });
+
+    aplicarFiltrosPagos();
+  } catch {
+    container.innerHTML = '<p style="color:var(--red2);font-family:var(--font-cond);padding:1rem">❌ Error al cargar alumnos.</p>';
+  }
 }
 
 function onSearchInput() {
   clearTimeout(searchDebounce);
   actualizarBtnClear();
-  const q = document.getElementById('batidos-nombre-search')?.value?.trim();
-  if (!q || q.length < 2) {
-    cerrarDropdown();
-    return;
-  }
-  searchDebounce = setTimeout(() => buscarPorNombre(q), 380);
-}
-
-function onSearchKeydown(e) {
-  const dropdown = document.getElementById('search-dropdown');
-  const items = dropdown.querySelectorAll('.dropdown-item');
-  const focused = dropdown.querySelector('.dropdown-item.focused');
-  let idx = Array.from(items).indexOf(focused);
-
-  if (e.key === 'ArrowDown') {
-    e.preventDefault();
-    if (idx < items.length - 1) {
-      if (focused) focused.classList.remove('focused');
-      items[idx + 1].classList.add('focused');
-      items[idx + 1].scrollIntoView({ block: 'nearest' });
-    }
-  } else if (e.key === 'ArrowUp') {
-    e.preventDefault();
-    if (idx > 0) {
-      if (focused) focused.classList.remove('focused');
-      items[idx - 1].classList.add('focused');
-      items[idx - 1].scrollIntoView({ block: 'nearest' });
-    }
-  } else if (e.key === 'Enter') {
-    e.preventDefault();
-    if (focused) focused.click();
-  } else if (e.key === 'Escape') {
-    cerrarDropdown();
-  }
-}
-
-let ultimosResultados = []; // Cache del último resultado de búsqueda
-
-async function buscarPorNombre(q) {
-  const dropdown = document.getElementById('search-dropdown');
-  dropdown.innerHTML = '<div class="dropdown-loading">Buscando…</div>';
-  dropdown.classList.add('visible');
-  try {
-    const res = await fetch(`/admin/alumnos/buscar?q=${encodeURIComponent(q)}`, { headers: H });
-    if (res.status === 401) { logout(); return; }
-    let resultados = await res.json();
-    ultimosResultados = resultados; // Guardar en cache
-
-    // Aplicar filtro de chip activo
-    resultados = filtrarPorChip(resultados);
-
-    if (!resultados.length) {
-      dropdown.innerHTML = '<div class="dropdown-empty">No se encontraron alumnos</div>';
-      return;
-    }
-
-    dropdown.innerHTML = resultados.map(a => {
-      const dias = a.dias_restantes || 0;
-      const estado = !a.is_active ? '<span class="dd-badge inactivo">Inactivo</span>'
-        : dias > 0 ? `<span class="dd-badge al-dia">Al Día · ${dias}d</span>`
-          : '<span class="dd-badge vencido">Vencido</span>';
-      return `<div class="dropdown-item" onclick="seleccionarAlumno('${a.id}')">
-        <div class="dd-nombre">${a.full_name}</div>
-        <div class="dd-meta">
-          <span class="dd-horario">${a.horario || 'LMV'}</span>
-          ${estado}
-        </div>
-      </div>`;
-    }).join('');
-  } catch {
-    dropdown.innerHTML = '<div class="dropdown-empty">Error de conexión</div>';
-  }
-}
-
-function filtrarPorChip(lista) {
-  if (chipActivo === 'todos') return lista;
-  return lista.filter(a => {
-    if (chipActivo === 'lmv') return a.horario === 'LMV';
-    if (chipActivo === 'mjs') return a.horario === 'MJS';
-    // Para filtros de estado, excluir inactivos
-    if (!a.is_active) return false;
-    if (chipActivo === 'al-dia') return (a.dias_restantes ?? 0) > 0;
-    if (chipActivo === 'vencido') return (a.dias_restantes ?? 0) <= 0;
-    return true;
-  });
+  searchDebounce = setTimeout(() => aplicarFiltrosPagos(), 250);
 }
 
 function setChip(chip, ev) {
@@ -564,19 +504,134 @@ function setChip(chip, ev) {
   document.querySelectorAll('.filtro-chip').forEach(c => c.classList.remove('active'));
   const chipEl = document.getElementById(`chip-${chip}`);
   if (chipEl) chipEl.classList.add('active');
-  // Re-buscar si hay texto en el input
-  const q = document.getElementById('batidos-nombre-search')?.value?.trim();
-  if (q && q.length >= 2) {
-    buscarPorNombre(q);
-  } else {
-    // Sin texto: cerrar dropdown para no mostrar resultados vacíos
-    cerrarDropdown();
-  }
+  aplicarFiltrosPagos();
 }
 
-function cerrarDropdown() {
-  const d = document.getElementById('search-dropdown');
-  if (d) { d.innerHTML = ''; d.classList.remove('visible'); }
+function aplicarFiltrosPagos() {
+  const q = (document.getElementById('batidos-nombre-search')?.value || '').toLowerCase().trim();
+
+  let lista = todosPagosData.filter(a => {
+    // Búsqueda por nombre
+    if (q && !a.full_name.toLowerCase().includes(q)) return false;
+    // Filtro por chip
+    if (chipActivo === 'lmv') return a.horario === 'LMV';
+    if (chipActivo === 'mjs') return a.horario === 'MJS';
+    if (chipActivo === 'al-dia') return a.is_active && (a.dias_restantes ?? -1) > 0;
+    if (chipActivo === 'vencido') return a.is_active && (a.dias_restantes ?? -1) <= 0;
+    return true; // 'todos'
+  });
+
+  // Ordenar por urgencia:
+  // 1º Activos vencidos (dias <= 0) → más negativos primero
+  // 2º Activos próximos a vencer (dias pequeños)
+  // 3º Activos con muchos días
+  // 4º Inactivos al fondo
+  lista.sort((a, b) => {
+    const priA = !a.is_active ? 99999 : (a.dias_restantes ?? -9999);
+    const priB = !b.is_active ? 99999 : (b.dias_restantes ?? -9999);
+    return priA - priB;
+  });
+
+  renderListaPagos(lista);
+}
+
+function renderListaPagos(lista) {
+  const container = document.getElementById('creditos-result');
+  if (!lista.length) {
+    container.innerHTML = '<div class="empty-search-state"><div class="empty-icon">🔍</div><p>No hay alumnos con ese filtro.</p></div>';
+    return;
+  }
+
+  container.innerHTML = lista.map(a => {
+    const dias = a.dias_restantes;
+    const tarifa = a.tarifa_mensual || 80;
+
+    let estadoTexto, estadoColor, borde;
+    if (!a.is_active) {
+      estadoTexto = 'INACTIVO';
+      estadoColor = 'var(--gray2)';
+      borde = 'var(--border)';
+    } else if (dias === null) {
+      estadoTexto = 'SIN PAGO';
+      estadoColor = 'var(--gold)';
+      borde = 'rgba(212,160,23,.35)';
+    } else if (dias <= 0) {
+      estadoTexto = `VENCIDO · ${Math.abs(dias)}d`;
+      estadoColor = 'var(--red2)';
+      borde = 'rgba(255,60,60,.35)';
+    } else if (dias <= 7) {
+      estadoTexto = `⚠️ ${dias}d restantes`;
+      estadoColor = '#ff9800';
+      borde = 'rgba(255,152,0,.35)';
+    } else {
+      estadoTexto = `✅ ${dias}d restantes`;
+      estadoColor = '#00ff88';
+      borde = 'rgba(0,255,136,.15)';
+    }
+
+    const btnCobrar = a.is_active ? `
+      <button class="btn btn-gold" style="font-size:.78rem;padding:.35rem 1rem;flex-shrink:0"
+        onclick="abrirPagoAlumno('${a.id}', ${tarifa}, '${a.full_name.replace(/'/g, "\\'")}')">
+        💵 Cobrar S/${tarifa}
+      </button>` : '';
+
+    return `
+    <div class="apr-row" style="border-color:${borde};opacity:${a.is_active ? '1' : '0.45'}">
+      <div class="apr-info">
+        <div class="apr-nombre">${a.full_name}</div>
+        <div class="apr-meta">
+          <span class="badge badge-gold">${a.horario || 'LMV'}</span>
+          ${a.sede ? `<span style="font-family:var(--font-mono);font-size:.72rem;color:var(--gray2)">${a.sede}</span>` : ''}
+          <span class="apr-estado" style="color:${estadoColor}">${estadoTexto}</span>
+        </div>
+      </div>
+      ${btnCobrar}
+    </div>`;
+  }).join('');
+}
+
+// Abre un mini-panel de pago para el alumno seleccionado
+function abrirPagoAlumno(id, tarifa, nombre) {
+  const a = todosPagosData.find(x => x.id === id);
+  const creditos = a?.batido_credits ?? 0;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'pago-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:490;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);display:flex;align-items:center;justify-content:center;padding:1rem';
+  overlay.onclick = (e) => { if (e.target === overlay) overlay.remove(); };
+
+  overlay.innerHTML = `
+    <div style="background:#111114;border:1px solid rgba(212,160,23,.25);border-radius:12px;padding:2rem;width:100%;max-width:420px;animation:slideUp .2s ease">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.4rem;padding-bottom:.8rem;border-bottom:1px solid rgba(212,160,23,.15)">
+        <div style="font-family:var(--font-display);font-size:1.3rem">💰 <span style="color:var(--gold)">${nombre}</span></div>
+        <button onclick="document.getElementById('pago-overlay').remove()"
+          style="background:none;border:1px solid var(--border);color:var(--gray);width:32px;height:32px;border-radius:6px;cursor:pointer;font-size:.9rem">✕</button>
+      </div>
+
+      <div class="pago-opcion" style="cursor:pointer" onclick="pagarMensualidad('${id}', ${tarifa}); document.getElementById('pago-overlay').remove()">
+        <div class="pago-opcion-icon">💵</div>
+        <div class="pago-opcion-info">
+          <div class="pago-opcion-titulo">Mensualidad</div>
+          <div class="pago-opcion-precio">S/ ${tarifa.toFixed(2)} / mes</div>
+        </div>
+        <button class="btn btn-gold pago-opcion-btn">Cobrar</button>
+      </div>
+
+      <div class="pago-opcion" style="margin-top:.8rem">
+        <div class="pago-opcion-icon">🥤</div>
+        <div class="pago-opcion-info">
+          <div class="pago-opcion-titulo">Créditos Batidos</div>
+          <div class="pago-opcion-precio">${creditos} créditos actuales</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:.5rem;flex-shrink:0">
+          <input class="input-jr credit-input" type="number" min="1" max="20" value="4" id="cr-${id}">
+          <button class="btn btn-outline pago-opcion-btn" style="border-color:var(--gold);color:var(--gold)"
+            onclick="recargar('${id}')">+ Recargar</button>
+        </div>
+      </div>
+    </div>`;
+
+  document.body.appendChild(overlay);
 }
 
 function actualizarBtnClear() {
@@ -588,116 +643,34 @@ function actualizarBtnClear() {
 function limpiarBusqueda() {
   const input = document.getElementById('batidos-nombre-search');
   if (input) input.value = '';
-  cerrarDropdown();
   actualizarBtnClear();
-  document.getElementById('creditos-result').innerHTML = `
-    <div class="empty-search-state">
-      <div class="empty-icon">👆</div>
-      <p>Escribe el nombre del alumno para buscarlo</p>
-    </div>`;
-  alumnoSeleccionado = null;
+  aplicarFiltrosPagos();
 }
 
-async function seleccionarAlumno(id) {
-  cerrarDropdown();
-  alumnoSeleccionado = id;
-
-  const container = document.getElementById('creditos-result');
-  container.innerHTML = '<p style="color:var(--gray);padding:1rem">Cargando…</p>';
-
-  try {
-    // Buscar en el cache primero, si no hay, hacer fetch puntual
-    let a = ultimosResultados.find(x => x.id === id);
-
-    if (!a) {
-      // Fetch de respaldo: buscar por ID en la lista completa
-      const res = await fetch('/admin/alumnos', { headers: H });
-      if (res.status === 401) { logout(); return; }
-      const todos = await res.json();
-      // Calcular días restantes
-      const hoyDate = new Date();
-      a = todos.find(x => x.id === id);
-      if (a && a.valid_until) {
-        const fv = new Date(a.valid_until);
-        fv.setMinutes(fv.getMinutes() + fv.getTimezoneOffset());
-        a.dias_restantes = Math.max(0, Math.floor((fv - hoyDate) / (1000 * 60 * 60 * 24)));
-      }
-    }
-
-    if (!a) {
-      container.innerHTML = '<p style="color:var(--red2)">Alumno no encontrado.</p>';
-      return;
-    }
-
-    // Poner nombre en el input
-    const input = document.getElementById('batidos-nombre-search');
-    if (input) input.value = a.full_name;
-    actualizarBtnClear();
-
-    const dias = a.dias_restantes || 0;
-    const estadoMensualidad = dias > 0
-      ? `<span style="color:#00ff88;font-weight:bold">ACTIVO (${dias} días restantes)</span>`
-      : `<span style="color:var(--red2);font-weight:bold">VENCIDO</span>`;
-
-    container.innerHTML = `
-      <div class="form-card alumno-pago-card">
-        <div class="alumno-pago-header">
-          <div>
-            <div class="form-card-title" style="margin-bottom:.3rem">👤 ${a.full_name}</div>
-            <div style="font-family:var(--font-cond);color:var(--gray);font-size:.88rem">
-              DNI: ${a.dni || '—'} &nbsp;·&nbsp; Horario: <span class="badge badge-gold">${a.horario || 'LMV'}</span>
-            </div>
-          </div>
-          <div style="text-align:right;font-family:var(--font-cond);font-size:.88rem">
-            ${estadoMensualidad}
-          </div>
-        </div>
-
-        <div class="pago-acciones">
-          <div class="pago-opcion" onclick="pagarMensualidad('${a.id}')">
-            <div class="pago-opcion-icon">💵</div>
-            <div class="pago-opcion-info">
-              <div class="pago-opcion-titulo">Mensualidad</div>
-              <div class="pago-opcion-precio">S/ 80.00 / mes</div>
-            </div>
-            <button class="btn btn-gold pago-opcion-btn">Cobrar</button>
-          </div>
-
-          <div class="pago-opcion">
-            <div class="pago-opcion-icon">🥤</div>
-            <div class="pago-opcion-info">
-              <div class="pago-opcion-titulo">Créditos Batidos</div>
-              <div class="pago-opcion-precio">${a.batido_credits ?? 0} créditos actuales</div>
-            </div>
-            <div style="display:flex;align-items:center;gap:.5rem;flex-shrink:0">
-              <input class="input-jr credit-input" type="number" min="1" max="20" value="4" id="cr-${a.id}">
-              <button class="btn btn-outline pago-opcion-btn" style="border-color:var(--gold);color:var(--gold)" onclick="recargar('${a.id}')">+ Recargar</button>
-            </div>
-          </div>
-        </div>
-      </div>`;
-  } catch {
-    container.innerHTML = '<p style="color:var(--red2)">Error de conexión.</p>';
-  }
+// Mantener para compatibilidad (Caja > búsqueda dropdown ELIMINADO, ahora filtro en tabla)
+function cerrarDropdown() {
+  const d = document.getElementById('search-dropdown');
+  if (d) { d.innerHTML = ''; d.classList.remove('visible'); }
 }
 
-async function pagarMensualidad(id) {
-  const confirmacion = confirm('¿Confirmar el cobro de S/ 80 por 1 mes de entrenamiento?');
+async function pagarMensualidad(id, tarifa = 80) {
+  const confirmacion = confirm(`¿Confirmar el cobro de S/ ${tarifa} por 1 mes de entrenamiento?`);
   if (!confirmacion) return;
 
   let metodo = prompt('¿Cómo pagó? (Escribe: Efectivo, Yape o Plin):', 'Efectivo');
-  if (!metodo) return;
+  if (metodo === null) return;
+  metodo = metodo.trim() || 'Efectivo';
 
   const res = await fetch('/admin/mensualidades/pagar', {
     method: 'POST',
     headers: H,
-    body: JSON.stringify({ student_id: id, monto: 80.00, metodo: metodo })
+    body: JSON.stringify({ student_id: id, monto: tarifa, metodo })
   });
 
   if (res.ok) {
     const d = await res.json();
-    showToast(`✅ Pago registrado. Vence el: ${d.nueva_fecha_vencimiento}`);
-    seleccionarAlumno(id);
+    showToast(`✅ S/${tarifa} registrados. Vence: ${d.nueva_fecha_vencimiento}`);
+    loadCreditos(); // Refrescar toda la lista
   } else {
     showToast('❌ Error al procesar el pago', 'error');
   }
@@ -713,7 +686,8 @@ async function recargar(id) {
   const d = await res.json();
   if (res.ok) {
     showToast(`✅ ${d.alumno}: ahora tiene ${d.creditos_nuevos} cr.`);
-    seleccionarAlumno(id);
+    document.getElementById('pago-overlay')?.remove();
+    loadCreditos();
   } else {
     showToast('❌ Error al recargar', 'error');
   }
@@ -723,6 +697,7 @@ async function recargar(id) {
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.search-autocomplete-wrap')) cerrarDropdown();
 });
+
 
 // ── NOTICIAS ───────────────────────────────────────────
 async function loadNoticias() {

@@ -109,14 +109,16 @@ def get_alumnos(admin=Depends(verify_admin)):
 class AlumnoCreate(BaseModel):
     full_name: str
     dni: Optional[str] = None
+    fecha_nacimiento: Optional[str] = None  # ISO date "YYYY-MM-DD"
     horario: str = "LMV"
     sede: Optional[str] = None
     turno: Optional[str] = None
+    grupo: Optional[str] = None
     pago_mensualidad: float = 80.00
     pago_matricula: float = 0.00
     metodo_pago: str = "Efectivo"
-    parent_name: Optional[str] = None  # NUEVO: Nombre del padre
-    parent_phone: Optional[str] = None # NUEVO: Teléfono
+    parent_name: Optional[str] = None
+    parent_phone: Optional[str] = None
 
 @router.post("/alumnos")
 def crear_alumno(body: AlumnoCreate, admin=Depends(verify_admin)):
@@ -127,9 +129,11 @@ def crear_alumno(body: AlumnoCreate, admin=Depends(verify_admin)):
     res = supabase.table("students").insert({
         "full_name": body.full_name,
         "dni": body.dni,
+        "fecha_nacimiento": body.fecha_nacimiento,
         "horario": body.horario,
         "sede": body.sede,
         "turno": body.turno,
+        "grupo": body.grupo,
         "is_active": True,
         "batido_credits": 0,
         "valid_until": fecha_vencimiento_str,
