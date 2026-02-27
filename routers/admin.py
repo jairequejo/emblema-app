@@ -195,9 +195,8 @@ class StudentUpdate(BaseModel):
 
 @router.patch("/alumnos/{student_id}")
 def actualizar_alumno(student_id: str, body: StudentUpdate, admin=Depends(verify_admin)):
-    """Actualiza únicamente los campos enviados en el payload."""
-    # Construir payload solo con los campos presentes (no None)
-    payload = {k: v for k, v in body.model_dump().items() if v is not None}
+    # Usar exclude_unset=True para capturar todo lo enviado en el JSON (incluso si es null).
+    payload = body.model_dump(exclude_unset=True)
 
     if not payload:
         raise HTTPException(status_code=400, detail="No se enviaron campos para actualizar")

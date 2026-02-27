@@ -59,6 +59,7 @@ def _parse_jrs(code: str):
 # ── MODELO ───────────────────────────────────────────────
 class ScanRequest(BaseModel):
     code: str
+    timestamp: Optional[str] = None
 
 
 class BatchScanRecord(BaseModel):
@@ -111,13 +112,15 @@ def scan_credential(scan: ScanRequest):
                     "detalle": f"Venció hace {dias} día{'s' if dias != 1 else ''}. Contactar al administrador."}
 
         # Registrar asistencia (usar student_id directamente, sin credential_id)
-        twelve_ago = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
+        fecha_registro = scan.timestamp if scan.timestamp else datetime.now(timezone.utc).isoformat()
+        
+        twelve_ago = (datetime.fromisoformat(fecha_registro.replace("Z", "+00:00")) - timedelta(hours=12)).isoformat()
         recent = supabase.table("attendance").select("id").eq("student_id", student_id)\
             .gte("created_at", twelve_ago).execute()
         if recent.data:
             return {"status": "warning", "message": f"Ya registrado: {nombre_final}", "student_name": nombre_final}
 
-        supabase.table("attendance").insert({"student_id": student_id}).execute()
+        supabase.table("attendance").insert({"student_id": student_id, "created_at": fecha_registro}).execute()
         return {"status": "success", "message": f"¡Bienvenido, {nombre_final}!", "student_name": nombre_final}
 
     # ── FORMATO LEGACY: STU-XXXXX o código libre ─────────
@@ -156,13 +159,14 @@ def scan_credential(scan: ScanRequest):
                     "student_name": nombre_final,
                     "detalle": f"Venció hace {dias} día{'s' if dias != 1 else ''}. Contactar al administrador."}
 
-    twelve_ago = (datetime.now(timezone.utc) - timedelta(hours=12)).isoformat()
+    fecha_registro = scan.timestamp if scan.timestamp else datetime.now(timezone.utc).isoformat()
+    twelve_ago = (datetime.fromisoformat(fecha_registro.replace("Z", "+00:00")) - timedelta(hours=12)).isoformat()
     recent = supabase.table("attendance").select("id").eq("student_id", student_id)\
         .gte("created_at", twelve_ago).execute()
     if recent.data:
         return {"status": "warning", "message": f"Ya registrado: {nombre_final}", "student_name": nombre_final}
 
-    supabase.table("attendance").insert({"credential_id": raw_data["id"], "student_id": student_id}).execute()
+    supabase.table("attendance").insert({"credential_id": raw_data["id"], "student_id": student_id, "created_at": fecha_registro}).execute()
     return {"status": "success", "message": f"¡Bienvenido, {nombre_final}!", "student_name": nombre_final}
 
 
@@ -213,6 +217,49 @@ def sync_batch(req: BatchScanRequest):
 
 
 # ── ENDPOINTS EXISTENTES ──────────────────────────────────
+@router.get("/scanner/offline-data")
+def scanner_offline_data():
+    """
+    Descarga una copia ligera del estado de los alumnos para que el kiosko de scanner
+    funcione offline.
+    """
+    res = supabase.table("students").select("id, full_name, is_active, valid_until").execute()
+    alumnos = res.data or []
+    
+    hoy = datetime.now(timezone.utc).date()
+    offline_db = {}
+    
+    for a in alumnos:
+        if not a.get("is_active"):
+            status = "debe"
+            detalle = "Alumno inactivo"
+        else:
+            fecha_str = a.get("valid_until")
+            if not fecha_str:
+                status = "debe"
+                detalle = "Sin pago registrado"
+            else:
+                try:
+                    fecha_venc = datetime.strptime(fecha_str, "%Y-%m-%d").date()
+                    if fecha_venc < hoy:
+                        status = "debe"
+                        dias = (hoy - fecha_venc).days
+                        detalle = f"Venció hace {dias} día{'s' if dias != 1 else ''}."
+                    else:
+                        status = "success"
+                        detalle = "OK"
+                except Exception:
+                    status = "success"
+                    detalle = "OK"
+                    
+        offline_db[a["id"]] = {
+            "name": a["full_name"],
+            "status": status,
+            "detalle": detalle
+        }
+        
+    return offline_db
+
 @router.get("/today")
 def get_today_attendance():
     today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()

@@ -128,6 +128,121 @@ function addHistory(estado, nombre) {
     `).join('');
 }
 
+// ── SINCRONIZACIÓN OFFLINE ────────────────────────────
+function fetchOfflineData() {
+    fetch('/attendance/scanner/offline-data')
+        .then(res => res.json())
+        .then(data => {
+            localStorage.setItem('scanner_offline_db', JSON.stringify(data));
+            console.log("Base de datos offline actualizada:", Object.keys(data).length, "registros");
+        })
+        .catch(err => console.log("Error actualizando DB offline:", err));
+}
+// Actualizar al cargar y cada 5 min
+fetchOfflineData();
+setInterval(fetchOfflineData, 5 * 60 * 1000);
+
+let queuedScans = JSON.parse(localStorage.getItem('scanner_queued_scans') || '[]');
+function updateQueueUI() {
+    let indicator = document.getElementById('offline-queue-indicator');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.id = 'offline-queue-indicator';
+        indicator.style.cssText = 'position:fixed;bottom:1rem;right:1rem;background:var(--gold);color:#000;padding:.5rem 1rem;border-radius:20px;font-family:var(--font-cond);font-weight:bold;z-index:9999;display:none;';
+        document.body.appendChild(indicator);
+    }
+    if (queuedScans.length > 0) {
+        indicator.style.display = 'block';
+        indicator.textContent = `⏳ ${queuedScans.length} pendientes de envío`;
+    } else {
+        indicator.style.display = 'none';
+    }
+}
+updateQueueUI();
+
+function processOfflineScan(code) {
+    const db = JSON.parse(localStorage.getItem('scanner_offline_db') || '{}');
+
+    // Decodificar el código para buscar el ID en caso de JRS
+    let studentId = code;
+    let fallbackName = "Desconocido";
+
+    if (code.startsWith("JRS:")) {
+        const parts = code.split(":");
+        if (parts.length >= 4) {
+            studentId = parts[1];
+            try {
+                // b64u_decode aproximado
+                const base64 = (parts[3] + '===').slice(0, parts[3].length + (parts[3].length % 4 ? 4 - parts[3].length % 4 : 0)).replace(/-/g, '+').replace(/_/g, '/');
+                fallbackName = decodeURIComponent(escape(atob(base64)));
+            } catch (e) {
+                fallbackName = "Alumno";
+            }
+        }
+    }
+
+    const info = db[studentId];
+    if (info) {
+        queuedScans.push({ code, timestamp: new Date().toISOString() });
+        localStorage.setItem('scanner_queued_scans', JSON.stringify(queuedScans));
+        updateQueueUI();
+
+        let msg = info.detalle;
+        if (info.status === 'success') msg = "¡BIENVENIDO! (Guardado Offline)";
+
+        if (info.status === 'success') playSuccess();
+        else if (info.status === 'warning') playWarning();
+        else playWarning(); // debe
+
+        showFlash(info.status, info.name, msg);
+        addHistory(info.status, info.name + " (Offline)");
+        resume();
+    } else {
+        // En JRS intentamos extraer el nombre válido aunque no lo tengamos en DB local
+        if (code.startsWith("JRS:")) {
+            queuedScans.push({ code, timestamp: new Date().toISOString() });
+            localStorage.setItem('scanner_queued_scans', JSON.stringify(queuedScans));
+            updateQueueUI();
+            playSuccess();
+            showFlash('success', fallbackName, 'Guardado Offline');
+            addHistory('success', fallbackName + " (Offline)");
+            resume();
+        } else {
+            playError();
+            showFlash('error', 'SIN CONEXIÓN', 'No se puede validar código clásico');
+            resume();
+        }
+    }
+}
+
+function syncOfflineQueue() {
+    if (!navigator.onLine || queuedScans.length === 0) return;
+
+    const scan = queuedScans[0];
+    fetch('/attendance/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ code: scan.code, timestamp: scan.timestamp }) // el backend no usa timestamp actual pero procesará el scan
+    })
+        .then(res => {
+            if (res.ok || res.status === 400 || res.status === 404) {
+                // Removido con éxito o es error permanente
+                queuedScans.shift();
+                localStorage.setItem('scanner_queued_scans', JSON.stringify(queuedScans));
+                updateQueueUI();
+                if (queuedScans.length > 0) {
+                    setTimeout(syncOfflineQueue, 500);
+                }
+            }
+        }).catch(err => console.log("Fallo el sync, reintentando luego"));
+}
+
+window.addEventListener('online', () => {
+    fetchOfflineData();
+    syncOfflineQueue();
+});
+setInterval(syncOfflineQueue, 15000);
+
 // ── LÓGICA CENTRAL DE SCAN ────────────────────────────
 let html5QrcodeScanner = null;
 let isProcessing = false;
@@ -142,9 +257,13 @@ function handleScan(decodedText) {
 
     if (html5QrcodeScanner) html5QrcodeScanner.pause();
 
-    // Actualizar status
     const statusEl = document.getElementById('status-text');
     if (statusEl) statusEl.textContent = 'Procesando...';
+
+    if (!navigator.onLine) {
+        processOfflineScan(code);
+        return;
+    }
 
     fetch('/attendance/scan', {
         method: 'POST',
@@ -177,9 +296,8 @@ function handleScan(decodedText) {
             if (estado !== 'error') addHistory(estado, nombre);
         })
         .catch(() => {
-            playError();
-            showFlash('error', 'SIN CONEXIÓN', '');
-            resume();
+            // Si el fetch falla, intentamos procesarlo en modo offline
+            processOfflineScan(code);
         });
 }
 

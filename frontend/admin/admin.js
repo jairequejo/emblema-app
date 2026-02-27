@@ -357,8 +357,8 @@ function abrirModalEdicion(student_id) {
   document.getElementById('edit-grupo').value = a.grupo || '';
   document.getElementById('edit-categoria').value = a.categoria || '';
   // tarifa_mensual: '' vacío → null (reset a default), número → valor (0 = becado)
-  const tarifaRaw = document.getElementById('edit-tarifa').value;
-  document.getElementById('edit-tarifa').value = tarifaRaw !== '' && tarifaRaw != null ? tarifaRaw : '';
+  const tarifaRaw = a.tarifa_mensual;
+  document.getElementById('edit-tarifa').value = tarifaRaw !== null && tarifaRaw !== undefined ? tarifaRaw : '';
   document.getElementById('edit-codigo-legacy').value = a.codigo_legacy || '';
 
   document.getElementById('modal-editar-alumno').classList.remove('hidden');
