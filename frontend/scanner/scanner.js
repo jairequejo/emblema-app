@@ -218,23 +218,50 @@ function processOfflineScan(code) {
 function syncOfflineQueue() {
     if (!navigator.onLine || queuedScans.length === 0) return;
 
-    const scan = queuedScans[0];
-    fetch('/attendance/scan', {
+    // Obtener la identidad del entrenador
+    const token = localStorage.getItem('trainer_token') || '';
+
+    // Preparar el lote de registros adaptándolos a BatchScanRecord
+    const batchRecords = queuedScans.map((scan, index) => {
+        let student_id = scan.code;
+        // Si es código seguro generado offline (JRS:), extraer solo el ID
+        if (scan.code.startsWith("JRS:")) {
+            const parts = scan.code.split(":");
+            if (parts.length >= 2) student_id = parts[1];
+        }
+        return {
+            student_id: student_id,
+            timestamp: scan.timestamp,
+            local_id: 'sync-' + Date.now() + '-' + index
+        };
+    });
+
+    // Enviar lote completo con un solo Request
+    fetch('/attendance/sync-batch', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ code: scan.code, timestamp: scan.timestamp }) // el backend no usa timestamp actual pero procesará el scan
+        headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            records: batchRecords,
+            token: token // Enviado también en el body por requerimiento de FastAPI
+        })
     })
         .then(res => {
-            if (res.ok || res.status === 400 || res.status === 404) {
-                // Removido con éxito o es error permanente
-                queuedScans.shift();
+            if (res.ok) {
+                // Solo si la respuesta es exitosa vaciamos la memoria (200 OK)
+                queuedScans = [];
                 localStorage.setItem('scanner_queued_scans', JSON.stringify(queuedScans));
                 updateQueueUI();
-                if (queuedScans.length > 0) {
-                    setTimeout(syncOfflineQueue, 500);
-                }
+                console.log("Sincronización masiva exitosa.");
+            } else {
+                console.warn("Reteniendo mochila: Fallo el sync masivo. Status:", res.status);
             }
-        }).catch(err => console.log("Fallo el sync, reintentando luego"));
+        })
+        .catch(err => {
+            console.log("Reteniendo mochila: Error de red durante el sync, reintentando en próximo ciclo:", err);
+        });
 }
 
 window.addEventListener('online', () => {
