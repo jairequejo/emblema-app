@@ -13,6 +13,7 @@
     rel="stylesheet">
   <!-- Estilos del portal en home.css -->
   <link rel="stylesheet" href="/static/home/home.css">
+  <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 
 <body>
@@ -38,6 +39,21 @@
       <input type="tel" id="dni" class="dni-in" placeholder="76543210" maxlength="8" inputmode="numeric"
         autocomplete="off">
       <button id="btnC" class="btn-cta" onclick="buscar()">⚽ CONSULTAR ESTATUS</button>
+
+      <div style="text-align:center;margin-top:1rem;margin-bottom:0.5rem">
+        <button class="btn-outline" style="font-size:0.8rem;padding:0.4rem 0.8rem" onclick="toggleScanner()">📷 Escanear
+          Código QR</button>
+      </div>
+      <div class="scan-hint" style="color:var(--gray);text-align:center;font-size:0.8rem;font-family:var(--font-cond)">o
+        acerque su medallón a su celular</div>
+
+      <div id="scanner-container" class="hidden"
+        style="margin-top:1rem;background:var(--card);padding:0.5rem;border:1px solid var(--border);border-radius:8px;">
+        <div id="reader" style="width:100%"></div>
+        <button class="btn-outline" style="width:100%;margin-top:0.5rem;font-size:0.8rem"
+          onclick="toggleScanner()">Cerrar Escáner</button>
+      </div>
+
       <div id="ld" class="ld-row hidden">
         <div class="sp"></div><span>Extrayendo datos...</span>
       </div>

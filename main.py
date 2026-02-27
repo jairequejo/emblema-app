@@ -221,15 +221,21 @@ def ranking_publico(categoria: str = None, sede: str = None, campo: str = "talla
 
 
 
-@app.get("/public/student/{dni}/info")
-def student_public_info(dni: str):
+@app.get("/public/student/{dni_or_id}/info")
+def student_public_info(dni_or_id: str):
     from datetime import datetime, timedelta
     from fastapi import HTTPException
 
-    # 1. Buscar atleta activo — solo columnas que existen en students
-    res = supabase.table("students") \
-        .select("id, full_name, valid_until, horario, sede, batido_credits") \
-        .eq("dni", dni).eq("is_active", True).execute()
+    # 1. Buscar atleta activo — por DNI o ID
+    query = supabase.table("students").select("id, full_name, valid_until, horario, sede, batido_credits").eq("is_active", True)
+    
+    # Si parece un UUID (JRS offline payload envía el UUID en el código)
+    if len(dni_or_id) > 15:
+        query = query.eq("id", dni_or_id)
+    else:
+        query = query.eq("dni", dni_or_id)
+        
+    res = query.execute()
 
     if not res.data:
         raise HTTPException(status_code=404, detail="Atleta no encontrado")

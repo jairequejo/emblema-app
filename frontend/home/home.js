@@ -4,16 +4,85 @@
 const $ = id => document.getElementById(id);
 const p1 = $('p1'), p2 = $('p2'), p3 = $('p3');
 
-document.addEventListener('DOMContentLoaded', loadRanking);
+document.addEventListener('DOMContentLoaded', () => {
+  loadRanking();
+  initNFC();
+});
 $('dni').addEventListener('keypress', e => { if (e.key === 'Enter') buscar(); });
 
-/* ── CONSULTAR DNI ── */
+/* ── SCANNER QR / NFC ── */
+let qrScanner = null;
+
+function toggleScanner() {
+  const container = $('scanner-container');
+  if (container.classList.contains('hidden')) {
+    container.classList.remove('hidden');
+    if (!qrScanner) {
+      qrScanner = new Html5QrcodeScanner('reader', {
+        fps: 15,
+        qrbox: { width: 220, height: 220 },
+        rememberLastUsedCamera: true
+      });
+      qrScanner.render(
+        (decodedText) => {
+          // Al leer, detenemos si es posible y buscamos
+          toggleScanner();
+          handleScanCode(decodedText);
+        },
+        () => { }
+      );
+    }
+  } else {
+    container.classList.add('hidden');
+  }
+}
+
+function handleScanCode(rawCode) {
+  const raw = rawCode.trim();
+  let code = raw.includes('?code=') ? raw.split('?code=')[1] : raw;
+
+  // Si es formato offline JRS:uuid:fecha:nom:firma
+  if (code.startsWith('JRS:')) {
+    const parts = code.slice(4).split(':');
+    if (parts.length >= 1) {
+      code = parts[0];
+    }
+  }
+
+  // Si es formato STU-XXX
+  if (code.startsWith('STU-')) {
+    code = code.replace('STU-', '');
+  }
+
+  $('dni').value = code;
+  buscar();
+}
+
+async function initNFC() {
+  if (!('NDEFReader' in window)) return;
+  try {
+    const ndef = new NDEFReader();
+    await ndef.scan();
+    ndef.addEventListener('reading', ({ message }) => {
+      for (const record of message.records) {
+        const decoder = new TextDecoder(record.encoding || 'utf-8');
+        const raw = decoder.decode(record.data).trim();
+        handleScanCode(raw);
+      }
+    });
+  } catch (e) {
+    console.warn('NFC no disponible:', e.message);
+  }
+}
+
+
+/* ── CONSULTAR DNI O UUID ── */
 async function buscar() {
   const dni = $('dni').value.trim();
   const btn = $('btnC');
   $('err').classList.add('hidden');
 
-  if (!/^\d{8}$/.test(dni)) {
+  if (dni.length < 8) {
     $('dni').style.borderBottomColor = 'var(--red)';
     setTimeout(() => $('dni').style.borderBottomColor = 'var(--gold)', 900);
     return;
