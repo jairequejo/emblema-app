@@ -14,13 +14,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (nameEl) nameEl.textContent = sessionStorage.getItem('jr_nombre') || '';
 });
 
-function logout() {
-    localStorage.removeItem(TOKEN_KEY);
-    sessionStorage.clear();
-    syncWorker?.terminate();
-    window.location.href = '/entrenador/login';
-}
-
 // ── WEB WORKER DE SYNC ────────────────────────────────────
 let syncWorker = null;
 let pendingCount = 0;

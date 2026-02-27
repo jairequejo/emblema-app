@@ -92,11 +92,6 @@
     color: var(--gray);
 }
 
-.topbar-logout-btn {
-    font-size: .75rem;
-    padding: .3rem .8rem;
-}
-
 /* ── LAYOUT ──────────────────────────────────────────────── */
 .coach-layout {
     margin-top: 56px;
