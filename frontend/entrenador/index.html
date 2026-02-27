@@ -82,6 +82,12 @@
 
             <!-- Filtros de Sede y Grupo -->
             <div class="asistencia-filtros" style="margin-top:.5rem;flex-wrap:wrap;gap:.5rem">
+                <select id="filtro-ent-turno" class="select-jr" style="font-size:.82rem;padding:.35rem .6rem;width:auto"
+                    onchange="renderAsistencia()">
+                    <option value="">Todos los turnos</option>
+                    <option value="mañana">Mañana</option>
+                    <option value="tarde">Tarde</option>
+                </select>
                 <select id="filtro-ent-sede" class="select-jr" style="font-size:.82rem;padding:.35rem .6rem;width:auto"
                     onchange="renderAsistencia()">
                     <option value="">Todas las sedes</option>

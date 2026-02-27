@@ -381,7 +381,7 @@ function setFiltroAsist(filtro, btn) {
     filtroAsist = filtro;
     document.querySelectorAll('.asistencia-filtros .chip')
         .forEach(c => c.classList.remove('active'));
-    btn?.classList.add('active');
+    if (btn) btn.classList.add('active'); // allow btn to be null
     renderAsistencia();
 }
 
@@ -390,8 +390,43 @@ function renderAsistencia() {
     const statsEl = document.getElementById('asistencia-stats');
     if (!listEl) return;
 
-    const total = asistenciaData.length;
-    const presentes = asistenciaData.filter(a => a.present).length;
+    // Obtener valores de los filtros UI
+    const qSede = document.getElementById('filtro-ent-sede')?.value || '';
+    const qGrupo = document.getElementById('filtro-ent-grupo')?.value || '';
+    const qTurno = document.getElementById('filtro-ent-turno')?.value || '';
+    const qNombre = (document.getElementById('filtro-ent-nombre')?.value || '').toLowerCase().trim();
+
+    // 1. Filtrar los datos con todos los criterios
+    let datos = asistenciaData.filter(a => {
+        // Filtro Chips (Todos, Presentes, Ausentes, Deben)
+        if (filtroAsist === 'presentes' && !a.present) return false;
+        if (filtroAsist === 'ausentes' && a.present) return false;
+        if (filtroAsist === 'deudores' && !a.debe) return false;
+
+        // Filtro Selects y Búsqueda
+        if (qSede && a.sede !== qSede) return false;
+        if (qGrupo && a.grupo !== qGrupo) return false;
+        if (qTurno && (a.turno || '').toLowerCase() !== qTurno.toLowerCase()) return false;
+        if (qNombre && !(a.full_name || '').toLowerCase().includes(qNombre)) return false;
+
+        return true;
+    });
+
+    // 2. Calcular stats SOLO basados en los datos filtrados, pero relativos al total general 
+    // Opcional: Podrías hacer que las stats muestren el total filtrado o el total del día
+    // Mantendremos las stats sobre el dataset ya filtrado por sede/grupo/turno pero SIN los chips 
+    // para que representen el universo de esa clase específica.
+
+    let baseStats = asistenciaData.filter(a => {
+        if (qSede && a.sede !== qSede) return false;
+        if (qGrupo && a.grupo !== qGrupo) return false;
+        if (qTurno && (a.turno || '').toLowerCase() !== qTurno.toLowerCase()) return false;
+        if (qNombre && !(a.full_name || '').toLowerCase().includes(qNombre)) return false;
+        return true;
+    });
+
+    const total = baseStats.length;
+    const presentes = baseStats.filter(a => a.present).length;
     const ausentes = total - presentes;
 
     if (statsEl) {
@@ -400,11 +435,6 @@ function renderAsistencia() {
             <div class="stat-pill"><div class="stat-pill-num green">${presentes}</div><div class="stat-pill-label">Presentes</div></div>
             <div class="stat-pill"><div class="stat-pill-num red">${ausentes}</div><div class="stat-pill-label">Ausentes</div></div>`;
     }
-
-    let datos = asistenciaData;
-    if (filtroAsist === 'presentes') datos = datos.filter(a => a.present);
-    if (filtroAsist === 'ausentes') datos = datos.filter(a => !a.present);
-    if (filtroAsist === 'deudores') datos = datos.filter(a => a.debe);
 
     if (!datos.length) {
         listEl.innerHTML = '<div class="loading-msg">Sin resultados.</div>'; return;
@@ -421,12 +451,12 @@ function renderAsistencia() {
         const hora = a.time
             ? new Date(a.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             : '';
-        const meta = [a.horario, a.turno].filter(Boolean).join(' · ') + (hora ? ` · ${hora}` : '');
+        const meta = [a.horario, a.turno, a.sede, a.grupo ? `Grupo ${a.grupo}` : ''].filter(Boolean).join(' · ') + (hora ? ` · ${hora}` : '');
         return `<div class="alumno-card ${cls}">
             <div class="alumno-avatar">${emoji}</div>
             <div class="alumno-info">
                 <div class="alumno-nombre">${a.full_name}</div>
-                <div class="alumno-meta">${meta}</div>
+                <div class="alumno-meta" style="font-size:0.7rem">${meta}</div>
             </div>${badge}</div>`;
     }).join('')}</div>`;
 }
