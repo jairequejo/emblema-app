@@ -397,8 +397,8 @@ function renderAsistencia() {
         if (filtroAsist === 'deudores' && !a.debe) return false;
 
         // Filtro Selects y Búsqueda
-        if (qSede && a.sede !== qSede) return false;
-        if (qGrupo && a.grupo !== qGrupo) return false;
+        if (qSede && (a.sede || '').toLowerCase() !== qSede.toLowerCase()) return false;
+        if (qGrupo && (a.grupo || '').toLowerCase() !== qGrupo.toLowerCase()) return false;
         if (qTurno && (a.turno || '').toLowerCase() !== qTurno.toLowerCase()) return false;
         if (qNombre && !(a.full_name || '').toLowerCase().includes(qNombre)) return false;
 
@@ -411,8 +411,8 @@ function renderAsistencia() {
     // para que representen el universo de esa clase específica.
 
     let baseStats = asistenciaData.filter(a => {
-        if (qSede && a.sede !== qSede) return false;
-        if (qGrupo && a.grupo !== qGrupo) return false;
+        if (qSede && (a.sede || '').toLowerCase() !== qSede.toLowerCase()) return false;
+        if (qGrupo && (a.grupo || '').toLowerCase() !== qGrupo.toLowerCase()) return false;
         if (qTurno && (a.turno || '').toLowerCase() !== qTurno.toLowerCase()) return false;
         if (qNombre && !(a.full_name || '').toLowerCase().includes(qNombre)) return false;
         return true;

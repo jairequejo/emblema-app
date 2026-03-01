@@ -150,11 +150,11 @@ function aplicarFiltros() {
     // Filtro búsqueda de texto
     if (busqueda && !a.full_name.toLowerCase().includes(busqueda)) return false;
     // Filtro horario
-    if (horario && a.horario !== horario) return false;
+    if (horario && (a.horario || '').toLowerCase() !== horario.toLowerCase()) return false;
     // Filtro sede
-    if (sede && a.sede !== sede) return false;
+    if (sede && (a.sede || '').toLowerCase() !== sede.toLowerCase()) return false;
     // Filtro grupo
-    if (grupo && a.grupo !== grupo) return false;
+    if (grupo && (a.grupo || '').toLowerCase() !== grupo.toLowerCase()) return false;
     // Filtro estado
     if (estado) {
       if (estado === 'inactivo' && a.is_active !== false) return false;
@@ -885,8 +885,8 @@ function renderCalendario() {
 
   const students = _calStudents.filter(s => {
     const matchSearch = (s.full_name || '').toLowerCase().includes(searchFilter);
-    const matchTurno = !turnoFilter || (s.turno || '') === turnoFilter;
-    const matchSede = !sedeFilter || (s.sede || '') === sedeFilter;
+    const matchTurno = !turnoFilter || (s.turno || '').toLowerCase() === turnoFilter.toLowerCase();
+    const matchSede = !sedeFilter || (s.sede || '').toLowerCase() === sedeFilter.toLowerCase();
     return matchSearch && matchTurno && matchSede;
   });
 
