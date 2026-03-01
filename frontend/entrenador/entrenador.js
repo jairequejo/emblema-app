@@ -4,7 +4,7 @@
 // ── AUTH ─────────────────────────────────────────────────
 const TOKEN_KEY = 'jr_entrenador_token';
 const EMAIL_KEY = 'jr_entrenador_email';
-const SIGNING_KEY_SK = 'jr_signing_key';     // sessionStorage
+const SIGNING_KEY_SK = 'jr_signing_key';     // localStorage
 
 const token = localStorage.getItem(TOKEN_KEY);
 if (!token) window.location.href = '/entrenador/login';
@@ -78,7 +78,7 @@ function hexToBytes(hex) {
 
 async function getCryptoKey() {
     if (_cryptoKey) return _cryptoKey;
-    const keyHex = sessionStorage.getItem(SIGNING_KEY_SK);
+    const keyHex = localStorage.getItem(SIGNING_KEY_SK);
     if (!keyHex) return null;
     try {
         _cryptoKey = await crypto.subtle.importKey(

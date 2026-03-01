@@ -24,7 +24,7 @@ async function init() {
         if (res.ok) {
             const data = await res.json();
             // Guardar clave de firma y nombre para el panel
-            if (data.signing_key) sessionStorage.setItem('jr_signing_key', data.signing_key);
+            if (data.signing_key) localStorage.setItem('jr_signing_key', data.signing_key);
             sessionStorage.setItem('jr_nombre', data.nombre || '');
             document.getElementById('status-msg').textContent = `¡Hola, ${data.nombre}! Abriendo scanner...`;
             setTimeout(() => { window.location.href = '/entrenador'; }, 600);

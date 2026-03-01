@@ -223,7 +223,7 @@ function renderCard(d) {
           </div>
         </div>
         <a href="https://wa.me/?text=${waMsg}" target="_blank" class="btn-presumir">
-          📲 PRESUMIR ESTATUS
+          📲 COMPARTIR ESTATUS
         </a>
       </div>`;
   }

@@ -160,25 +160,94 @@ function updateQueueUI() {
 }
 updateQueueUI();
 
-function processOfflineScan(code) {
+// ── CRYPTO: VALIDACIÓN HMAC LOCAL ─────────────────────────
+const SIGNING_KEY_SK = 'jr_signing_key'; // localStorage
+let _cryptoKey = null;
+
+function hexToBytes(hex) {
+    const arr = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2)
+        arr[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+    return arr;
+}
+
+async function getCryptoKey() {
+    if (_cryptoKey) return _cryptoKey;
+    const keyHex = localStorage.getItem(SIGNING_KEY_SK);
+    if (!keyHex) return null;
+    try {
+        _cryptoKey = await crypto.subtle.importKey(
+            'raw', hexToBytes(keyHex),
+            { name: 'HMAC', hash: 'SHA-256' },
+            false, ['sign']
+        );
+        return _cryptoKey;
+    } catch { return null; }
+}
+
+async function computeHmac(student_id, valid_yyyymmdd, name) {
+    const key = await getCryptoKey();
+    if (!key) return null;
+    const msg = new TextEncoder().encode(`${student_id}|${valid_yyyymmdd}|${name}`);
+    const sig = await crypto.subtle.sign('HMAC', key, msg);
+    return Array.from(new Uint8Array(sig).slice(0, 8))
+        .map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function b64uDecode(str) {
+    str = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (str.length % 4) str += '=';
+    return decodeURIComponent(escape(atob(str)));
+}
+
+async function validateJRS(code) {
+    if (!code.startsWith('JRS:')) return null;
+    const parts = code.slice(4).split(':');
+    if (parts.length !== 4) return null;
+
+    const [student_id, valid_date, name_b64, sig] = parts;
+    let name;
+    try { name = b64uDecode(name_b64); } catch { return null; }
+
+    const expected = await computeHmac(student_id, valid_date, name);
+    if (!expected || expected !== sig) return null;   // firma inválida
+
+    // Verificar fecha
+    const hoy = new Date();
+    const yyyy = valid_date.slice(0, 4);
+    const mm = valid_date.slice(4, 6) - 1;
+    const dd = valid_date.slice(6, 8);
+    const vencimiento = new Date(yyyy, mm, dd);
+    vencimiento.setHours(23, 59, 59);   // final del día
+
+    return { student_id, name, valid_date, debe: vencimiento < hoy };
+}
+
+async function processOfflineScan(code) {
     const db = JSON.parse(localStorage.getItem('scanner_offline_db') || '{}');
 
-    // Decodificar el código para buscar el ID en caso de JRS
     let studentId = code;
     let fallbackName = "Desconocido";
 
     if (code.startsWith("JRS:")) {
-        const parts = code.split(":");
-        if (parts.length >= 4) {
-            studentId = parts[1];
-            try {
-                // b64u_decode aproximado
-                const base64 = (parts[3] + '===').slice(0, parts[3].length + (parts[3].length % 4 ? 4 - parts[3].length % 4 : 0)).replace(/-/g, '+').replace(/_/g, '/');
-                fallbackName = decodeURIComponent(escape(atob(base64)));
-            } catch (e) {
-                fallbackName = "Alumno";
-            }
+        const parsed = await validateJRS(code);
+
+        if (!parsed) {
+            playError();
+            showFlash('error', 'QR INVÁLIDO', 'Firma criptográfica incorrecta.');
+            resume();
+            return;
         }
+
+        if (parsed.debe) {
+            playWarning();
+            showFlash('debe', parsed.name, 'Mensualidad vencida (Offline)');
+            resume();
+            return;
+        }
+
+        studentId = parsed.student_id;
+        fallbackName = parsed.name;
     }
 
     const info = db[studentId];
@@ -292,15 +361,22 @@ function handleScan(decodedText) {
         return;
     }
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 segundos máximo
+
     fetch('/attendance/scan', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json'
         },
-        body: JSON.stringify({ code })
+        body: JSON.stringify({ code }),
+        signal: controller.signal
     })
-        .then(res => res.text())
+        .then(res => {
+            clearTimeout(timeoutId);
+            return res.text();
+        })
         .then(rawText => {
             let data;
             try { data = JSON.parse(rawText); }
@@ -322,8 +398,8 @@ function handleScan(decodedText) {
 
             if (estado !== 'error') addHistory(estado, nombre);
         })
-        .catch(() => {
-            // Si el fetch falla, intentamos procesarlo en modo offline
+        .catch((err) => {
+            // Si es un error de red o timeout (AbortError), pasa a offline rápido
             processOfflineScan(code);
         });
 }
