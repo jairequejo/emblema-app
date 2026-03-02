@@ -157,7 +157,6 @@ def crear_alumno(body: AlumnoCreate, admin=Depends(verify_admin)):
         supabase.table("credentials").insert({
             "student_id": nuevo_alumno["id"],
             "code": codigo_qr,
-            "type": "qr",
             "is_active": True
         }).execute()
     except Exception as e:

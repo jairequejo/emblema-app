@@ -22,7 +22,6 @@ def generate_credential(student_id: str, admin=Depends(verify_admin)):
     supabase.table("credentials").insert({
         "student_id": student_id,
         "code": code,
-        "type": "qr",
         "is_active": True
     }).execute()
 
