@@ -1849,6 +1849,11 @@ body::before {
 }
 
 @media(min-width: 900px) {
+  body {
+    max-width: 960px;
+    margin: 0 auto;
+  }
+
   #p3 {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1871,23 +1876,29 @@ body::before {
 }
 
 @media(min-width: 1100px) {
+  body {
+    max-width: 1100px;
+  }
+
   #p1 {
     flex-direction: row;
     justify-content: center;
     gap: 5rem;
     text-align: left;
     max-width: 1000px;
-    margin: 0 auto
+    margin: 0 auto;
+    padding: 5rem 2rem 6rem;
   }
 
   #p1 .hero-logo {
     order: -1;
-    width: 180px;
-    height: 180px
+    width: 200px;
+    height: 200px;
+    filter: drop-shadow(0 0 32px rgba(204, 22, 22, .45))
   }
 
   #p1 .sbox {
-    max-width: 400px
+    max-width: 420px
   }
 
   .hero-h {
@@ -1898,4 +1909,58 @@ body::before {
   .hero-sub {
     margin-left: 0
   }
+}
+
+/* ── MEJORAS VISUALES GLOBALES ─────────────────────────── */
+
+/* Hero logo con glow rojo sutil */
+.hero-logo {
+  box-shadow: 0 0 20px rgba(204, 22, 22, 0.3);
+  transition: box-shadow .3s
+}
+
+.hero-logo:hover {
+  box-shadow: 0 0 32px rgba(204, 22, 22, 0.55)
+}
+
+/* Input con focus más vistoso */
+.dni-in:focus {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(212, 160, 23, 0.15)
+}
+
+/* Ficha fut-card con sombra suave */
+.fut-card {
+  box-shadow: 0 4px 32px rgba(0, 0, 0, .45)
+}
+
+/* Nombre del atleta con ligero text-shadow dorado */
+.c-name {
+  text-shadow: 0 0 16px rgba(212, 160, 23, .2)
+}
+
+/* Racha número más big y llamativo */
+.racha-num {
+  font-size: 3.2rem
+}
+
+/* Botón CTA con sombra de profundidad */
+.btn-cta {
+  box-shadow: 0 4px 16px rgba(204, 22, 22, .35)
+}
+
+.btn-cta:hover {
+  box-shadow: 0 6px 20px rgba(204, 22, 22, .5)
+}
+
+/* Kiosko y ranking con margen lateral consistente en móvil */
+.eco-sec {
+  padding: 0 1.2rem
+}
+
+/* Mejorar color del divider en p1 */
+.divider-rg {
+  width: 64px;
+  height: 3px;
+  border-radius: 2px
 }

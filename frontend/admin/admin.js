@@ -1342,3 +1342,97 @@ async function toggleEntrenador(id, nombre, reactivar) {
   showToast('✅ Actualizado');
   loadEntrenadores();
 }
+
+// ── MANUFACTURA: PLANCHA DE PRODUCCIÓN QR ─────────────────────────
+async function imprimirPlanchaQRs() {
+  const activos = alumnosData.filter(a => a.is_active);
+
+  if (activos.length === 0) {
+    showToast('No hay alumnos activos para imprimir.', 'error');
+    return;
+  }
+
+  showToast(`Generando plancha para ${activos.length} alumnos... Esto tomará unos segundos.`, 'ok');
+
+  let html = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <title>Plancha de Producción QR — JR Stars</title>
+    <style>
+      body { font-family: sans-serif; margin: 0; padding: 10mm; background: #fff; color: #000; }
+      @media print {
+        @page { margin: 5mm; }
+        body { padding: 0; }
+        .no-print { display: none; }
+      }
+      .grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5mm;
+        justify-content: flex-start;
+      }
+      .qr-box {
+        width: 47mm;
+        height: 47mm;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        border: 1px dashed #ccc;
+        box-sizing: border-box;
+        page-break-inside: avoid;
+        padding: 2mm;
+      }
+      .qr-box img { width: 32mm; height: 32mm; margin-bottom: 2mm; }
+      .qr-box .name { font-size: 8px; font-weight: bold; text-align: center; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .qr-box .dni  { font-size: 7px; color: #555; }
+    </style>
+  </head>
+  <body>
+    <div class="no-print" style="margin-bottom:15px">
+      <h2>Plancha de Producción — ${activos.length} Stickers (47mm)</h2>
+      <button onclick="window.print()" style="padding:10px 20px;background:#d4a017;border:none;color:#000;font-weight:bold;cursor:pointer">
+        🖨️ Imprimir / Guardar PDF
+      </button>
+      <p style="font-size:12px;color:#666">Configura los márgenes en "Ninguno" y escala al 100% al imprimir.</p>
+    </div>
+    <div class="grid">`;
+
+  for (const a of activos) {
+    try {
+      let codeStr = '';
+      const res = await fetch(`/credentials/${a.id}`, { headers: H });
+      const data = await res.json();
+
+      if (data.length > 0) {
+        codeStr = data[0].code;
+      } else {
+        const gen = await fetch(`/credentials/generate/${a.id}`, { method: 'POST', headers: H });
+        const d = await gen.json();
+        codeStr = d.code;
+      }
+
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(codeStr)}`;
+
+      html += `
+      <div class="qr-box">
+        <img src="${qrUrl}" />
+        <div class="name">${a.full_name}</div>
+        <div class="dni">${a.dni || 'JR Stars'}</div>
+      </div>`;
+    } catch (e) {
+      console.warn(`Error procesando a ${a.full_name}:`, e);
+    }
+  }
+
+  html += `
+    </div>
+  </body>
+  </html>`;
+
+  const win = window.open('', '_blank');
+  win.document.write(html);
+  win.document.close();
+  showToast('✅ Plancha generada con éxito.', 'ok');
+}

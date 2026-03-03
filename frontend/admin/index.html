@@ -240,7 +240,12 @@
 
         <!-- Filtros para la lista de alumnos -->
         <div class="filtros-bar">
-          <div class="form-card-title" style="margin:0;font-size:1rem">📋 Directorio de Alumnos</div>
+          <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap">
+            <div class="form-card-title" style="margin:0;font-size:1rem">📋 Directorio de Alumnos</div>
+            <button class="btn btn-gold" style="font-size:.8rem;padding:.4rem .9rem" onclick="imprimirPlanchaQRs()">
+              🖨️ Generar Plancha QR
+            </button>
+          </div>
           <div class="filtros-controles">
             <div class="filtro-group">
               <label class="form-label">Estado</label>
