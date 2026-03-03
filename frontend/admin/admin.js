@@ -89,15 +89,16 @@ async function loadStats() {
 
 // ── SCANNER ───────────────────────────────────────────
 let adminScannerLock = false;
+let adminQrScanner = null;
 
 function initScanner() {
   scannerInit = true;
-  const scanner = new Html5QrcodeScanner('admin-reader', {
+  adminQrScanner = new Html5QrcodeScanner('admin-reader', {
     fps: 10, // Reducido para dar más tiempo de procesamiento a QRs densos
     qrbox: { width: 250, height: 250 }
   });
 
-  scanner.render(async (code) => {
+  adminQrScanner.render(async (code) => {
     if (adminScannerLock) return;
     adminScannerLock = true;
 
@@ -129,9 +130,9 @@ function initScanner() {
       li.innerHTML = `<strong style="color:${color}">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong> — ${d.student_name || clean}`;
       document.getElementById('scan-history').prepend(li);
 
-      setTimeout(() => { el.style.display = 'none'; adminScannerLock = false; }, 3000);
+      setTimeout(() => { el.style.display = 'none'; adminScannerLock = false; try { if (adminQrScanner) adminQrScanner.resume(); } catch (e) { } }, 3000);
     } catch {
-      setTimeout(() => { adminScannerLock = false; }, 2000);
+      setTimeout(() => { adminScannerLock = false; try { if (adminQrScanner) adminQrScanner.resume(); } catch (e) { } }, 2000);
     }
   });
   initNFC();
@@ -227,7 +228,7 @@ async function processAdminScan(code) {
       } else {
         el.innerHTML = d.message;
       }
-      setTimeout(() => { el.style.display = 'none'; }, 3000);
+      setTimeout(() => { el.style.display = 'none'; try { if (adminQrScanner) adminQrScanner.resume(); } catch (e) { } }, 3000);
     }
     const li = document.createElement('li');
     li.style.cssText = 'padding:.5rem 0;border-bottom:1px solid var(--border);font-family:var(--font-cond);font-size:.9rem';

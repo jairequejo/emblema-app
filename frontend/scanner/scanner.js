@@ -411,7 +411,8 @@ function handleScan(decodedText, fromNFC = false) {
 function resume(fromNFC = false) {
     setTimeout(() => {
         isProcessing = false;
-        // NO reanudar la cámara — bloqueo lógico (nunca se pausó)
+        // Reanudar el scanner (la librería auto-pausa tras cada decode exitoso)
+        try { if (html5QrcodeScanner) html5QrcodeScanner.resume(); } catch (e) { /* ya activo */ }
         const statusEl = document.getElementById('status-text');
         if (statusEl) statusEl.textContent = 'Acerca tu medallón';
     }, FLASH_DURATION);

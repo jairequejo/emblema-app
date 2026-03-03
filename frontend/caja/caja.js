@@ -123,7 +123,8 @@ async function initNFC() {
       for (const record of message.records) {
         const code = _cajaNfcExtract(record);
         if (!code) continue;
-        // NFC no pausa la cámara QR (scanner separado)
+        // Pausar cámara QR mientras se procesa el NFC (igual que QR path)
+        try { if (html5QrcodeScanner) html5QrcodeScanner.pause(); } catch (e) { /* ya pausado */ }
         playBeep('ok');
         document.getElementById('status-nfc').innerHTML = '⏳ Buscando NFC...';
         await consultarAtleta(code);
@@ -206,5 +207,5 @@ function resetCaja() {
   document.getElementById('cliente-box').classList.remove('active');
   document.getElementById('menu-grid').classList.remove('active');
   document.getElementById('status-nfc').innerHTML = "📡 Esperando NFC o QR...";
-  if (html5QrcodeScanner) html5QrcodeScanner.resume(); // Volvemos a encender la cámara
+  try { if (html5QrcodeScanner) html5QrcodeScanner.resume(); } catch (e) { /* ya activo */ }
 }

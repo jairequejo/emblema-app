@@ -59,6 +59,36 @@ function handleScanCode(rawCode) {
   buscar();
 }
 
+const NDEF_URI_PREFIXES_HOME = [
+  '', 'http://www.', 'https://www.', 'http://', 'https://',
+  'tel:', 'mailto:', 'ftp://anonymous:anonymous@', 'ftp://ftp.',
+  'ftps://', 'sftp://', 'smb://', 'nfs://', 'ftp://', 'dav://',
+  'news:', 'telnet://', 'imap:', 'rtsp://', 'urn:', 'pop:', 'sip:',
+  'sips:', 'tftp:', 'btspp://', 'btl2cap://', 'btgoep://',
+  'tcpobex://', 'irdaobex://', 'file://', 'urn:epc:id:',
+  'urn:epc:tag:', 'urn:epc:pat:', 'urn:epc:raw:', 'urn:epc:', 'urn:nfc:',
+];
+
+function _homeNfcExtract(record) {
+  let fullText = null;
+  try {
+    if (record.recordType === 'url') {
+      const bytes = new Uint8Array(record.data.buffer, record.data.byteOffset, record.data.byteLength);
+      const prefix = NDEF_URI_PREFIXES_HOME[bytes[0]] ?? '';
+      fullText = prefix + new TextDecoder('utf-8').decode(bytes.slice(1)).trim();
+    } else if (record.recordType === 'text') {
+      const bytes = new Uint8Array(record.data.buffer, record.data.byteOffset, record.data.byteLength);
+      const langLen = bytes[0] & 0x3F;
+      const charset = (bytes[0] & 0x80) ? 'utf-16' : 'utf-8';
+      fullText = new TextDecoder(charset).decode(bytes.slice(1 + langLen)).trim();
+    } else {
+      fullText = new TextDecoder(record.encoding || 'utf-8').decode(record.data)
+        .replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
+    }
+  } catch { return null; }
+  return fullText || null;
+}
+
 async function initNFC() {
   if (!('NDEFReader' in window)) return;
   try {
@@ -66,9 +96,12 @@ async function initNFC() {
     await ndef.scan();
     ndef.addEventListener('reading', ({ message }) => {
       for (const record of message.records) {
-        const decoder = new TextDecoder(record.encoding || 'utf-8');
-        const raw = decoder.decode(record.data).trim();
+        const raw = _homeNfcExtract(record);
+        if (!raw) continue;
+        // Reanudar scanner QR si estaba pausado
+        try { if (qrScanner) qrScanner.resume(); } catch (e) { /* ya activo */ }
         handleScanCode(raw);
+        break;
       }
     });
   } catch (e) {
