@@ -125,6 +125,63 @@ function initScanner() {
       setTimeout(() => { el.style.display = 'none'; scanner.resume(); }, 3000);
     } catch { setTimeout(() => scanner.resume(), 2000); }
   });
+  initNFC();
+}
+
+// ── NFC (Admin Scanner) ───────────────────────────────
+async function initNFC() {
+  if (!('NDEFReader' in window)) return;
+  try {
+    const ndef = new NDEFReader();
+    await ndef.scan();
+
+    // Mostrar badge NFC activo
+    const badge = document.getElementById('nfc-badge-admin');
+    if (badge) badge.style.display = 'inline-flex';
+
+    ndef.addEventListener('reading', ({ message }) => {
+      for (const record of message.records) {
+        const decoder = new TextDecoder(record.encoding || 'utf-8');
+        const raw = decoder.decode(record.data).trim();
+        const code = raw.includes('?code=') ? raw.split('?code=')[1] : raw;
+        // Reutilizar el mismo flujo del QR scanner
+        processAdminScan(code);
+      }
+    });
+  } catch (e) {
+    console.warn('NFC no disponible en admin:', e.message);
+  }
+}
+
+async function processAdminScan(code) {
+  try {
+    const res = await fetch('/attendance/scan', {
+      method: 'POST',
+      headers: H,
+      body: JSON.stringify({ code })
+    });
+    const d = await res.json();
+    const el = document.getElementById('scan-result');
+    if (el) {
+      el.style.display = 'block';
+      el.className = `scan-result ${d.status}`;
+      if (d.status === 'debe') {
+        el.innerHTML = `🚫 <strong>${d.student_name}</strong><br>
+          <span style="color:#ff6ec7;font-size:.85rem">MENSUALIDAD VENCIDA</span><br>
+          <span style="font-size:.8rem;opacity:.8">${d.detalle || ''}</span>`;
+      } else {
+        el.innerHTML = d.message;
+      }
+      setTimeout(() => { el.style.display = 'none'; }, 3000);
+    }
+    const li = document.createElement('li');
+    li.style.cssText = 'padding:.5rem 0;border-bottom:1px solid var(--border);font-family:var(--font-cond);font-size:.9rem';
+    const color = d.status === 'debe' ? '#e91e8c' : 'var(--gold)';
+    li.innerHTML = `<strong style="color:${color}">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong> 📡 — ${d.student_name || code}`;
+    document.getElementById('scan-history')?.prepend(li);
+  } catch (e) {
+    console.warn('Error procesando NFC en admin:', e);
+  }
 }
 
 
