@@ -481,12 +481,34 @@ async function initNFC() {
         await ndef.scan();
         const nfcEl = document.getElementById('nfc-indicator');
         if (nfcEl) nfcEl.classList.add('visible');
+
         ndef.addEventListener('reading', ({ message }) => {
             for (const record of message.records) {
+                // Decodificar bytes crudos
                 const decoder = new TextDecoder(record.encoding || 'utf-8');
-                const raw = decoder.decode(record.data).trim();
-                const code = raw.includes('?code=') ? raw.split('?code=')[1] : raw;
+                const rawDirty = decoder.decode(record.data);
+
+                // Eliminar bytes de control NFC (prefijos URI 0x01-0x03, etc.)
+                // y cualquier carácter no imprimible del rango \x00-\x1F y \x7F-\x9F
+                const raw = rawDirty
+                    .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+                    .trim();
+
+                // Extraer el código útil
+                let code;
+                if (raw.includes('?code=')) {
+                    // URL con parámetro: https://…?code=JRS:…
+                    code = raw.split('?code=')[1];
+                } else if (raw.startsWith('JRS:') || raw.startsWith('STU-')) {
+                    // Código directo grabado en el chip
+                    code = raw;
+                } else {
+                    // Registro no reconocido: ignorar y probar el siguiente
+                    continue;
+                }
+
                 handleScan(code);
+                break; // Primer registro válido procesado — detener el loop
             }
         });
     } catch (e) {
