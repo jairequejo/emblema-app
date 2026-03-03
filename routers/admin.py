@@ -492,3 +492,67 @@ def crear_entrenador(body: EntrenadorCreate, request_info=None, admin=Depends(ve
 def toggle_entrenador(ent_id: str, reactivar: bool = False, admin=Depends(verify_admin)):
     supabase.table("entrenadores").update({"is_active": reactivar}).eq("id", ent_id).execute()
     return {"ok": True}
+
+
+# ── REGENERACIÓN MASIVA DE CREDENCIALES JRS ───────────────
+@router.post("/regenerar-credenciales")
+def regenerar_todas_credenciales(admin=Depends(verify_admin)):
+    """
+    Regenera los códigos JRS para TODOS los alumnos activos usando su valid_until
+    actual de la base de datos.
+    Usar cuando se detecta que los chips/QRs tienen fechas desactualizadas.
+    """
+    students_res = supabase.table("students") \
+        .select("id, full_name, valid_until") \
+        .eq("is_active", True).execute()
+
+    updated = 0
+    errors = 0
+
+    for s in (students_res.data or []):
+        try:
+            new_code = generate_jrs_code(
+                student_id=s["id"],
+                full_name=s["full_name"],
+                valid_until_date=s.get("valid_until")
+            )
+            cred = supabase.table("credentials") \
+                .select("id") \
+                .eq("student_id", s["id"]) \
+                .eq("is_active", True) \
+                .limit(1).execute()
+
+            if cred.data:
+                supabase.table("credentials").update({"code": new_code}) \
+                    .eq("id", cred.data[0]["id"]).execute()
+            else:
+                supabase.table("credentials").insert({
+                    "student_id": s["id"],
+                    "code": new_code,
+                    "is_active": True
+                }).execute()
+            updated += 1
+        except Exception as e:
+            print(f"[regenerar] Error en {s.get('id')}: {e}")
+            errors += 1
+
+    return {
+        "ok": True,
+        "actualizados": updated,
+        "errores": errors,
+        "total": len(students_res.data or [])
+    }
+
+
+@router.get("/credencial/{student_id}")
+def get_credencial_alumno(student_id: str, admin=Depends(verify_admin)):
+    """Devuelve el código JRS activo de un alumno (para mostrarlo en el panel admin)."""
+    cred = supabase.table("credentials") \
+        .select("code, created_at") \
+        .eq("student_id", student_id) \
+        .eq("is_active", True) \
+        .order("created_at", desc=True) \
+        .limit(1).execute()
+    if not cred.data:
+        raise HTTPException(status_code=404, detail="Sin credencial activa")
+    return {"code": cred.data[0]["code"]}

@@ -38,23 +38,24 @@ function toggleScanner() {
 }
 
 function handleScanCode(rawCode) {
-  const raw = rawCode.trim();
-  let code = raw.includes('?code=') ? raw.split('?code=')[1] : raw;
+  let raw = rawCode.replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
 
-  // Si es formato offline JRS:uuid:fecha:nom:firma
-  if (code.startsWith('JRS:')) {
-    const parts = code.slice(4).split(':');
-    if (parts.length >= 1) {
-      code = parts[0];
+  // Extraer ?code= si viene como URL completa
+  if (raw.startsWith('http://') || raw.startsWith('https://')) {
+    try {
+      const url = new URL(raw);
+      const param = url.searchParams.get('code');
+      if (param) raw = decodeURIComponent(param);
+    } catch {
+      const idx = raw.indexOf('?code=');
+      if (idx !== -1) raw = decodeURIComponent(raw.slice(idx + 6));
     }
+  } else if (raw.includes('?code=')) {
+    raw = decodeURIComponent(raw.split('?code=')[1]);
   }
 
-  // Si es formato STU-XXX
-  if (code.startsWith('STU-')) {
-    code = code.replace('STU-', '');
-  }
-
-  $('dni').value = code;
+  // Pasar el código completo (JRS:..., STU-..., DNI numérico) al buscador
+  $('dni').value = raw;
   buscar();
 }
 

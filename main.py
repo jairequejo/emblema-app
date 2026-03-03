@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from routers import students, credentials, attendance, batidos, admin, entrenador
+from routers.jrs_utils import generate_jrs_code
 from database import supabase
 try:
     from zoneinfo import ZoneInfo
@@ -226,16 +227,37 @@ def student_public_info(dni_or_id: str):
     from datetime import datetime, timedelta
     from fastapi import HTTPException
 
-    # 1. Buscar atleta activo — por DNI o ID
-    query = supabase.table("students").select("id, full_name, valid_until, horario, sede, batido_credits").eq("is_active", True)
-    
-    # Si parece un UUID (JRS offline payload envía el UUID en el código)
-    if len(dni_or_id) > 15:
-        query = query.eq("id", dni_or_id)
+    # 1. Buscar atleta activo — por DNI, UUID completo, o código JRS
+    student_id_resolved = None
+
+    if dni_or_id.startswith("JRS:"):
+        # Extraer short_id del código JRS y buscar via credentials
+        parts = dni_or_id.split(":")
+        if len(parts) >= 2:
+            short_id = parts[1]  # JRS:{short_id}:...
+            cred = supabase.table("credentials") \
+                .select("student_id") \
+                .like("code", f"JRS:{short_id}:%") \
+                .eq("is_active", True) \
+                .limit(1).execute()
+            if cred.data:
+                student_id_resolved = cred.data[0]["student_id"]
+
+    if student_id_resolved:
+        res = supabase.table("students") \
+            .select("id, full_name, valid_until, horario, sede, batido_credits") \
+            .eq("is_active", True).eq("id", student_id_resolved).execute()
     else:
-        query = query.eq("dni", dni_or_id)
-        
-    res = query.execute()
+        query = supabase.table("students") \
+            .select("id, full_name, valid_until, horario, sede, batido_credits") \
+            .eq("is_active", True)
+        # UUID completo (36 chars con guiones) o DNI numérico
+        import re
+        if re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', dni_or_id, re.I):
+            query = query.eq("id", dni_or_id)
+        else:
+            query = query.eq("dni", dni_or_id)
+        res = query.execute()
 
     if not res.data:
         raise HTTPException(status_code=404, detail="Atleta no encontrado")

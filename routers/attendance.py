@@ -88,11 +88,26 @@ def scan_credential(scan: ScanRequest):
 
         short_id = parsed["short_id"]        # primeros 8 chars del UUID
         nombre_final = parsed["name"]
-        valid_date_str = parsed["valid_date"]  # YYYYMMDD
 
-        # Buscar alumno por prefijo del UUID (cast uuid→text para poder usar LIKE)
-        st_res = supabase.table("students").select("id, is_active, valid_until") \
-            .filter("id::text", "ilike", f"{short_id}%").execute()
+        # ── Buscar estudiante via credentials (más seguro que id::text cast) ──
+        # El código en credentials siempre empieza con JRS:{short_id}:
+        cred_res = supabase.table("credentials") \
+            .select("student_id") \
+            .like("code", f"JRS:{short_id}:%") \
+            .eq("is_active", True) \
+            .limit(1).execute()
+
+        if cred_res.data:
+            student_id = cred_res.data[0]["student_id"]
+            st_res = supabase.table("students") \
+                .select("id, is_active, valid_until") \
+                .eq("id", student_id).execute()
+        else:
+            # Fallback: buscar por prefijo de UUID en texto
+            st_res = supabase.table("students") \
+                .select("id, is_active, valid_until") \
+                .filter("id::text", "ilike", f"{short_id}%").execute()
+
         if not st_res.data:
             raise HTTPException(status_code=404, detail="Alumno no encontrado")
 
@@ -103,12 +118,19 @@ def scan_credential(scan: ScanRequest):
             return {"status": "debe", "message": f"{nombre_final} — Alumno inactivo",
                     "student_name": nombre_final, "detalle": "Este alumno está marcado como inactivo."}
 
-        # Verificar vencimiento usando la fecha del payload (validada por HMAC)
+        # ── Verificar vencimiento usando valid_until de la BD (fuente de verdad) ──
+        # NUNCA usamos la fecha del payload JRS para validación online:
+        # puede estar desactualizada si el chip/QR no fue regrabado después del último pago.
         hoy = datetime.now(timezone.utc).date()
-        try:
-            fecha_venc = datetime.strptime(valid_date_str, "%Y%m%d").date()
-        except ValueError:
-            fecha_venc = hoy  # fallback seguro
+        valid_until_db = st.get("valid_until")
+
+        if valid_until_db:
+            try:
+                fecha_venc = datetime.strptime(valid_until_db, "%Y-%m-%d").date()
+            except ValueError:
+                fecha_venc = hoy  # si el formato falla, permitir el acceso
+        else:
+            fecha_venc = hoy  # sin fecha en BD = no ha pagado → hoy como límite
 
         if fecha_venc < hoy:
             dias = (hoy - fecha_venc).days

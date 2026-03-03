@@ -474,6 +474,46 @@ function startMirrorCheck() {
 }
 
 // ── NFC ───────────────────────────────────────────────
+// Tabla oficial de prefijos URI del estándar NDEF (ISO 14443)
+const NDEF_URI_PREFIXES = [
+    '',             // 0x00 – sin prefijo
+    'http://www.',  // 0x01
+    'https://www.', // 0x02
+    'http://',      // 0x03
+    'https://',     // 0x04  ← el más común en apps NFC modernas
+    'tel:',         // 0x05
+    'mailto:',      // 0x06
+    'ftp://anonymous:anonymous@', // 0x07
+    'ftp://ftp.',   // 0x08
+    'ftps://',      // 0x09
+    'sftp://',      // 0x0A
+    'smb://',       // 0x0B
+    'nfs://',       // 0x0C
+    'ftp://',       // 0x0D
+    'dav://',       // 0x0E
+    'news:',        // 0x0F
+    'telnet://',    // 0x10
+    'imap:',        // 0x11
+    'rtsp://',      // 0x12
+    'urn:',         // 0x13
+    'pop:',         // 0x14
+    'sip:',         // 0x15
+    'sips:',        // 0x16
+    'tftp:',        // 0x17
+    'btspp://',     // 0x18
+    'btl2cap://',   // 0x19
+    'btgoep://',    // 0x1A
+    'tcpobex://',   // 0x1B
+    'irdaobex://',  // 0x1C
+    'file://',      // 0x1D
+    'urn:epc:id:',  // 0x1E
+    'urn:epc:tag:', // 0x1F
+    'urn:epc:pat:', // 0x20
+    'urn:epc:raw:', // 0x21
+    'urn:epc:',     // 0x22
+    'urn:nfc:',     // 0x23
+];
+
 async function initNFC() {
     if (!('NDEFReader' in window)) return;
     try {
@@ -484,30 +524,75 @@ async function initNFC() {
 
         ndef.addEventListener('reading', ({ message }) => {
             for (const record of message.records) {
-                // Decodificar bytes crudos
-                const decoder = new TextDecoder(record.encoding || 'utf-8');
-                const rawDirty = decoder.decode(record.data);
+                let fullText = null;
 
-                // Eliminar bytes de control NFC (prefijos URI 0x01-0x03, etc.)
-                // y cualquier carácter no imprimible del rango \x00-\x1F y \x7F-\x9F
-                const raw = rawDirty
-                    .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
-                    .trim();
+                try {
+                    if (record.recordType === 'url') {
+                        // ── Registro URI (NDEF U-Record) ──────────────────────
+                        // Byte 0 = código de prefijo (ej: 0x04 → "https://")
+                        // Bytes 1..n = resto de la URL en UTF-8
+                        const bytes = new Uint8Array(record.data.buffer,
+                            record.data.byteOffset,
+                            record.data.byteLength);
+                        const identifierCode = bytes[0];
+                        const prefix = NDEF_URI_PREFIXES[identifierCode] ?? '';
+                        const rest = new TextDecoder('utf-8').decode(bytes.slice(1)).trim();
+                        fullText = prefix + rest;
 
-                // Extraer el código útil
-                let code;
-                if (raw.includes('?code=')) {
-                    // URL con parámetro: https://…?code=JRS:…
-                    code = raw.split('?code=')[1];
-                } else if (raw.startsWith('JRS:') || raw.startsWith('STU-')) {
-                    // Código directo grabado en el chip
-                    code = raw;
-                } else {
-                    // Registro no reconocido: ignorar y probar el siguiente
-                    continue;
+                    } else if (record.recordType === 'text') {
+                        // ── Registro texto plano (NDEF T-Record) ──────────────
+                        // Byte 0 = status byte (bit7=UTF-16, bits 5-0=lang length)
+                        // Bytes 1..langLen = código de idioma (ej: "en")
+                        // Bytes langLen+1..end = texto
+                        const bytes = new Uint8Array(record.data.buffer,
+                            record.data.byteOffset,
+                            record.data.byteLength);
+                        const statusByte = bytes[0];
+                        const isUtf16 = (statusByte & 0x80) !== 0;
+                        const langLen = statusByte & 0x3F;
+                        const textBytes = bytes.slice(1 + langLen);
+                        const charset = isUtf16 ? 'utf-16' : 'utf-8';
+                        fullText = new TextDecoder(charset).decode(textBytes).trim();
+
+                    } else {
+                        // Tipo desconocido: fallback genérico con strip de control chars
+                        const raw = new TextDecoder(record.encoding || 'utf-8')
+                            .decode(record.data)
+                            .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+                            .trim();
+                        fullText = raw;
+                    }
+                } catch {
+                    continue; // error al decodificar este record → siguiente
                 }
 
-                handleScan(code);
+                if (!fullText) continue;
+
+                // ── Extraer el código JRS / STU del texto ─────────────────
+                let code = null;
+
+                if (fullText.startsWith('http://') || fullText.startsWith('https://')) {
+                    // Es una URL — extraer el parámetro ?code= de forma robusta
+                    try {
+                        const url = new URL(fullText);
+                        const param = url.searchParams.get('code');
+                        if (param) code = decodeURIComponent(param);
+                    } catch {
+                        // URL malformada: buscar manualmente
+                        const idx = fullText.indexOf('?code=');
+                        if (idx !== -1) code = decodeURIComponent(fullText.slice(idx + 6));
+                    }
+                } else if (fullText.startsWith('JRS:') || fullText.startsWith('STU-')) {
+                    // Código directo (sin URL)
+                    code = fullText;
+                } else if (fullText.includes('?code=')) {
+                    // URL sin protocolo (ej: dominio/?code=JRS:...)
+                    code = decodeURIComponent(fullText.split('?code=')[1]);
+                }
+
+                if (!code) continue; // nada útil en este record → siguiente
+
+                handleScan(code.trim());
                 break; // Primer registro válido procesado — detener el loop
             }
         });
