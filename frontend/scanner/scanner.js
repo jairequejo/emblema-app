@@ -444,11 +444,7 @@ function initScanner() {
     html5QrcodeScanner.render(
         (decoded) => {
             handleScan(decoded);
-            // Resumir después del flash
-            setTimeout(() => {
-                isProcessing = false;
-                if (html5QrcodeScanner) html5QrcodeScanner.resume();
-            }, FLASH_DURATION + 200);
+            // resume() ya se llama internamente en handleScan() en todos los caminos
         },
         (err) => { /* errores de lectura normales, ignorar */ }
     );

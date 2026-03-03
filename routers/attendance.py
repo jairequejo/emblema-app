@@ -19,10 +19,10 @@ SIGNING_KEY = _JRS_SECRET
 
 
 
-def _sign(student_id: str, valid_until: str, name: str) -> str:
-    """Devuelve los primeros 8 bytes del HMAC-SHA256 como hex (16 chars)."""
-    msg = f"{student_id}|{valid_until}|{name}".encode("utf-8")
-    return hmac.new(SIGNING_KEY, msg, hashlib.sha256).digest()[:8].hex()
+def _sign(student_id: str, valid_until: str, name_b64: str) -> str:
+    """Reproduce la firma de jrs_utils.py: HMAC-SHA256 sobre 'id|fecha|name_b64url', 16 hex chars."""
+    msg = f"{student_id}|{valid_until}|{name_b64}".encode("utf-8")
+    return hmac.new(SIGNING_KEY, msg, hashlib.sha256).hexdigest()[:16]
 
 
 def _b64u_encode(text: str) -> str:
@@ -46,7 +46,8 @@ def _parse_jrs(code: str):
         student_id, valid_date, name_b64, sig = parts
         name = _b64u_decode(name_b64)
 
-        expected = _sign(student_id, valid_date, name)
+        # Validar con name_b64 (igual que jrs_utils.py firma con name_b64url)
+        expected = _sign(student_id, valid_date, name_b64)
         if not hmac.compare_digest(expected, sig):
             return None                      # firma inválida
 
