@@ -224,7 +224,7 @@ async function validateJRS(code) {
     return { student_id, name, valid_date, debe: vencimiento < hoy };
 }
 
-async function processOfflineScan(code) {
+async function processOfflineScan(code, fromNFC = false) {
     const db = JSON.parse(localStorage.getItem('scanner_offline_db') || '{}');
 
     let studentId = code;
@@ -236,14 +236,14 @@ async function processOfflineScan(code) {
         if (!parsed) {
             playError();
             showFlash('error', 'QR INVÁLIDO', 'Firma criptográfica incorrecta.');
-            resume();
+            resume(fromNFC);
             return;
         }
 
         if (parsed.debe) {
             playWarning();
             showFlash('debe', parsed.name, 'Mensualidad vencida (Offline)');
-            resume();
+            resume(fromNFC);
             return;
         }
 
@@ -266,7 +266,7 @@ async function processOfflineScan(code) {
 
         showFlash(info.status, info.name, msg);
         addHistory(info.status, info.name + " (Offline)");
-        resume();
+        resume(fromNFC);
     } else {
         // En JRS intentamos extraer el nombre válido aunque no lo tengamos en DB local
         if (code.startsWith("JRS:")) {
@@ -276,11 +276,11 @@ async function processOfflineScan(code) {
             playSuccess();
             showFlash('success', fallbackName, 'Guardado Offline');
             addHistory('success', fallbackName + " (Offline)");
-            resume();
+            resume(fromNFC);
         } else {
             playError();
             showFlash('error', 'SIN CONEXIÓN', 'No se puede validar código clásico');
-            resume();
+            resume(fromNFC);
         }
     }
 }
@@ -344,7 +344,9 @@ setInterval(syncOfflineQueue, 15000);
 let html5QrcodeScanner = null;
 let isProcessing = false;
 
-function handleScan(decodedText) {
+// fromNFC=true  → el scan vino del chip NFC, NO pausar la cámara
+// fromNFC=false → el scan vino de la cámara QR, sí pausarla
+function handleScan(decodedText, fromNFC = false) {
     if (isProcessing) return;
     isProcessing = true;
 
@@ -352,13 +354,14 @@ function handleScan(decodedText) {
         ? decodedText.split('?code=')[1]
         : decodedText;
 
-    if (html5QrcodeScanner) html5QrcodeScanner.pause();
+    // Solo pausar la cámara si el scan vino de ella (no desde NFC)
+    if (!fromNFC && html5QrcodeScanner) html5QrcodeScanner.pause();
 
     const statusEl = document.getElementById('status-text');
     if (statusEl) statusEl.textContent = 'Procesando...';
 
     if (!navigator.onLine) {
-        processOfflineScan(code);
+        processOfflineScan(code, fromNFC);
         return;
     }
 
@@ -384,7 +387,7 @@ function handleScan(decodedText) {
             catch (e) {
                 playError();
                 showFlash('error', 'ERROR', 'Conexión fallida');
-                resume(); return;
+                resume(fromNFC); return;
             }
 
             const nombre = data.student_name || 'Desconocido';
@@ -399,19 +402,19 @@ function handleScan(decodedText) {
 
             if (estado !== 'error') addHistory(estado, nombre);
 
-            // ← CRÍTICO: sin esto el scanner queda pausado para siempre cuando NFC dispara handleScan
-            resume();
+            resume(fromNFC);
         })
-        .catch((err) => {
+        .catch(() => {
             // Si es un error de red o timeout (AbortError), pasa a offline rápido
-            processOfflineScan(code);
+            processOfflineScan(code, fromNFC);
         });
 }
 
-function resume() {
+function resume(fromNFC = false) {
     setTimeout(() => {
         isProcessing = false;
-        if (html5QrcodeScanner) html5QrcodeScanner.resume();
+        // Solo reanudar la cámara si el scan vino de ella
+        if (!fromNFC && html5QrcodeScanner) html5QrcodeScanner.resume();
         const statusEl = document.getElementById('status-text');
         if (statusEl) statusEl.textContent = 'Acerca tu medallón';
     }, FLASH_DURATION);
@@ -592,7 +595,7 @@ async function initNFC() {
 
                 if (!code) continue; // nada útil en este record → siguiente
 
-                handleScan(code.trim());
+                handleScan(code.trim(), true /* fromNFC */);
                 break; // Primer registro válido procesado — detener el loop
             }
         });
