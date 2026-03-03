@@ -19,9 +19,10 @@ SIGNING_KEY = _JRS_SECRET
 
 
 
-def _sign(student_id: str, valid_until: str, name_b64: str) -> str:
-    """Reproduce la firma de jrs_utils.py: HMAC-SHA256 sobre 'id|fecha|name_b64url', 16 hex chars."""
-    msg = f"{student_id}|{valid_until}|{name_b64}".encode("utf-8")
+def _sign(short_id: str, valid_until: str, name_b64: str) -> str:
+    """Reproduce la firma de jrs_utils.py: HMAC-SHA256 sobre 'short_id|fecha|name_b64url', 16 hex chars.
+    Usa short_id (primeros 8 chars del UUID), igual que jrs_utils.py."""
+    msg = f"{short_id}|{valid_until}|{name_b64}".encode("utf-8")
     return hmac.new(SIGNING_KEY, msg, hashlib.sha256).hexdigest()[:16]
 
 
@@ -36,22 +37,23 @@ def _b64u_decode(text: str) -> str:
 
 def _parse_jrs(code: str):
     """
-    Parsea payload JRS:{uuid}:{YYYYMMDD}:{name_b64url}:{hmac16hex}
+    Parsea payload JRS:{short_id}:{YYYYMMDD}:{name_b64url}:{hmac16hex}
+    short_id = primeros 8 chars del UUID del alumno (igual que jrs_utils.py).
     Devuelve dict o None si es inválido/manipulado.
     """
     try:
         parts = code[4:].split(":")          # quitar "JRS:"
         if len(parts) != 4:
             return None
-        student_id, valid_date, name_b64, sig = parts
+        short_id, valid_date, name_b64, sig = parts
         name = _b64u_decode(name_b64)
 
-        # Validar con name_b64 (igual que jrs_utils.py firma con name_b64url)
-        expected = _sign(student_id, valid_date, name_b64)
+        # Verificar firma usando short_id, igual que jrs_utils.py al generar
+        expected = _sign(short_id, valid_date, name_b64)
         if not hmac.compare_digest(expected, sig):
             return None                      # firma inválida
 
-        return {"student_id": student_id, "valid_date": valid_date, "name": name}
+        return {"short_id": short_id, "valid_date": valid_date, "name": name}
     except Exception:
         return None
 
@@ -78,22 +80,25 @@ class BatchScanRequest(BaseModel):
 def scan_credential(scan: ScanRequest):
     code = scan.code.strip()
 
-    # ── FORMATO NUEVO: JRS:uuid:YYYYMMDD:name_b64:hmac ──
+    # ── FORMATO NUEVO: JRS:short_id:YYYYMMDD:name_b64:hmac ──
     if code.startswith("JRS:"):
         parsed = _parse_jrs(code)
         if not parsed:
             raise HTTPException(status_code=400, detail="Credencial JRS inválida o manipulada")
 
-        student_id = parsed["student_id"]
+        short_id = parsed["short_id"]        # primeros 8 chars del UUID
         nombre_final = parsed["name"]
         valid_date_str = parsed["valid_date"]  # YYYYMMDD
 
-        # Verificar si el alumno existe y está activo
-        st_res = supabase.table("students").select("id, is_active, valid_until").eq("id", student_id).execute()
+        # Buscar alumno por prefijo del UUID (ilike '{short_id}%')
+        st_res = supabase.table("students").select("id, is_active, valid_until") \
+            .ilike("id", f"{short_id}%").execute()
         if not st_res.data:
             raise HTTPException(status_code=404, detail="Alumno no encontrado")
 
         st = st_res.data[0]
+        student_id = st["id"]               # UUID completo real
+
         if not st.get("is_active"):
             return {"status": "debe", "message": f"{nombre_final} — Alumno inactivo",
                     "student_name": nombre_final, "detalle": "Este alumno está marcado como inactivo."}
@@ -111,11 +116,11 @@ def scan_credential(scan: ScanRequest):
                     "student_name": nombre_final,
                     "detalle": f"Venció hace {dias} día{'s' if dias != 1 else ''}. Contactar al administrador."}
 
-        # Registrar asistencia (usar student_id directamente, sin credential_id)
+        # Registrar asistencia con el UUID completo real
         fecha_registro = scan.timestamp if scan.timestamp else datetime.now(timezone.utc).isoformat()
-        
+
         twelve_ago = (datetime.fromisoformat(fecha_registro.replace("Z", "+00:00")) - timedelta(hours=12)).isoformat()
-        recent = supabase.table("attendance").select("id").eq("student_id", student_id)\
+        recent = supabase.table("attendance").select("id").eq("student_id", student_id) \
             .gte("created_at", twelve_ago).execute()
         if recent.data:
             return {"status": "warning", "message": f"Ya registrado: {nombre_final}", "student_name": nombre_final}
