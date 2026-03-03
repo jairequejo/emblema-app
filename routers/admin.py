@@ -12,7 +12,7 @@ except ImportError:
 import secrets
 import string
 from passlib.context import CryptContext
-from routers.credentials import generate_jrs_code
+from routers.jrs_utils import generate_jrs_code
 
 # Zona horaria oficial del proyecto: Lima, Perú (UTC-5)
 PERU_TZ = ZoneInfo("America/Lima")
