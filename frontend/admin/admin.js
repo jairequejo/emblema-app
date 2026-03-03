@@ -129,6 +129,51 @@ function initScanner() {
 }
 
 // ── NFC (Admin Scanner) ───────────────────────────────
+// Tabla oficial de prefijos URI del estándar NDEF
+const NDEF_URI_PREFIXES_ADMIN = [
+  '', 'http://www.', 'https://www.', 'http://', 'https://',
+  'tel:', 'mailto:', 'ftp://anonymous:anonymous@', 'ftp://ftp.',
+  'ftps://', 'sftp://', 'smb://', 'nfs://', 'ftp://', 'dav://',
+  'news:', 'telnet://', 'imap:', 'rtsp://', 'urn:', 'pop:', 'sip:',
+  'sips:', 'tftp:', 'btspp://', 'btl2cap://', 'btgoep://',
+  'tcpobex://', 'irdaobex://', 'file://', 'urn:epc:id:',
+  'urn:epc:tag:', 'urn:epc:pat:', 'urn:epc:raw:', 'urn:epc:', 'urn:nfc:',
+];
+
+function _nfcExtractCode(record) {
+  let fullText = null;
+  try {
+    if (record.recordType === 'url') {
+      const bytes = new Uint8Array(record.data.buffer, record.data.byteOffset, record.data.byteLength);
+      const prefix = NDEF_URI_PREFIXES_ADMIN[bytes[0]] ?? '';
+      fullText = prefix + new TextDecoder('utf-8').decode(bytes.slice(1)).trim();
+    } else if (record.recordType === 'text') {
+      const bytes = new Uint8Array(record.data.buffer, record.data.byteOffset, record.data.byteLength);
+      const langLen = bytes[0] & 0x3F;
+      const charset = (bytes[0] & 0x80) ? 'utf-16' : 'utf-8';
+      fullText = new TextDecoder(charset).decode(bytes.slice(1 + langLen)).trim();
+    } else {
+      fullText = new TextDecoder(record.encoding || 'utf-8').decode(record.data)
+        .replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
+    }
+  } catch { return null; }
+
+  if (!fullText) return null;
+  if (fullText.startsWith('http://') || fullText.startsWith('https://')) {
+    try {
+      const url = new URL(fullText);
+      const p = url.searchParams.get('code');
+      if (p) return decodeURIComponent(p);
+    } catch { /* fallback */ }
+    const idx = fullText.indexOf('?code=');
+    if (idx !== -1) return decodeURIComponent(fullText.slice(idx + 6));
+    return null;
+  }
+  if (fullText.startsWith('JRS:') || fullText.startsWith('STU-')) return fullText;
+  if (fullText.includes('?code=')) return decodeURIComponent(fullText.split('?code=')[1]);
+  return null;
+}
+
 async function initNFC() {
   if (!('NDEFReader' in window)) return;
   try {
@@ -141,17 +186,17 @@ async function initNFC() {
 
     ndef.addEventListener('reading', ({ message }) => {
       for (const record of message.records) {
-        const decoder = new TextDecoder(record.encoding || 'utf-8');
-        const raw = decoder.decode(record.data).trim();
-        const code = raw.includes('?code=') ? raw.split('?code=')[1] : raw;
-        // Reutilizar el mismo flujo del QR scanner
+        const code = _nfcExtractCode(record);
+        if (!code) continue;
         processAdminScan(code);
+        break; // primer record válido — detener loop
       }
     });
   } catch (e) {
     console.warn('NFC no disponible en admin:', e.message);
   }
 }
+
 
 async function processAdminScan(code) {
   try {
@@ -1352,12 +1397,27 @@ async function imprimirPlanchaQRs() {
     return;
   }
 
-  showToast(`Generando plancha para ${activos.length} alumnos... Esto tomará unos segundos.`, 'ok');
+  // CRÍTICO: abrir la ventana ANTES de cualquier await (evita bloqueo del popup-blocker)
+  const win = window.open('', '_blank');
+  if (!win) {
+    showToast('⚠️ Popup bloqueado. Permite popups en la barra de tu navegador.', 'error');
+    return;
+  }
 
-  let html = `
-  <!DOCTYPE html>
+  // Mostrar pantalla de carga en la nueva pestaña
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <title>Generando Plancha...</title>
+    <style>body{font-family:sans-serif;background:#fff;display:flex;align-items:center;
+    justify-content:center;height:100vh;margin:0;color:#333}
+    h2{font-size:1.5rem}</style></head>
+    <body><h2>⏳ Generando plancha de ${activos.length} QRs...</h2></body></html>`);
+
+  showToast(`Generando plancha para ${activos.length} alumnos...`, 'ok');
+
+  let html = `<!DOCTYPE html>
   <html>
   <head>
+    <meta charset="UTF-8">
     <title>Plancha de Producción QR — JR Stars</title>
     <style>
       body { font-family: sans-serif; margin: 0; padding: 10mm; background: #fff; color: #000; }
@@ -1366,27 +1426,18 @@ async function imprimirPlanchaQRs() {
         body { padding: 0; }
         .no-print { display: none; }
       }
-      .grid {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 5mm;
-        justify-content: flex-start;
-      }
+      .grid { display: flex; flex-wrap: wrap; gap: 5mm; justify-content: flex-start; }
       .qr-box {
-        width: 47mm;
-        height: 47mm;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        border: 1px dashed #ccc;
-        box-sizing: border-box;
-        page-break-inside: avoid;
-        padding: 2mm;
+        width: 47mm; height: 47mm;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        border: 1px dashed #ccc; box-sizing: border-box;
+        page-break-inside: avoid; padding: 2mm;
       }
       .qr-box img { width: 32mm; height: 32mm; margin-bottom: 2mm; }
-      .qr-box .name { font-size: 8px; font-weight: bold; text-align: center; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .qr-box .dni  { font-size: 7px; color: #555; }
+      .qr-box .name { font-size: 8px; font-weight: bold; text-align: center; width: 100%;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .qr-box .dni { font-size: 7px; color: #555; }
     </style>
   </head>
   <body>
@@ -1395,7 +1446,7 @@ async function imprimirPlanchaQRs() {
       <button onclick="window.print()" style="padding:10px 20px;background:#d4a017;border:none;color:#000;font-weight:bold;cursor:pointer">
         🖨️ Imprimir / Guardar PDF
       </button>
-      <p style="font-size:12px;color:#666">Configura los márgenes en "Ninguno" y escala al 100% al imprimir.</p>
+      <p style="font-size:12px;color:#666">Márgenes en "Ninguno" y escala al 100% al imprimir.</p>
     </div>
     <div class="grid">`;
 
@@ -1414,7 +1465,6 @@ async function imprimirPlanchaQRs() {
       }
 
       const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(codeStr)}`;
-
       html += `
       <div class="qr-box">
         <img src="${qrUrl}" />
@@ -1426,12 +1476,9 @@ async function imprimirPlanchaQRs() {
     }
   }
 
-  html += `
-    </div>
-  </body>
-  </html>`;
+  html += `</div></body></html>`;
 
-  const win = window.open('', '_blank');
+  win.document.open();
   win.document.write(html);
   win.document.close();
   showToast('✅ Plancha generada con éxito.', 'ok');

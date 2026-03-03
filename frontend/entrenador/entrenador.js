@@ -329,6 +329,51 @@ window.addEventListener('load', () => {
 });
 
 // ── NFC ───────────────────────────────────────────────────
+// Tabla oficial de prefijos URI del estándar NDEF
+const NDEF_URI_PREFIXES_ENT = [
+    '', 'http://www.', 'https://www.', 'http://', 'https://',
+    'tel:', 'mailto:', 'ftp://anonymous:anonymous@', 'ftp://ftp.',
+    'ftps://', 'sftp://', 'smb://', 'nfs://', 'ftp://', 'dav://',
+    'news:', 'telnet://', 'imap:', 'rtsp://', 'urn:', 'pop:', 'sip:',
+    'sips:', 'tftp:', 'btspp://', 'btl2cap://', 'btgoep://',
+    'tcpobex://', 'irdaobex://', 'file://', 'urn:epc:id:',
+    'urn:epc:tag:', 'urn:epc:pat:', 'urn:epc:raw:', 'urn:epc:', 'urn:nfc:',
+];
+
+function _entNfcExtract(record) {
+    let fullText = null;
+    try {
+        if (record.recordType === 'url') {
+            const bytes = new Uint8Array(record.data.buffer, record.data.byteOffset, record.data.byteLength);
+            const prefix = NDEF_URI_PREFIXES_ENT[bytes[0]] ?? '';
+            fullText = prefix + new TextDecoder('utf-8').decode(bytes.slice(1)).trim();
+        } else if (record.recordType === 'text') {
+            const bytes = new Uint8Array(record.data.buffer, record.data.byteOffset, record.data.byteLength);
+            const langLen = bytes[0] & 0x3F;
+            const charset = (bytes[0] & 0x80) ? 'utf-16' : 'utf-8';
+            fullText = new TextDecoder(charset).decode(bytes.slice(1 + langLen)).trim();
+        } else {
+            fullText = new TextDecoder(record.encoding || 'utf-8').decode(record.data)
+                .replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
+        }
+    } catch { return null; }
+
+    if (!fullText) return null;
+    if (fullText.startsWith('http://') || fullText.startsWith('https://')) {
+        try {
+            const url = new URL(fullText);
+            const p = url.searchParams.get('code');
+            if (p) return decodeURIComponent(p);
+        } catch { /* fallback */ }
+        const idx = fullText.indexOf('?code=');
+        if (idx !== -1) return decodeURIComponent(fullText.slice(idx + 6));
+        return null;
+    }
+    if (fullText.startsWith('JRS:') || fullText.startsWith('STU-')) return fullText;
+    if (fullText.includes('?code=')) return decodeURIComponent(fullText.split('?code=')[1]);
+    return null;
+}
+
 async function initNFC() {
     if (!('NDEFReader' in window)) return;
     try {
@@ -338,10 +383,10 @@ async function initNFC() {
         if (badge) badge.classList.add('visible');
         ndef.addEventListener('reading', ({ message }) => {
             for (const record of message.records) {
-                const decoder = new TextDecoder(record.encoding || 'utf-8');
-                const raw = decoder.decode(record.data).trim();
-                const code = raw.includes('?code=') ? raw.split('?code=')[1] : raw;
-                handleScan(code);
+                const code = _entNfcExtract(record);
+                if (!code) continue;
+                handleScan(code); // mismo flujo que QR
+                break; // primer record válido
             }
         });
     } catch (e) {
