@@ -12,6 +12,7 @@ except ImportError:
 import secrets
 import string
 from passlib.context import CryptContext
+from routers.credentials import generate_jrs_code
 
 # Zona horaria oficial del proyecto: Lima, Perú (UTC-5)
 PERU_TZ = ZoneInfo("America/Lima")
@@ -151,8 +152,11 @@ def crear_alumno(body: AlumnoCreate, admin=Depends(verify_admin)):
     
     # 2. Generar el código de credencial automáticamente
     try:
-        alphabet = string.ascii_uppercase + string.digits
-        codigo_qr = f"STU-{''.join(secrets.choice(alphabet) for _ in range(8))}"
+        codigo_qr = generate_jrs_code(
+            student_id=nuevo_alumno["id"],
+            full_name=nuevo_alumno.get("full_name", ""),
+            valid_until_date=fecha_vencimiento_str
+        )
         
         supabase.table("credentials").insert({
             "student_id": nuevo_alumno["id"],
