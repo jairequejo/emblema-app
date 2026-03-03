@@ -103,10 +103,10 @@ def scan_credential(scan: ScanRequest):
                 .select("id, is_active, valid_until") \
                 .eq("id", student_id).execute()
         else:
-            # Fallback: buscar por prefijo de UUID en texto
+            # Fallback: buscar por prefijo de UUID
             st_res = supabase.table("students") \
                 .select("id, is_active, valid_until") \
-                .filter("id::text", "ilike", f"{short_id}%").execute()
+                .ilike("id", f"{short_id}%").execute()
 
         if not st_res.data:
             raise HTTPException(status_code=404, detail="Alumno no encontrado")
