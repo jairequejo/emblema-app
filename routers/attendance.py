@@ -12,12 +12,11 @@ from datetime import datetime, timedelta, timezone
 router = APIRouter(prefix="/attendance", tags=["attendance"])
 
 # ── CLAVE HMAC ────────────────────────────────────────────
-# Setear QR_SIGNING_KEY=64_hex_chars en .env para producción
-_raw_key = os.getenv("QR_SIGNING_KEY", "a" * 64)
-try:
-    SIGNING_KEY = bytes.fromhex(_raw_key)
-except ValueError:
-    SIGNING_KEY = _raw_key.encode()
+# Misma variable que usa jrs_utils.py para GENERAR los códigos.
+# Setear JRS_SECRET_KEY en Railway para producción.
+_JRS_SECRET = os.getenv("JRS_SECRET_KEY", "default_secret_key_123").encode("utf-8")
+SIGNING_KEY = _JRS_SECRET
+
 
 
 def _sign(student_id: str, valid_until: str, name: str) -> str:

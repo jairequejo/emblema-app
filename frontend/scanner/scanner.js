@@ -391,12 +391,15 @@ function handleScan(decodedText) {
 
             if (estado === 'success') playSuccess();
             else if (estado === 'warning') playWarning();
-            else if (estado === 'debe') playWarning(); // doble tono de advertencia
+            else if (estado === 'debe') playWarning();
             else playError();
 
             showFlash(estado, nombre, data.message);
 
             if (estado !== 'error') addHistory(estado, nombre);
+
+            // ← CRÍTICO: sin esto el scanner queda pausado para siempre cuando NFC dispara handleScan
+            resume();
         })
         .catch((err) => {
             // Si es un error de red o timeout (AbortError), pasa a offline rápido
