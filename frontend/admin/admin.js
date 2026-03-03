@@ -88,14 +88,21 @@ async function loadStats() {
 }
 
 // ── SCANNER ───────────────────────────────────────────
+let adminScannerLock = false;
+
 function initScanner() {
   scannerInit = true;
   const scanner = new Html5QrcodeScanner('admin-reader', {
-    fps: 15,
+    fps: 10, // Reducido para dar más tiempo de procesamiento a QRs densos
     qrbox: { width: 250, height: 250 }
   });
+
   scanner.render(async (code) => {
-    scanner.pause();
+    if (adminScannerLock) return;
+    adminScannerLock = true;
+
+    // scanner.pause() ELIMINADO — bloqueo lógico para evitar crash de cámara en Android
+
     const clean = code.includes('?code=') ? code.split('?code=')[1] : code;
     try {
       const res = await fetch('/attendance/scan', {
@@ -122,11 +129,14 @@ function initScanner() {
       li.innerHTML = `<strong style="color:${color}">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong> — ${d.student_name || clean}`;
       document.getElementById('scan-history').prepend(li);
 
-      setTimeout(() => { el.style.display = 'none'; scanner.resume(); }, 3000);
-    } catch { setTimeout(() => scanner.resume(), 2000); }
+      setTimeout(() => { el.style.display = 'none'; adminScannerLock = false; }, 3000);
+    } catch {
+      setTimeout(() => { adminScannerLock = false; }, 2000);
+    }
   });
   initNFC();
 }
+
 
 // ── NFC (Admin Scanner) ───────────────────────────────
 // Tabla oficial de prefijos URI del estándar NDEF

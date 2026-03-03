@@ -344,8 +344,6 @@ setInterval(syncOfflineQueue, 15000);
 let html5QrcodeScanner = null;
 let isProcessing = false;
 
-// fromNFC=true  → el scan vino del chip NFC, NO pausar la cámara
-// fromNFC=false → el scan vino de la cámara QR, sí pausarla
 function handleScan(decodedText, fromNFC = false) {
     if (isProcessing) return;
     isProcessing = true;
@@ -354,8 +352,8 @@ function handleScan(decodedText, fromNFC = false) {
         ? decodedText.split('?code=')[1]
         : decodedText;
 
-    // Solo pausar la cámara si el scan vino de ella (no desde NFC)
-    if (!fromNFC && html5QrcodeScanner) html5QrcodeScanner.pause();
+    // NO pausamos la cámara — bloqueo lógico con isProcessing
+    // (evita congelamiento de cámara en Android con QRs densos)
 
     const statusEl = document.getElementById('status-text');
     if (statusEl) statusEl.textContent = 'Procesando...';
@@ -413,8 +411,7 @@ function handleScan(decodedText, fromNFC = false) {
 function resume(fromNFC = false) {
     setTimeout(() => {
         isProcessing = false;
-        // Solo reanudar la cámara si el scan vino de ella
-        if (!fromNFC && html5QrcodeScanner) html5QrcodeScanner.resume();
+        // NO reanudar la cámara — bloqueo lógico (nunca se pausó)
         const statusEl = document.getElementById('status-text');
         if (statusEl) statusEl.textContent = 'Acerca tu medallón';
     }, FLASH_DURATION);
