@@ -1401,8 +1401,21 @@ async function toggleEntrenador(id, nombre, reactivar) {
 
 // ── MANUFACTURA: PLANCHA DE PRODUCCIÓN QR ─────────────────────────
 async function imprimirPlanchaQRs() {
-  const activos = alumnosData.filter(a => a.is_active);
+  // Si alumnosData no está cargado, traerlo del servidor
+  let datos = alumnosData;
+  if (!datos || datos.length === 0) {
+    try {
+      const res = await fetch('/admin/alumnos', { headers: H });
+      if (res.status === 401) { logout(); return; }
+      datos = await res.json();
+      alumnosData = datos;
+    } catch {
+      showToast('❌ Error al obtener alumnos. Verifica tu conexión.', 'error');
+      return;
+    }
+  }
 
+  const activos = datos.filter(a => a.is_active);
   if (activos.length === 0) {
     showToast('No hay alumnos activos para imprimir.', 'error');
     return;
@@ -1415,58 +1428,26 @@ async function imprimirPlanchaQRs() {
     return;
   }
 
-  // Mostrar pantalla de carga en la nueva pestaña
+  // Pantalla de carga
   win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
     <title>Generando Plancha...</title>
-    <style>body{font-family:sans-serif;background:#fff;display:flex;align-items:center;
-    justify-content:center;height:100vh;margin:0;color:#333}
-    h2{font-size:1.5rem}</style></head>
-    <body><h2>⏳ Generando plancha de ${activos.length} QRs...</h2></body></html>`);
+    <style>body{font-family:'Segoe UI',sans-serif;background:#fff;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;height:100vh;margin:0;color:#333}
+    .spinner{border:4px solid #eee;border-top:4px solid #d4a017;border-radius:50%;width:40px;height:40px;
+    animation:spin 1s linear infinite;margin-bottom:1rem}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    h2{font-size:1.3rem;margin:0}</style></head>
+    <body><div class="spinner"></div><h2>⏳ Cargando ${activos.length} QRs...</h2></body></html>`);
 
   showToast(`Generando plancha para ${activos.length} alumnos...`, 'ok');
 
-  let html = `<!DOCTYPE html>
-  <html>
-  <head>
-    <meta charset="UTF-8">
-    <title>Plancha de Producción QR — JR Stars</title>
-    <style>
-      body { font-family: sans-serif; margin: 0; padding: 10mm; background: #fff; color: #000; }
-      @media print {
-        @page { margin: 5mm; }
-        body { padding: 0; }
-        .no-print { display: none; }
-      }
-      .grid { display: flex; flex-wrap: wrap; gap: 5mm; justify-content: flex-start; }
-      .qr-box {
-        width: 47mm; height: 47mm;
-        display: flex; flex-direction: column;
-        align-items: center; justify-content: center;
-        border: 1px dashed #ccc; box-sizing: border-box;
-        page-break-inside: avoid; padding: 2mm;
-      }
-      .qr-box img { width: 32mm; height: 32mm; margin-bottom: 2mm; }
-      .qr-box .name { font-size: 8px; font-weight: bold; text-align: center; width: 100%;
-        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .qr-box .dni { font-size: 7px; color: #555; }
-    </style>
-  </head>
-  <body>
-    <div class="no-print" style="margin-bottom:15px">
-      <h2>Plancha de Producción — ${activos.length} Stickers (47mm)</h2>
-      <button onclick="window.print()" style="padding:10px 20px;background:#d4a017;border:none;color:#000;font-weight:bold;cursor:pointer">
-        🖨️ Imprimir / Guardar PDF
-      </button>
-      <p style="font-size:12px;color:#666">Márgenes en "Ninguno" y escala al 100% al imprimir.</p>
-    </div>
-    <div class="grid">`;
-
+  // ── Obtener todos los códigos QR ──
+  const items = [];
   for (const a of activos) {
     try {
       let codeStr = '';
       const res = await fetch(`/credentials/${a.id}`, { headers: H });
       const data = await res.json();
-
       if (data.length > 0) {
         codeStr = data[0].code;
       } else {
@@ -1474,20 +1455,154 @@ async function imprimirPlanchaQRs() {
         const d = await gen.json();
         codeStr = d.code;
       }
-
-      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(codeStr)}`;
-      html += `
-      <div class="qr-box">
-        <img src="${qrUrl}" />
-        <div class="name">${a.full_name}</div>
-        <div class="dni">${a.dni || 'JR Stars'}</div>
-      </div>`;
+      items.push({
+        name: a.full_name,
+        code: codeStr,
+        dni: a.dni || ''
+      });
     } catch (e) {
       console.warn(`Error procesando a ${a.full_name}:`, e);
     }
   }
 
-  html += `</div></body></html>`;
+  if (items.length === 0) {
+    win.document.open();
+    win.document.write('<html><body><h2>❌ No se pudo obtener ningún QR.</h2></body></html>');
+    win.document.close();
+    return;
+  }
+
+  // ── Construir HTML de la plancha ──
+  const CIRCLE = 48; // mm diámetro
+  const GAP = 2;     // mm gap entre círculos
+  const QR_SIZE = 28; // mm tamaño del QR dentro del círculo
+
+  let html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Plancha QR — JR Stars (${items.length} stickers)</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #fff; color: #000;
+      padding: 0;
+    }
+
+    /* ── Barra de controles (no se imprime) ── */
+    .toolbar {
+      position: sticky; top: 0; z-index: 100;
+      background: #111; color: #fff; padding: 12px 20px;
+      display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    }
+    .toolbar h2 { font-size: 1rem; color: #d4a017; margin-right: auto; }
+    .toolbar label { font-size: .85rem; color: #aaa; }
+    .toolbar select {
+      background: #222; color: #fff; border: 1px solid #444;
+      padding: 6px 10px; border-radius: 6px; font-size: .85rem; cursor: pointer;
+    }
+    .toolbar button {
+      background: #d4a017; color: #000; border: none;
+      padding: 8px 20px; border-radius: 6px; font-weight: bold;
+      cursor: pointer; font-size: .9rem;
+    }
+    .toolbar button:hover { background: #e8b420; }
+
+    /* ── Grid de círculos ── */
+    .page-sheet {
+      padding: ${GAP}mm;
+    }
+    .grid {
+      display: flex; flex-wrap: wrap;
+      gap: ${GAP}mm;
+      justify-content: flex-start;
+      align-content: flex-start;
+    }
+
+    /* ── Cada sticker circular ── */
+    .sticker {
+      width: ${CIRCLE}mm; height: ${CIRCLE}mm;
+      border-radius: 50%;
+      border: 0.4mm dashed #bbb;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      overflow: hidden;
+      page-break-inside: avoid;
+      padding: 2mm;
+    }
+    .sticker img {
+      width: ${QR_SIZE}mm; height: ${QR_SIZE}mm;
+      display: block;
+    }
+    .sticker .s-name {
+      font-size: 5.5pt; font-weight: 700; text-align: center;
+      width: 38mm;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      margin-top: 1mm; line-height: 1.1;
+    }
+    .sticker .s-code {
+      font-size: 4.5pt; color: #666; text-align: center;
+      font-family: monospace; margin-top: 0.5mm;
+    }
+
+    /* ── Print ── */
+    @media print {
+      .toolbar { display: none !important; }
+      body { padding: 0; }
+      .page-sheet { padding: ${GAP}mm; }
+      @page { margin: 3mm; }
+      .sticker { border-color: #ddd; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar no-print">
+    <h2>🖨️ Plancha QR — ${items.length} Stickers (⌀${CIRCLE}mm)</h2>
+    <label>Papel:</label>
+    <select id="paper-size" onchange="updatePageSize()">
+      <option value="A4" selected>A4 (210×297mm)</option>
+      <option value="A3">A3 (297×420mm)</option>
+      <option value="A2">A2 (420×594mm)</option>
+      <option value="A1">A1 (594×841mm)</option>
+    </select>
+    <button onclick="window.print()">🖨️ Imprimir / PDF</button>
+  </div>
+  <div class="page-sheet" id="page-sheet">
+    <div class="grid" id="sticker-grid">`;
+
+  for (const item of items) {
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(item.code)}`;
+    // Mostrar un code corto legible (últimos 8 chars o DNI)
+    const shortCode = item.dni || item.code.slice(-8);
+    html += `
+      <div class="sticker">
+        <img src="${qrUrl}" alt="QR" />
+        <div class="s-name">${item.name}</div>
+        <div class="s-code">${shortCode}</div>
+      </div>`;
+  }
+
+  html += `
+    </div>
+  </div>
+  <script>
+    function updatePageSize() {
+      const size = document.getElementById('paper-size').value;
+      // Actualizar @page CSS dinámicamente
+      let styleTag = document.getElementById('dynamic-page');
+      if (!styleTag) {
+        styleTag = document.createElement('style');
+        styleTag.id = 'dynamic-page';
+        document.head.appendChild(styleTag);
+      }
+      styleTag.textContent = '@media print { @page { size: ' + size + '; margin: 3mm; } }';
+    }
+    // Inicializar con A4
+    updatePageSize();
+  <\/script>
+</body>
+</html>`;
 
   win.document.open();
   win.document.write(html);
