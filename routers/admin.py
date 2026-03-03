@@ -324,6 +324,38 @@ def pagar_mensualidad(body: PagoMensualidad, admin=Depends(verify_admin)):
         "valid_until": fecha_str
     }).eq("id", body.student_id).execute()
 
+    # ── REGENERAR CÓDIGO JRS CON LA NUEVA FECHA ─────────────────
+    # El chip NFC guarda el código JRS que incluye la fecha de vencimiento.
+    # Si no se regenera, el scanner siempre rechazará el chip por "vencido".
+    nuevo_jrs_code = None
+    try:
+        nuevo_jrs_code = generate_jrs_code(
+            student_id=body.student_id,
+            full_name=alumno["full_name"],
+            valid_until_date=fecha_str
+        )
+        # Actualizar el código en la fila activa de credentials
+        cred_res = supabase.table("credentials") \
+            .select("id") \
+            .eq("student_id", body.student_id) \
+            .eq("is_active", True) \
+            .limit(1).execute()
+
+        if cred_res.data:
+            # Actualizar credencial existente con el nuevo código
+            supabase.table("credentials").update({
+                "code": nuevo_jrs_code
+            }).eq("id", cred_res.data[0]["id"]).execute()
+        else:
+            # Si no existe credencial activa, crear una nueva
+            supabase.table("credentials").insert({
+                "student_id": body.student_id,
+                "code": nuevo_jrs_code,
+                "is_active": True
+            }).execute()
+    except Exception as e:
+        print(f"Advertencia: No se pudo regenerar el código JRS: {e}")
+
     # Registrar en el libro contable
     fecha_inicio_str = hoy.strftime("%Y-%m-%d")
     try:
@@ -342,7 +374,8 @@ def pagar_mensualidad(body: PagoMensualidad, admin=Depends(verify_admin)):
         "alumno": alumno["full_name"],
         "monto_pagado": body.monto,
         "nueva_fecha_vencimiento": fecha_str,
-        "dias_agregados": 30
+        "dias_agregados": 30,
+        "nuevo_codigo_nfc": nuevo_jrs_code   # ← Código nuevo para grabar en el chip
     }
 
 @router.get("/mensualidades/{student_id}")

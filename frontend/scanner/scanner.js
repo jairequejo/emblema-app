@@ -185,10 +185,11 @@ async function getCryptoKey() {
     } catch { return null; }
 }
 
-async function computeHmac(student_id, valid_yyyymmdd, name) {
+async function computeHmac(student_id, valid_yyyymmdd, name_b64) {
     const key = await getCryptoKey();
     if (!key) return null;
-    const msg = new TextEncoder().encode(`${student_id}|${valid_yyyymmdd}|${name}`);
+    // IMPORTANTE: el mensaje firma con name_b64 (base64url), igual que jrs_utils.py
+    const msg = new TextEncoder().encode(`${student_id}|${valid_yyyymmdd}|${name_b64}`);
     const sig = await crypto.subtle.sign('HMAC', key, msg);
     return Array.from(new Uint8Array(sig).slice(0, 8))
         .map(b => b.toString(16).padStart(2, '0')).join('');
@@ -209,7 +210,7 @@ async function validateJRS(code) {
     let name;
     try { name = b64uDecode(name_b64); } catch { return null; }
 
-    const expected = await computeHmac(student_id, valid_date, name);
+    const expected = await computeHmac(student_id, valid_date, name_b64);  // name_b64, no el texto decodificado
     if (!expected || expected !== sig) return null;   // firma inválida
 
     // Verificar fecha
