@@ -434,7 +434,7 @@ window.addEventListener('online', () => {
 setInterval(syncOfflineQueue, 15000);
 
 // ── LÓGICA CENTRAL DE SCAN ────────────────────────────
-let html5QrcodeScanner = null;
+let html5Qrcode = null;       // API low-level — control total sobre pause/resume
 let isProcessing = false;
 
 // Timeout de seguridad: si isProcessing queda colgado más de 10s, lo fuerza a false
@@ -445,7 +445,7 @@ function _armSafety(fromNFC) {
         if (isProcessing) {
             console.warn('[Scanner] Safety-net: forzando reset de isProcessing');
             isProcessing = false;
-            try { if (html5QrcodeScanner) html5QrcodeScanner.resume(); } catch (e) { }
+            try { if (html5Qrcode) html5Qrcode.resume(); } catch (e) { }
             const s = document.getElementById('status-text');
             if (s) s.textContent = 'Acerca tu medallón';
         }
@@ -515,11 +515,17 @@ function handleScan(decodedText, fromNFC = false) {
         });
 }
 
+// Con la API low-level (Html5Qrcode), el scanner NUNCA se auto-pausa.
+// Esta función existe solo como safety-net para mantener consistencia.
+function _resumeCamera() {
+    // No se necesita hacer nada — la cámara sigue active siempre.
+    // isProcessing=false (puesto por resume()) es suficiente para aceptar nuevos scans.
+}
+
 function resume(fromNFC = false) {
     setTimeout(() => {
         isProcessing = false;
-        // Reanudar el scanner (la librería auto-pausa tras cada decode exitoso)
-        try { if (html5QrcodeScanner) html5QrcodeScanner.resume(); } catch (e) { /* ya activo */ }
+        _resumeCamera();
         const statusEl = document.getElementById('status-text');
         if (statusEl) statusEl.textContent = 'Acerca tu medallón';
     }, FLASH_DURATION);
@@ -537,26 +543,49 @@ function initScanner() {
 
     const frame = document.getElementById('scanner-frame');
     const size = frame ? Math.min(frame.clientWidth, frame.clientHeight) - 20 : 300;
+    const qrboxSide = Math.floor(size * 0.85);
 
-    html5QrcodeScanner = new Html5QrcodeScanner(
-        "reader",
-        {
-            fps: 15,
-            qrbox: { width: Math.floor(size * 0.85), height: Math.floor(size * 0.85) },
-            rememberLastUsedCamera: true,     // recuerda la cámara elegida
-            showTorchButtonIfSupported: true  // linterna si disponible
-            // Sin facingMode forzado: el usuario elige la primera vez,
-            // rememberLastUsedCamera la guarda para siempre
-        }
-    );
+    // ── API LOW-LEVEL: sin auto-pausa de UI, control 100% programático ────────
+    html5Qrcode = new Html5Qrcode('reader');
 
-    html5QrcodeScanner.render(
-        (decoded) => {
-            handleScan(decoded);
-            // resume() ya se llama internamente en handleScan() en todos los caminos
-        },
-        (err) => { /* errores de lectura normales, ignorar */ }
-    );
+    Html5Qrcode.getCameras()
+        .then(cameras => {
+            if (!cameras || cameras.length === 0) {
+                console.error('[Scanner] No se encontraron cámaras.');
+                return;
+            }
+
+            // Preferir cámara trasera (environment); si no, usar la primera
+            const savedId = localStorage.getItem('preferred_camera_id');
+            let camId = cameras[0].id;
+            if (savedId && cameras.find(c => c.id === savedId)) {
+                camId = savedId;
+            } else {
+                const back = cameras.find(c =>
+                    c.label.toLowerCase().includes('back') ||
+                    c.label.toLowerCase().includes('rear') ||
+                    c.label.toLowerCase().includes('environment')
+                );
+                if (back) camId = back.id;
+            }
+
+            return html5Qrcode.start(
+                camId,
+                {
+                    fps: 15,
+                    qrbox: { width: qrboxSide, height: qrboxSide },
+                    aspectRatio: 1.0
+                },
+                (decodedText) => {
+                    // La librería low-level NO auto-pausa — solo isProcessing controla el flujo
+                    handleScan(decodedText);
+                },
+                () => { /* errores de lectura normales (frame sin QR), ignorar */ }
+            ).then(() => {
+                localStorage.setItem('preferred_camera_id', camId);
+            });
+        })
+        .catch(err => console.error('[Scanner] Error iniciando cámara:', err));
 
     startMirrorCheck();
     initNFC();
