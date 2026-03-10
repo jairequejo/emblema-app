@@ -1,6 +1,7 @@
 # main.py
 import os
 import uvicorn
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -16,12 +17,28 @@ except ImportError:
 # Zona horaria oficial: Lima, Perú (UTC-5)
 PERU_TZ = ZoneInfo("America/Lima")
 
-app = FastAPI()
 
-# --- CORS ---
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # ── Fix 5: Advertencias de configuración crítica al iniciar ──────────────
+    if not os.getenv("JRS_SECRET_KEY"):
+        print("⚠️  [SEGURIDAD] JRS_SECRET_KEY no configurada — se usa clave por defecto. "
+              "¡IMPRESCINDIBLE configurar esta variable en producción!")
+    if not os.getenv("ALLOWED_ORIGINS"):
+        print("⚠️  [CONFIG] ALLOWED_ORIGINS no configurada — CORS abierto ('*'). "
+              "Solo aceptable en desarrollo local.")
+    yield  # La app corre aquí
+
+
+app = FastAPI(lifespan=lifespan)
+
+# --- CORS (Fix 1) ---
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "").strip()
+_allowed_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()] if _raw_origins else ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

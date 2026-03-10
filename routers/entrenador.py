@@ -1,34 +1,19 @@
 # routers/entrenador.py — Magic Token Auth (sin passwords ni emails en login)
 import os
-import hmac
-import hashlib
-import base64
 from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel
 from database import supabase
+from routers.jrs_utils import generate_jrs_code
 
 router = APIRouter(prefix="/entrenador", tags=["entrenador"])
 
-# ── CLAVE HMAC QR ─────────────────────────────────────────
-_raw_key = os.getenv("QR_SIGNING_KEY", "a" * 64)
-try:
-    SIGNING_KEY = bytes.fromhex(_raw_key)
-except ValueError:
-    SIGNING_KEY = _raw_key.encode()
-
-SIGNING_KEY_HEX = SIGNING_KEY.hex()
-
-
-def _b64u_encode(text: str) -> str:
-    return base64.urlsafe_b64encode(text.encode()).rstrip(b"=").decode()
-
-
-def _sign_qr(student_id: str, valid_yyyymmdd: str, name: str) -> str:
-    msg = f"{student_id}|{valid_yyyymmdd}|{name}".encode()
-    return hmac.new(SIGNING_KEY, msg, hashlib.sha256).digest()[:8].hex()
+# ── FIX 3: Clave JRS unificada ────────────────────────────────────────────────
+# El scanner de kiosko lee esta clave desde /verify para validar firmas offline.
+# Misma clave que jrs_utils.py y attendance.py → una sola fuente de verdad.
+_JRS_SECRET_HEX = os.getenv("JRS_SECRET_KEY", "default_secret_key_123").encode("utf-8").hex()
 
 
 # ── DEPENDENCIA: VERIFICAR TOKEN ──────────────────────────
@@ -64,7 +49,7 @@ def verify_entrenador_token(ent=Depends(verify_token)):
     return {
         "ok":          True,
         "nombre":      ent["nombre"],
-        "signing_key": SIGNING_KEY_HEX
+        "signing_key": _JRS_SECRET_HEX  # Fix 3: devuelve JRS_SECRET_KEY para validación offline
     }
 
 
@@ -80,21 +65,20 @@ def generate_signed_credential(student_id: str, ent=Depends(verify_token)):
     if not alumno.get("is_active"):
         raise HTTPException(status_code=400, detail="El alumno está inactivo")
 
-    valid_until = alumno.get("valid_until") or ""
-    try:
-        valid_yyyymmdd = datetime.strptime(valid_until, "%Y-%m-%d").strftime("%Y%m%d")
-    except ValueError:
-        valid_yyyymmdd = "00000000"
+    valid_until = alumno.get("valid_until") or None
+    name        = alumno["full_name"]
 
-    name     = alumno["full_name"]
-    name_b64 = _b64u_encode(name)
-    sig      = _sign_qr(student_id, valid_yyyymmdd, name)
-    payload  = f"JRS:{student_id}:{valid_yyyymmdd}:{name_b64}:{sig}"
+    # Fix 3: formato unificado JRS:{short_id}:... con JRS_SECRET_KEY
+    payload = generate_jrs_code(
+        student_id=student_id,
+        full_name=name,
+        valid_until_date=valid_until
+    )
 
     return {
         "payload":      payload,
         "student_name": name,
-        "valid_until":  valid_until,
+        "valid_until":  valid_until or "",
         "qr_url": f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={payload}"
     }
 

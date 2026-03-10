@@ -67,6 +67,54 @@
 
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="/static/scanner/scanner.js"></script>
+
+    <!-- Fix 2: PIN overlay — visible solo si SCANNER_PIN está configurado en el servidor -->
+    <div id="pin-overlay" style="
+        display:none;position:fixed;inset:0;z-index:9999;
+        background:rgba(0,0,0,.95);align-items:center;justify-content:center;
+        font-family:'Barlow Condensed',system-ui,sans-serif;">
+        <div style="background:#111;border:2px solid #d4a017;border-radius:16px;
+                  padding:2rem;width:290px;text-align:center;color:#fff;">
+            <div style="font-size:2rem;margin-bottom:.5rem">🔐</div>
+            <div style="font-size:1.4rem;font-weight:700;color:#d4a017;margin-bottom:1rem">ACCESO AL SCANNER</div>
+            <div id="pin-dots"
+                style="font-size:1.8rem;letter-spacing:.6rem;color:#d4a017;min-height:2.2rem;margin-bottom:.4rem">○ ○ ○
+                ○</div>
+            <div id="pin-err" style="color:#ff6b6b;font-size:.85rem;min-height:1.1rem;margin-bottom:.5rem"></div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem">
+                <button class="pbn" onclick="pinKey('1')">1</button>
+                <button class="pbn" onclick="pinKey('2')">2</button>
+                <button class="pbn" onclick="pinKey('3')">3</button>
+                <button class="pbn" onclick="pinKey('4')">4</button>
+                <button class="pbn" onclick="pinKey('5')">5</button>
+                <button class="pbn" onclick="pinKey('6')">6</button>
+                <button class="pbn" onclick="pinKey('7')">7</button>
+                <button class="pbn" onclick="pinKey('8')">8</button>
+                <button class="pbn" onclick="pinKey('9')">9</button>
+                <button class="pbn" onclick="pinKey('DEL')" style="color:#ff6b6b">⌫</button>
+                <button class="pbn" onclick="pinKey('0')">0</button>
+                <button class="pbn" onclick="pinSubmit()"
+                    style="background:#d4a017;color:#000;font-weight:700">✓</button>
+            </div>
+        </div>
+    </div>
+    <style>
+        .pbn {
+            background: #222;
+            border: 1px solid #444;
+            color: #fff;
+            border-radius: 8px;
+            padding: .8rem;
+            font-size: 1.3rem;
+            cursor: pointer;
+            transition: background .15s;
+        }
+
+        .pbn:active {
+            background: #d4a017;
+            color: #000;
+        }
+    </style>
 </body>
 
 </html>

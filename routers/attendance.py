@@ -3,13 +3,20 @@ import os
 import hmac
 import hashlib
 import base64
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends, Header
 from pydantic import BaseModel
 from typing import Optional, List
 from database import supabase
 from datetime import datetime, timedelta, timezone
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from backports.zoneinfo import ZoneInfo
 
 router = APIRouter(prefix="/attendance", tags=["attendance"])
+
+# Zona horaria Lima (Fix 6)
+PERU_TZ = ZoneInfo("America/Lima")
 
 # ── CLAVE HMAC ────────────────────────────────────────────
 # Misma variable que usa jrs_utils.py para GENERAR los códigos.
@@ -17,6 +24,16 @@ router = APIRouter(prefix="/attendance", tags=["attendance"])
 _JRS_SECRET = os.getenv("JRS_SECRET_KEY", "default_secret_key_123").encode("utf-8")
 SIGNING_KEY = _JRS_SECRET
 
+# ── FIX 2: PIN del scanner ──────────────────────────────────────────────────
+_SCANNER_PIN = os.getenv("SCANNER_PIN", "").strip()
+
+
+def verify_scanner_pin(x_scanner_pin: Optional[str] = Header(None)):
+    """Valida el PIN del scanner. Sin SCANNER_PIN configurado → acceso público."""
+    if not _SCANNER_PIN:
+        return  # fallback público para desarrollo
+    if x_scanner_pin != _SCANNER_PIN:
+        raise HTTPException(status_code=401, detail="PIN de scanner inválido")
 
 
 def _sign(short_id: str, valid_until: str, name_b64: str) -> str:
@@ -77,7 +94,7 @@ class BatchScanRequest(BaseModel):
 
 # ── SCAN ─────────────────────────────────────────────────
 @router.post("/scan")
-def scan_credential(scan: ScanRequest):
+def scan_credential(scan: ScanRequest, _pin=Depends(verify_scanner_pin)):
     code = scan.code.strip()
 
     # ── FORMATO NUEVO: JRS:short_id:YYYYMMDD:name_b64:hmac ──
@@ -245,17 +262,17 @@ def sync_batch(req: BatchScanRequest):
 
 # ── ENDPOINTS EXISTENTES ──────────────────────────────────
 @router.get("/scanner/offline-data")
-def scanner_offline_data():
+def scanner_offline_data(_pin=Depends(verify_scanner_pin)):
     """
     Descarga una copia ligera del estado de los alumnos para que el kiosko de scanner
-    funcione offline.
+    funcione offline. Fix 6: usa PERU_TZ. Fix 3: indexa también por short_id.
     """
     res = supabase.table("students").select("id, full_name, is_active, valid_until").execute()
     alumnos = res.data or []
-    
-    hoy = datetime.now(timezone.utc).date()
+
+    hoy = datetime.now(PERU_TZ).date()  # Fix 6: Lima, no UTC
     offline_db = {}
-    
+
     for a in alumnos:
         if not a.get("is_active"):
             status = "debe"
@@ -278,13 +295,15 @@ def scanner_offline_data():
                 except Exception:
                     status = "success"
                     detalle = "OK"
-                    
-        offline_db[a["id"]] = {
+
+        entry = {
             "name": a["full_name"],
             "status": status,
             "detalle": detalle
         }
-        
+        offline_db[a["id"]] = entry           # clave UUID completo (legacy)
+        offline_db[a["id"][:8]] = entry       # Fix 3: clave short_id para JRS v2
+
     return offline_db
 
 @router.get("/today")

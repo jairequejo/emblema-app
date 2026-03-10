@@ -16,6 +16,86 @@ document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') requestWakeLock();
 });
 
+// ── FIX 2: GESTIÓN DEL PIN DEL SCANNER ────────────────────────────────────
+let _scannerPin = sessionStorage.getItem('scanner_pin') || '';
+let _pinBuffer = '';
+
+function getScannerHeaders() {
+    const h = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
+    if (_scannerPin) h['X-Scanner-Pin'] = _scannerPin;
+    return h;
+}
+
+function pinUpdateDots() {
+    const dots = document.getElementById('pin-dots');
+    if (!dots) return;
+    const filled = '●'.repeat(_pinBuffer.length);
+    const empty = '○'.repeat(Math.max(0, 4 - _pinBuffer.length));
+    dots.textContent = (filled + ' ' + empty).trim() || '○ ○ ○ ○';
+}
+
+function pinKey(k) {
+    const errEl = document.getElementById('pin-err');
+    if (errEl) errEl.textContent = '';
+    if (k === 'DEL') { _pinBuffer = _pinBuffer.slice(0, -1); }
+    else if (_pinBuffer.length < 8) { _pinBuffer += k; }
+    pinUpdateDots();
+}
+
+async function pinSubmit() {
+    if (!_pinBuffer) return;
+    const errEl = document.getElementById('pin-err');
+    try {
+        const r = await fetch('/attendance/scanner/offline-data', {
+            headers: { 'X-Scanner-Pin': _pinBuffer }
+        });
+        if (r.ok) {
+            _scannerPin = _pinBuffer;
+            sessionStorage.setItem('scanner_pin', _scannerPin);
+            const data = await r.json();
+            localStorage.setItem('scanner_offline_db', JSON.stringify(data));
+            hidePinOverlay();
+        } else {
+            if (errEl) errEl.textContent = 'PIN incorrecto. Inténtalo de nuevo.';
+            _pinBuffer = '';
+            pinUpdateDots();
+        }
+    } catch (e) {
+        if (errEl) errEl.textContent = 'Sin conexión — PIN almacenado.';
+        _scannerPin = _pinBuffer;
+        sessionStorage.setItem('scanner_pin', _scannerPin);
+        setTimeout(hidePinOverlay, 1500);
+    }
+}
+
+function showPinOverlay() {
+    const ov = document.getElementById('pin-overlay');
+    if (ov) { ov.style.display = 'flex'; }
+}
+function hidePinOverlay() {
+    const ov = document.getElementById('pin-overlay');
+    if (ov) { ov.style.display = 'none'; }
+}
+
+// Al cargar: verificar si el servidor requiere PIN
+window.addEventListener('load', async () => {
+    try {
+        const r = await fetch('/attendance/scanner/offline-data',
+            { headers: _scannerPin ? { 'X-Scanner-Pin': _scannerPin } : {} });
+        if (r.status === 401) {
+            _scannerPin = '';
+            sessionStorage.removeItem('scanner_pin');
+            _pinBuffer = '';
+            showPinOverlay();
+        } else if (r.ok) {
+            const data = await r.json();
+            localStorage.setItem('scanner_offline_db', JSON.stringify(data));
+            hidePinOverlay();
+        }
+    } catch { /* sin conexión al cargar — usar PIN almacenado */ }
+    setTimeout(initScanner, 300);
+});
+
 // ── RELOJ ─────────────────────────────────────────────
 const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
@@ -130,7 +210,8 @@ function addHistory(estado, nombre) {
 
 // ── SINCRONIZACIÓN OFFLINE ────────────────────────────
 function fetchOfflineData() {
-    fetch('/attendance/scanner/offline-data')
+    const headers = _scannerPin ? { 'X-Scanner-Pin': _scannerPin } : {};
+    fetch('/attendance/scanner/offline-data', { headers })
         .then(res => res.json())
         .then(data => {
             localStorage.setItem('scanner_offline_db', JSON.stringify(data));
@@ -138,8 +219,7 @@ function fetchOfflineData() {
         })
         .catch(err => console.log("Error actualizando DB offline:", err));
 }
-// Actualizar al cargar y cada 5 min
-fetchOfflineData();
+// Actualizar cada 5 min
 setInterval(fetchOfflineData, 5 * 60 * 1000);
 
 let queuedScans = JSON.parse(localStorage.getItem('scanner_queued_scans') || '[]');
@@ -225,63 +305,76 @@ async function validateJRS(code) {
 }
 
 async function processOfflineScan(code, fromNFC = false) {
-    const db = JSON.parse(localStorage.getItem('scanner_offline_db') || '{}');
+    try {
+        const db = JSON.parse(localStorage.getItem('scanner_offline_db') || '{}');
 
-    let studentId = code;
-    let fallbackName = "Desconocido";
+        let studentId = code;
+        let fallbackName = "Desconocido";
 
-    if (code.startsWith("JRS:")) {
-        const parsed = await validateJRS(code);
-
-        if (!parsed) {
-            playError();
-            showFlash('error', 'QR INVÁLIDO', 'Firma criptográfica incorrecta.');
-            resume(fromNFC);
-            return;
-        }
-
-        if (parsed.debe) {
-            playWarning();
-            showFlash('debe', parsed.name, 'Mensualidad vencida (Offline)');
-            resume(fromNFC);
-            return;
-        }
-
-        studentId = parsed.student_id;
-        fallbackName = parsed.name;
-    }
-
-    const info = db[studentId];
-    if (info) {
-        queuedScans.push({ code, timestamp: new Date().toISOString() });
-        localStorage.setItem('scanner_queued_scans', JSON.stringify(queuedScans));
-        updateQueueUI();
-
-        let msg = info.detalle;
-        if (info.status === 'success') msg = "¡BIENVENIDO! (Guardado Offline)";
-
-        if (info.status === 'success') playSuccess();
-        else if (info.status === 'warning') playWarning();
-        else playWarning(); // debe
-
-        showFlash(info.status, info.name, msg);
-        addHistory(info.status, info.name + " (Offline)");
-        resume(fromNFC);
-    } else {
-        // En JRS intentamos extraer el nombre válido aunque no lo tengamos en DB local
         if (code.startsWith("JRS:")) {
+            const parsed = await validateJRS(code);
+
+            if (!parsed) {
+                playError();
+                showFlash('error', 'QR INVÁLIDO', 'Firma criptográfica incorrecta.');
+                resume(fromNFC);
+                return;
+            }
+
+            if (parsed.debe) {
+                playWarning();
+                showFlash('debe', parsed.name, 'Mensualidad vencida (Offline)');
+                resume(fromNFC);
+                return;
+            }
+
+            // student_id puede ser short_id (8 chars, formato JRS v2) o UUID completo
+            studentId = parsed.student_id;
+            fallbackName = parsed.name;
+
+            // Fix 3: si no se encuentra por short_id, buscar en DB offline por prefijo
+            if (!db[studentId]) {
+                const fullId = Object.keys(db).find(k => k.length > 8 && k.startsWith(studentId));
+                if (fullId) { studentId = fullId; }
+            }
+        }
+
+        const info = db[studentId];
+        if (info) {
             queuedScans.push({ code, timestamp: new Date().toISOString() });
             localStorage.setItem('scanner_queued_scans', JSON.stringify(queuedScans));
             updateQueueUI();
-            playSuccess();
-            showFlash('success', fallbackName, 'Guardado Offline');
-            addHistory('success', fallbackName + " (Offline)");
+
+            let msg = info.detalle;
+            if (info.status === 'success') msg = "¡BIENVENIDO! (Guardado Offline)";
+
+            if (info.status === 'success') playSuccess();
+            else if (info.status === 'warning') playWarning();
+            else playWarning(); // debe
+
+            showFlash(info.status, info.name, msg);
+            addHistory(info.status, info.name + " (Offline)");
             resume(fromNFC);
         } else {
-            playError();
-            showFlash('error', 'SIN CONEXIÓN', 'No se puede validar código clásico');
-            resume(fromNFC);
+            // En JRS intentamos extraer el nombre válido aunque no lo tengamos en DB local
+            if (code.startsWith("JRS:")) {
+                queuedScans.push({ code, timestamp: new Date().toISOString() });
+                localStorage.setItem('scanner_queued_scans', JSON.stringify(queuedScans));
+                updateQueueUI();
+                playSuccess();
+                showFlash('success', fallbackName, 'Guardado Offline');
+                addHistory('success', fallbackName + " (Offline)");
+                resume(fromNFC);
+            } else {
+                playError();
+                showFlash('error', 'SIN CONEXIÓN', 'No se puede validar código clásico');
+                resume(fromNFC);
+            }
         }
+    } catch (e) {
+        // Safety-net: si algo explota internamente, siempre reanudar el scanner
+        console.error('[Scanner] Error inesperado en processOfflineScan:', e);
+        resume(fromNFC);
     }
 }
 
@@ -344,9 +437,26 @@ setInterval(syncOfflineQueue, 15000);
 let html5QrcodeScanner = null;
 let isProcessing = false;
 
+// Timeout de seguridad: si isProcessing queda colgado más de 10s, lo fuerza a false
+let _safetyTimer = null;
+function _armSafety(fromNFC) {
+    if (_safetyTimer) clearTimeout(_safetyTimer);
+    _safetyTimer = setTimeout(() => {
+        if (isProcessing) {
+            console.warn('[Scanner] Safety-net: forzando reset de isProcessing');
+            isProcessing = false;
+            try { if (html5QrcodeScanner) html5QrcodeScanner.resume(); } catch (e) { }
+            const s = document.getElementById('status-text');
+            if (s) s.textContent = 'Acerca tu medallón';
+        }
+        _safetyTimer = null;
+    }, 10000);
+}
+
 function handleScan(decodedText, fromNFC = false) {
     if (isProcessing) return;
     isProcessing = true;
+    _armSafety(fromNFC); // safety-net contra cualquier excepción no capturada
 
     const code = decodedText.includes('?code=')
         ? decodedText.split('?code=')[1]
@@ -359,7 +469,7 @@ function handleScan(decodedText, fromNFC = false) {
     if (statusEl) statusEl.textContent = 'Procesando...';
 
     if (!navigator.onLine) {
-        processOfflineScan(code, fromNFC);
+        processOfflineScan(code, fromNFC); // async, pero su try/catch garantiza que resume() se llame
         return;
     }
 
@@ -368,10 +478,7 @@ function handleScan(decodedText, fromNFC = false) {
 
     fetch('/attendance/scan', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        },
+        headers: getScannerHeaders(),
         body: JSON.stringify({ code }),
         signal: controller.signal
     })
@@ -404,7 +511,7 @@ function handleScan(decodedText, fromNFC = false) {
         })
         .catch(() => {
             // Si es un error de red o timeout (AbortError), pasa a offline rápido
-            processOfflineScan(code, fromNFC);
+            processOfflineScan(code, fromNFC); // async, pero su try/catch garantiza resume()
         });
 }
 
@@ -457,8 +564,7 @@ function initScanner() {
 
 // Toque en pantalla derecha para activar
 document.getElementById('right-panel').addEventListener('click', initScanner);
-// Auto-iniciar al cargar (si ya tiene permisos guardados)
-window.addEventListener('load', () => setTimeout(initScanner, 300));
+// Auto-iniciar se hace en el listener 'load' del bloque PIN (arriba)
 
 // ── MODO ESPEJO (cámara selfie) ──────────────────────
 function startMirrorCheck() {

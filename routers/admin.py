@@ -150,21 +150,28 @@ def crear_alumno(body: AlumnoCreate, admin=Depends(verify_admin)):
     
     nuevo_alumno = res.data[0]
     
-    # 2. Generar el código de credencial automáticamente
+    # 2. Generar el código de credencial — Fix 4: si falla, rollback y 500
     try:
         codigo_qr = generate_jrs_code(
             student_id=nuevo_alumno["id"],
             full_name=nuevo_alumno.get("full_name", ""),
             valid_until_date=fecha_vencimiento_str
         )
-        
         supabase.table("credentials").insert({
             "student_id": nuevo_alumno["id"],
             "code": codigo_qr,
             "is_active": True
         }).execute()
     except Exception as e:
-        print(f"Error generando credencial automática: {e}")
+        # Rollback: eliminar el alumno recién creado para no dejar datos huérfanos
+        try:
+            supabase.table("students").delete().eq("id", nuevo_alumno["id"]).execute()
+        except Exception:
+            pass
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error crítico al generar credencial. Alumno no registrado: {e}"
+        )
 
     # 3. Registrar el cobro inicial
     try:
@@ -177,7 +184,7 @@ def crear_alumno(body: AlumnoCreate, admin=Depends(verify_admin)):
                 "fecha_vencimiento": fecha_vencimiento_str
             }).execute()
     except Exception as e:
-        print(f"Error guardando el pago: {e}")
+        print(f"Advertencia: Error guardando el pago inicial: {e}")
 
     return nuevo_alumno
 

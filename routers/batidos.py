@@ -10,12 +10,9 @@ from routers.admin import verify_admin
 
 router = APIRouter(prefix="/batidos", tags=["batidos"])
 
-# ── CLAVE HMAC (misma que attendance.py y entrenador.py) ──
-_raw_key = os.getenv("QR_SIGNING_KEY", "a" * 64)
-try:
-    SIGNING_KEY = bytes.fromhex(_raw_key)
-except ValueError:
-    SIGNING_KEY = _raw_key.encode()
+# ── FIX 3: Clave JRS unificada ────────────────────────────────────────────────
+# Misma clave que jrs_utils.py, attendance.py y entrenador.py
+_JRS_SECRET = os.getenv("JRS_SECRET_KEY", "default_secret_key_123").encode("utf-8")
 
 
 def _b64u_decode(text: str) -> str:
@@ -25,20 +22,22 @@ def _b64u_decode(text: str) -> str:
 
 def _parse_jrs(code: str):
     """
-    Parsea y valida un payload JRS:{uuid}:{YYYYMMDD}:{name_b64url}:{hmac16hex}.
-    Devuelve dict con 'student_id' y 'name', o None si la firma es inválida.
+    Parsea y valida el formato JRS unificado:
+    JRS:{short_id}:{YYYYMMDD}:{name_b64url}:{hmac16hex}
+    Usa JRS_SECRET_KEY y short_id, igual que jrs_utils.py y attendance.py.
     """
     try:
         parts = code[4:].split(":")   # quita "JRS:"
         if len(parts) != 4:
             return None
-        student_id, valid_date, name_b64, sig = parts
+        short_id, valid_date, name_b64, sig = parts
         name = _b64u_decode(name_b64)
-        msg = f"{student_id}|{valid_date}|{name}".encode("utf-8")
-        expected = hmac.new(SIGNING_KEY, msg, hashlib.sha256).digest()[:8].hex()
+        # Fix 3: mensaje con short_id y name_b64 (no name decodificado)
+        msg = f"{short_id}|{valid_date}|{name_b64}".encode("utf-8")
+        expected = hmac.new(_JRS_SECRET, msg, hashlib.sha256).hexdigest()[:16]
         if not hmac.compare_digest(expected, sig):
             return None
-        return {"student_id": student_id, "name": name}
+        return {"short_id": short_id, "name": name}
     except Exception:
         return None
 
@@ -70,19 +69,34 @@ def auth_caja(body: PinRequest):
 def get_alumno_por_codigo(code: str):
     """
     Busca al alumno por su QR (STU-legacy o JRS firmado) para la Caja Registradora.
+    Fix 3: formato JRS unificado con short_id → lookup via tabla credentials.
     """
     codigo_limpio = code.strip()
 
-    # ── FORMATO JRS FIRMADO ───────────────────────────────
+    # ── FORMATO JRS FIRMADO (unificado) ──────────────────
     if codigo_limpio.startswith("JRS:"):
         parsed = _parse_jrs(codigo_limpio)
         if not parsed:
             raise HTTPException(status_code=400, detail="QR JRS inválido o manipulado")
 
-        student_id = parsed["student_id"]
-        student = supabase.table("students") \
-            .select("id, full_name, batido_credits") \
-            .eq("id", student_id).eq("is_active", True).execute()
+        short_id = parsed["short_id"]
+
+        cred_res = supabase.table("credentials") \
+            .select("student_id") \
+            .like("code", f"JRS:{short_id}:%") \
+            .eq("is_active", True) \
+            .limit(1).execute()
+
+        if cred_res.data:
+            student_id = cred_res.data[0]["student_id"]
+            student = supabase.table("students") \
+                .select("id, full_name, batido_credits") \
+                .eq("id", student_id).eq("is_active", True).execute()
+        else:
+            # Fallback: buscar por prefijo de UUID (igual que attendance.py)
+            student = supabase.table("students") \
+                .select("id, full_name, batido_credits") \
+                .ilike("id", f"{short_id}%").eq("is_active", True).execute()
 
         if not student.data:
             raise HTTPException(status_code=404, detail="Alumno inactivo o no existe")

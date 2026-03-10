@@ -62,10 +62,11 @@ function initQR() {
 
 async function onScanSuccess(decodedText) {
   if (html5QrcodeScanner) html5QrcodeScanner.pause(); // Pausamos cámara mientras cobra
-  const code = decodedText.includes('?code=') ? decodedText.split('?code=')[1] : decodedText;
+  let code = decodedText.includes('?code=') ? decodedText.split('?code=')[1] : decodedText;
+  try { code = decodeURIComponent(code); } catch (e) { }
   playBeep('ok');
   document.getElementById('status-nfc').innerHTML = "⏳ Buscando QR...";
-  await consultarAtleta(code);
+  await consultarAtleta(code.trim());
 }
 
 // --- LÓGICA NFC ---
@@ -140,7 +141,7 @@ let alumnoActual = null;
 async function consultarAtleta(code) {
   try {
     // 1. Volvemos a tu ruta original, que SÍ funciona para QRs sanos.
-    const res = await fetch(`/batidos/nfc/${code}`);
+    const res = await fetch(`/batidos/nfc/${encodeURIComponent(code)}`);
 
     if (!res.ok) throw new Error("Código no encontrado en el Kiosko");
 
