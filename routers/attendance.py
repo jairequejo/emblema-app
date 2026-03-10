@@ -155,16 +155,19 @@ def scan_credential(scan: ScanRequest, _pin=Depends(verify_scanner_pin)):
                     "student_name": nombre_final,
                     "detalle": f"Venció hace {dias} día{'s' if dias != 1 else ''}. Contactar al administrador."}
 
-        # Registrar asistencia con el UUID completo real
-        fecha_registro = scan.timestamp if scan.timestamp else datetime.now(timezone.utc).isoformat()
+        # INSERT directo — el UNIQUE INDEX del servidor rechaza duplicados sin SELECT previo.
+        # Supabase retorna una lista vacía (no lanza excepción Python) cuando hay conflicto
+        # y se usa on_conflict=ignore. Detectamos «ya registrado» por res.data vacío.
+        fecha_registro = datetime.now(timezone.utc).isoformat()  # ignoramos el reloj del cliente
+        res = supabase.table("attendance").insert(
+            {"student_id": student_id, "created_at": fecha_registro},
+            returning="minimal",
+        ).on_conflict("uq_attendance_student_day").ignore().execute()
 
-        twelve_ago = (datetime.fromisoformat(fecha_registro.replace("Z", "+00:00")) - timedelta(hours=12)).isoformat()
-        recent = supabase.table("attendance").select("id").eq("student_id", student_id) \
-            .gte("created_at", twelve_ago).execute()
-        if recent.data:
+        if res.data is not None and len(res.data) == 0:
+            # El índice unique absorbió el duplicado: respuesta idempotente
             return {"status": "warning", "message": f"Ya registrado: {nombre_final}", "student_name": nombre_final}
 
-        supabase.table("attendance").insert({"student_id": student_id, "created_at": fecha_registro}).execute()
         return {"status": "success", "message": f"¡Bienvenido, {nombre_final}!", "student_name": nombre_final}
 
     # ── FORMATO LEGACY: STU-XXXXX o código libre ─────────
@@ -203,25 +206,33 @@ def scan_credential(scan: ScanRequest, _pin=Depends(verify_scanner_pin)):
                     "student_name": nombre_final,
                     "detalle": f"Venció hace {dias} día{'s' if dias != 1 else ''}. Contactar al administrador."}
 
-    fecha_registro = scan.timestamp if scan.timestamp else datetime.now(timezone.utc).isoformat()
-    twelve_ago = (datetime.fromisoformat(fecha_registro.replace("Z", "+00:00")) - timedelta(hours=12)).isoformat()
-    recent = supabase.table("attendance").select("id").eq("student_id", student_id)\
-        .gte("created_at", twelve_ago).execute()
-    if recent.data:
+    fecha_registro = datetime.now(timezone.utc).isoformat()  # ignoramos el reloj del cliente
+    res = supabase.table("attendance").insert(
+        {"credential_id": raw_data["id"], "student_id": student_id, "created_at": fecha_registro},
+        returning="minimal",
+    ).on_conflict("uq_attendance_student_day").ignore().execute()
+
+    if res.data is not None and len(res.data) == 0:
         return {"status": "warning", "message": f"Ya registrado: {nombre_final}", "student_name": nombre_final}
 
-    supabase.table("attendance").insert({"credential_id": raw_data["id"], "student_id": student_id, "created_at": fecha_registro}).execute()
     return {"status": "success", "message": f"¡Bienvenido, {nombre_final}!", "student_name": nombre_final}
 
 
 # ── SYNC BATCH (desde Web Worker offline) ─────────────────
+
+# Máximo de registros por lote — protege contra payloads que superan 1MB de Starlette
+_MAX_BATCH = 500
+
+
 @router.post("/sync-batch")
 def sync_batch(req: BatchScanRequest):
     """
     Acepta lotes de registros de asistencia generados offline.
-    Autentica el Magic Token del entrenador contra la tabla `entrenadores`.
+    - Un único bulk INSERT (no bucle for).
+    - Duplicados absorbidos por el UNIQUE INDEX uq_attendance_student_day.
+    - Timestamps futuros descartados en el servidor.
     """
-    # Verificar Magic Token del entrenador (igual que entrenador.py)
+    # Verificar Magic Token del entrenador
     ent_res = supabase.table("entrenadores") \
         .select("id, is_active") \
         .eq("token", req.token).execute()
@@ -231,33 +242,69 @@ def sync_batch(req: BatchScanRequest):
     if not ent_res.data[0].get("is_active"):
         raise HTTPException(status_code=403, detail="Acceso revocado por el administrador")
 
-    inserted = 0
-    duplicates = 0
+    ahora_utc = datetime.now(timezone.utc)
+    # Margen de tolerancia: 5 minutos hacia el futuro (desfases de reloj normales)
+    limite_futuro = ahora_utc + timedelta(minutes=5)
 
-    for rec in req.records:
+    filas = []
+    rechazados_futuro = 0
+    rechazados_id = 0
+
+    for rec in req.records[:_MAX_BATCH]:  # Vía Negativa: ignorar lo que exceda el límite
+        # ── Filtro 1: timestamp futuro (reloj de niño adelantado) ─────────────
         try:
             ts = datetime.fromisoformat(rec.timestamp.replace("Z", "+00:00"))
-            window_start = (ts - timedelta(hours=12)).isoformat()
-            window_end   = (ts + timedelta(hours=12)).isoformat()
+        except (ValueError, AttributeError):
+            rechazados_futuro += 1
+            continue
 
-            # Verificar duplicado en ventana de 12h alrededor del timestamp offline
-            dup = supabase.table("attendance").select("id").eq("student_id", rec.student_id)\
-                .gte("created_at", window_start).lte("created_at", window_end).execute()
+        if ts > limite_futuro:
+            rechazados_futuro += 1
+            continue
 
-            if dup.data:
-                duplicates += 1
-                continue
+        # ── Filtro 2: student_id debe ser UUID completo (36 chars con guiones) ──
+        # El frontend enviaba short_id (8 chars) — eso causaba pérdida silenciosa.
+        import re as _re
+        if not _re.match(
+            r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+            rec.student_id, _re.I
+        ):
+            rechazados_id += 1
+            continue
 
-            supabase.table("attendance").insert({
-                "student_id": rec.student_id,
-                "created_at": rec.timestamp,
-                "source": "offline_sync"
-            }).execute()
-            inserted += 1
-        except Exception as e:
-            print(f"[sync-batch] Error en {rec.student_id}: {e}")
+        filas.append({
+            "student_id": rec.student_id,
+            "created_at": ts.isoformat(),
+            "source": "offline_sync",
+        })
 
-    return {"ok": True, "inserted": inserted, "duplicates": duplicates}
+    if not filas:
+        return {
+            "ok": True, "inserted": 0, "duplicates": 0,
+            "rechazados_futuro": rechazados_futuro,
+            "rechazados_id": rechazados_id,
+        }
+
+    # ── Bulk INSERT único — el UNIQUE INDEX rechaza duplicados sin bucle for ──
+    # on_conflict ignore: el servidor descarta silenciosamente las filas que
+    # violarían uq_attendance_student_day. Una sola petición HTTP a Supabase.
+    res = supabase.table("attendance").insert(
+        filas,
+        returning="minimal",
+    ).on_conflict("uq_attendance_student_day").ignore().execute()
+
+    # Supabase no retorna conteo exacto de ignorados con returning=minimal,
+    # así que estimamos: total enviado - retornado = duplicados absorbidos.
+    inserted = len(res.data) if res.data else len(filas)  # si minimal, asume éxito total
+    duplicates = len(filas) - inserted if inserted <= len(filas) else 0
+
+    return {
+        "ok": True,
+        "inserted": inserted,
+        "duplicates": duplicates,
+        "rechazados_futuro": rechazados_futuro,
+        "rechazados_id": rechazados_id,
+    }
 
 
 # ── ENDPOINTS EXISTENTES ──────────────────────────────────

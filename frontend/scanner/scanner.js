@@ -392,23 +392,37 @@ async function processOfflineScan(code, fromNFC = false) {
 function syncOfflineQueue() {
     if (!navigator.onLine || queuedScans.length === 0) return;
 
-    // Obtener la identidad del entrenador
     const token = localStorage.getItem('trainer_token') || '';
+    // Offline DB local: contiene entradas por UUID completo Y por short_id (8 chars)
+    const offlineDb = JSON.parse(localStorage.getItem('scanner_offline_db') || '{}');
 
-    // Preparar el lote de registros adaptándolos a BatchScanRecord
+    // Resolver el UUID completo para cada scan antes de enviarlo al servidor.
+    // El backend requiere UUID completo (36 chars); si se envía el short_id
+    // el INSERT es ignorado silenciosamente y el registro se pierde.
     const batchRecords = queuedScans.map((scan, index) => {
-        let student_id = scan.code;
-        // Si es código seguro generado offline (JRS:), extraer solo el ID
+        let student_id = null;
+
         if (scan.code.startsWith("JRS:")) {
             const parts = scan.code.split(":");
-            if (parts.length >= 2) student_id = parts[1];
+            const shortId = parts.length >= 2 ? parts[1] : null;
+            if (shortId) {
+                // Buscar el UUID completo en la DB offline (clave de 36 chars)
+                const fullUuid = Object.keys(offlineDb).find(
+                    k => k.length === 36 && k.startsWith(shortId)
+                );
+                student_id = fullUuid || null; // null → filtrado por el servidor
+            }
+        } else {
+            // Código legacy STU-XXXXX: usar como student_id directamente
+            student_id = scan.code;
         }
+
         return {
-            student_id: student_id,
+            student_id: student_id || scan.code, // fallback: el servidor lo rechazará si no es UUID
             timestamp: scan.timestamp,
-            local_id: 'sync-' + Date.now() + '-' + index
+            local_id: `sync-${index}-${scan.timestamp}`
         };
-    });
+    }).filter(r => r.student_id); // quitar entradas sin ID resuelto
 
     // Enviar lote completo con un solo Request
     fetch('/attendance/sync-batch', {

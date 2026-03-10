@@ -144,41 +144,35 @@ def get_historial(student_id: str, admin=Depends(verify_admin)):
 
 
 @router.post("/canjear")
-def canjear_batido(body: CanjeRequest):
-    """Descuenta créditos y registra el canje."""
-
-    alumno_res = (
-        supabase.table("students")
-        .select("id, full_name, batido_credits")
-        .eq("id", body.student_id)
-        .execute()
-    )
-
-    if not alumno_res.data:
-        raise HTTPException(status_code=404, detail="Alumno no encontrado")
-
-    alumno = alumno_res.data[0]
-    saldo = alumno.get("batido_credits") or 0
-
-    if saldo < body.credits_used:
-        raise HTTPException(status_code=400, detail="Saldo insuficiente")
-
-    nuevo_saldo = saldo - body.credits_used
-    supabase.table("students").update(
-        {"batido_credits": nuevo_saldo}
-    ).eq("id", body.student_id).execute()
-
-    supabase.table("batido_canjes").insert({
-        "student_id":  body.student_id,
-        "batido_name": body.batido_name,
-        "credits_used": body.credits_used,
-        "emoji":       body.emoji,
+def canjear_batido_endpoint(body: CanjeRequest):
+    """
+    Descuenta créditos y registra el canje de forma atómica.
+    Toda la lógica transaccional vive en la función PL/pgSQL canjear_batido().
+    FastAPI es solo un mensajero: delega y traduce la respuesta.
+    """
+    res = supabase.rpc("canjear_batido", {
+        "p_student_id":   body.student_id,
+        "p_batido_name":  body.batido_name,
+        "p_credits_used": body.credits_used,
+        "p_emoji":        body.emoji,
     }).execute()
 
-    return {
-        "ok":             True,
-        "alumno":         alumno["full_name"],
-        "batido":         body.batido_name,
-        "creditos_usados": body.credits_used,
-        "saldo_restante": nuevo_saldo,
-    }
+    # supabase-py envuelve el JSONB retornado por la función en res.data.
+    # Para llamadas RPC que retornan un único JSONB, res.data es la dict directamente
+    # o una lista con un elemento, dependiendo de la versión de supabase-py.
+    result = res.data
+    if isinstance(result, list):
+        result = result[0] if result else {}
+
+    if not result or not result.get("ok"):
+        status = result.get("status", "error") if result else "error"
+        message = result.get("message", "Error en el canje") if result else "Sin respuesta del servidor"
+
+        if status == "sin_credito":
+            raise HTTPException(status_code=402, detail=message)
+        elif status == "not_found":
+            raise HTTPException(status_code=404, detail=message)
+        else:
+            raise HTTPException(status_code=500, detail=message)
+
+    return result
