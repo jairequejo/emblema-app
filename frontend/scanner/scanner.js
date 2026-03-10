@@ -65,6 +65,17 @@ async function pinSubmit() {
             sessionStorage.setItem('scanner_pin', _scannerPin);
             const data = await r.json();
             localStorage.setItem('scanner_offline_db', JSON.stringify(data));
+
+            // Restaurar el indicator a su color normal (puede haber cambiado a rojo por 401)
+            const indicator = document.getElementById('offline-queue-indicator');
+            if (indicator) {
+                indicator.style.background = 'var(--gold)';
+                indicator.style.color = '#000';
+            }
+
+            // Re-iniciar el bucle de sync si fue detenido por un 401 previo
+            if (typeof _startSyncLoop === 'function') _startSyncLoop();
+
             hidePinOverlay();
         } else {
             if (errEl) errEl.textContent = 'PIN incorrecto. Inténtalo de nuevo.';
@@ -389,6 +400,22 @@ async function processOfflineScan(code, fromNFC = false) {
     }
 }
 
+// Handle del intervalo de sync — guardado para poder detenerlo ante un 401
+let _syncIntervalId = null;
+
+function _stopSyncLoop() {
+    if (_syncIntervalId !== null) {
+        clearInterval(_syncIntervalId);
+        _syncIntervalId = null;
+        console.warn('[Sync] Bucle de sincronización DETENIDO.');
+    }
+}
+
+function _startSyncLoop() {
+    if (_syncIntervalId !== null) return; // ya está corriendo
+    _syncIntervalId = setInterval(syncOfflineQueue, 15000);
+}
+
 function syncOfflineQueue() {
     if (!navigator.onLine || queuedScans.length === 0) return;
 
@@ -437,26 +464,81 @@ function syncOfflineQueue() {
         })
     })
         .then(res => {
+            // ── 200 OK: Éxito — vaciar la mochila ───────────────────────────────
             if (res.ok) {
-                // Solo si la respuesta es exitosa vaciamos la memoria (200 OK)
                 queuedScans = [];
                 localStorage.setItem('scanner_queued_scans', JSON.stringify(queuedScans));
                 updateQueueUI();
-                console.log("Sincronización masiva exitosa.");
-            } else {
-                console.warn("Reteniendo mochila: Fallo el sync masivo. Status:", res.status);
+                console.log('[Sync] Sincronización masiva exitosa.');
+                return;
             }
+
+            // ── 401 Unauthorized: Token expirado o revocado ──────────────────────
+            // ESTRATEGIA BARBELL:
+            // Lado seguro: detenemos el bucle inmediatamente para no bombardear
+            //   el servidor ni gastar batería. Los datos de la mochila NO se tocan.
+            // Lado opcional: mostramos el PIN para que un humano resuelva el problema.
+            if (res.status === 401) {
+                console.error('[Sync] 401 Unauthorized — token inválido. Deteniendo bucle de sync.');
+                _stopSyncLoop();
+
+                // Mostrar mensaje de sesión expirada en la UI
+                const indicator = document.getElementById('offline-queue-indicator');
+                if (indicator) {
+                    indicator.style.background = '#c0392b';
+                    indicator.style.color = '#fff';
+                    indicator.textContent = `⚠️ Sesión expirada. ${queuedScans.length} escaneos pendientes.`;
+                    indicator.style.display = 'block';
+                }
+
+                // Devolver el control al humano: el entrenador ingresa un PIN válido
+                // para obtener un nuevo token. Al hacerlo exitosamente, pinSubmit()
+                // ya llama a hidePinOverlay() y el próximo ciclo (re-iniciado) enviará.
+                showPinOverlay();
+
+                // Sobreescribir el mensaje del overlay PIN para este contexto específico
+                const pinErr = document.getElementById('pin-err');
+                if (pinErr) pinErr.textContent = 'Sesión expirada. Ingrese PIN para sincronizar datos offline.';
+                return;
+            }
+
+            // ── 413 Payload Too Large / 400 Bad Request: Lotes problemáticos ─────
+            // NOTA PARA EL FUTURO — CHUNKING:
+            //   Si el servidor rechaza el lote por tamaño (413) o formato (400),
+            //   la solución es dividir `batchRecords` en sub-lotes y enviarlos
+            //   secuencialmente. Ejemplo:
+            //     const CHUNK_SIZE = 50;
+            //     for (let i = 0; i < batchRecords.length; i += CHUNK_SIZE) {
+            //         const chunk = batchRecords.slice(i, i + CHUNK_SIZE);
+            //         await fetch('/attendance/sync-batch', { ...opciones, body: JSON.stringify({ records: chunk }) });
+            //     }
+            //   Por ahora, detenemos el envío (sin borrar la mochila) para no
+            //   colapsar el servidor con peticiones que sabemos que fallarán.
+            if (res.status === 413 || res.status === 400) {
+                console.error(`[Sync] ${res.status} — Lote rechazado. Reteniendo mochila. Considera implementar chunking.`);
+                _stopSyncLoop();
+                return;
+            }
+
+            // ── Cualquier otro error (5xx, etc.): retener y reintentar ────────────
+            console.warn('[Sync] Reteniendo mochila — fallo temporal. Status:', res.status);
         })
         .catch(err => {
-            console.log("Reteniendo mochila: Error de red durante el sync, reintentando en próximo ciclo:", err);
+            // Error de red puro (sin conexión, timeout, etc.): reintentar en próximo ciclo
+            console.log('[Sync] Reteniendo mochila: error de red durante el sync:', err);
         });
 }
 
+// Al recuperar conexión: refrescar DB offline y forzar un intento de sync inmediato
 window.addEventListener('online', () => {
     fetchOfflineData();
+    // Re-iniciar el bucle si fue detenido por un 401 anterior y hay conexión nueva
+    _startSyncLoop();
     syncOfflineQueue();
 });
-setInterval(syncOfflineQueue, 15000);
+
+// Iniciar el bucle de sync al cargar
+_startSyncLoop();
 
 // ── LÓGICA CENTRAL DE SCAN ────────────────────────────
 let html5Qrcode = null;       // API low-level — control total sobre pause/resume
