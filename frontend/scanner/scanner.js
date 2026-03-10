@@ -12,8 +12,19 @@ async function requestWakeLock() {
     }
 }
 requestWakeLock();
+
+// ── REINICIAR CÁMARA AL VOLVER AL FOCO (Android/NFC pausa el browser) ────
+// Cuando el NFC es leído, Android puede pausar momentáneamente la página.
+// Al volver a visibilityState='visible', nos aseguramos de que la cámara
+// esté activa y _resumeCamera() la desatasque si estaba pausada.
 document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') requestWakeLock();
+    if (document.visibilityState === 'visible') {
+        requestWakeLock();
+        // Esperar 300ms para que el sistema termine de manejar el evento NFC
+        setTimeout(() => {
+            if (typeof _resumeCamera === 'function') _resumeCamera();
+        }, 300);
+    }
 });
 
 // ── FIX 2: GESTIÓN DEL PIN DEL SCANNER ────────────────────────────────────

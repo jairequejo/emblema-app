@@ -63,7 +63,10 @@ def home():
 
 @app.get("/scanner")
 def scanner():
-    return FileResponse("frontend/scanner/index.html")
+    resp = FileResponse("frontend/scanner/index.html")
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    return resp
 
 
 @app.get("/caja")

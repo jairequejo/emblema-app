@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>JR Stars — Scanner</title>
     <link rel="stylesheet" href="/static/scanner/style.css">
     <link rel="icon" href="/static/favicon-scanner.ico" type="image/x-icon">
@@ -65,8 +68,15 @@
 
     <div class="history-strip" id="history-strip"></div>
 
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="/static/scanner/scanner.js?v=3"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script>
+        // Cargar scanner.js fresco SIEMPRE (anti-cache)
+        (function () {
+            var s = document.createElement('script');
+            s.src = '/static/scanner/scanner.js?_=' + Date.now();
+            document.body.appendChild(s);
+        })();
+    </script>
 
     <!-- Fix 2: PIN overlay — visible solo si SCANNER_PIN está configurado en el servidor -->
     <div id="pin-overlay" style="
