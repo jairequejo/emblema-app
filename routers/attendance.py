@@ -155,17 +155,16 @@ def scan_credential(scan: ScanRequest, _pin=Depends(verify_scanner_pin)):
                     "student_name": nombre_final,
                     "detalle": f"Venció hace {dias} día{'s' if dias != 1 else ''}. Contactar al administrador."}
 
-        # INSERT directo — el UNIQUE INDEX del servidor rechaza duplicados sin SELECT previo.
-        # Supabase retorna una lista vacía (no lanza excepción Python) cuando hay conflicto
-        # y se usa on_conflict=ignore. Detectamos «ya registrado» por res.data vacío.
-        fecha_registro = datetime.now(timezone.utc).isoformat()  # ignoramos el reloj del cliente
-        res = supabase.table("attendance").insert(
+        # upsert con ignore_duplicates=True → INSERT ... ON CONFLICT DO NOTHING
+        # Cuando el UNIQUE INDEX rechaza el duplicado, res.data queda vacío.
+        # No hay SELECT previo: cero TOCTOU.
+        fecha_registro = datetime.now(timezone.utc).isoformat()
+        res = supabase.table("attendance").upsert(
             {"student_id": student_id, "created_at": fecha_registro},
-            returning="minimal",
-        ).on_conflict("uq_attendance_student_day").ignore().execute()
+            ignore_duplicates=True,
+        ).execute()
 
         if res.data is not None and len(res.data) == 0:
-            # El índice unique absorbió el duplicado: respuesta idempotente
             return {"status": "warning", "message": f"Ya registrado: {nombre_final}", "student_name": nombre_final}
 
         return {"status": "success", "message": f"¡Bienvenido, {nombre_final}!", "student_name": nombre_final}
@@ -206,11 +205,11 @@ def scan_credential(scan: ScanRequest, _pin=Depends(verify_scanner_pin)):
                     "student_name": nombre_final,
                     "detalle": f"Venció hace {dias} día{'s' if dias != 1 else ''}. Contactar al administrador."}
 
-    fecha_registro = datetime.now(timezone.utc).isoformat()  # ignoramos el reloj del cliente
-    res = supabase.table("attendance").insert(
+    fecha_registro = datetime.now(timezone.utc).isoformat()
+    res = supabase.table("attendance").upsert(
         {"credential_id": raw_data["id"], "student_id": student_id, "created_at": fecha_registro},
-        returning="minimal",
-    ).on_conflict("uq_attendance_student_day").ignore().execute()
+        ignore_duplicates=True,
+    ).execute()
 
     if res.data is not None and len(res.data) == 0:
         return {"status": "warning", "message": f"Ya registrado: {nombre_final}", "student_name": nombre_final}
@@ -285,18 +284,16 @@ def sync_batch(req: BatchScanRequest):
             "rechazados_id": rechazados_id,
         }
 
-    # ── Bulk INSERT único — el UNIQUE INDEX rechaza duplicados sin bucle for ──
-    # on_conflict ignore: el servidor descarta silenciosamente las filas que
-    # violarían uq_attendance_student_day. Una sola petición HTTP a Supabase.
-    res = supabase.table("attendance").insert(
+    # ── Bulk upsert único — una sola petición HTTP a Supabase ──────────────
+    # ignore_duplicates=True → INSERT ... ON CONFLICT DO NOTHING
+    # El UNIQUE INDEX rechaza duplicados; res.data solo contiene las filas insertadas.
+    res = supabase.table("attendance").upsert(
         filas,
-        returning="minimal",
-    ).on_conflict("uq_attendance_student_day").ignore().execute()
+        ignore_duplicates=True,
+    ).execute()
 
-    # Supabase no retorna conteo exacto de ignorados con returning=minimal,
-    # así que estimamos: total enviado - retornado = duplicados absorbidos.
-    inserted = len(res.data) if res.data else len(filas)  # si minimal, asume éxito total
-    duplicates = len(filas) - inserted if inserted <= len(filas) else 0
+    inserted = len(res.data) if res.data else 0
+    duplicates = len(filas) - inserted
 
     return {
         "ok": True,
