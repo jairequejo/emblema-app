@@ -445,7 +445,7 @@ function _armSafety(fromNFC) {
         if (isProcessing) {
             console.warn('[Scanner] Safety-net: forzando reset de isProcessing');
             isProcessing = false;
-            try { if (html5Qrcode) html5Qrcode.resume(); } catch (e) { }
+            _resumeCamera();
             const s = document.getElementById('status-text');
             if (s) s.textContent = 'Acerca tu medallón';
         }
@@ -515,11 +515,14 @@ function handleScan(decodedText, fromNFC = false) {
         });
 }
 
-// Con la API low-level (Html5Qrcode), el scanner NUNCA se auto-pausa.
-// Esta función existe solo como safety-net para mantener consistencia.
+// La librería Html5Qrcode (low-level) pausa internamente tras cada scan exitoso.
+// Esta función la reanuda de forma segura.
 function _resumeCamera() {
-    // No se necesita hacer nada — la cámara sigue active siempre.
-    // isProcessing=false (puesto por resume()) es suficiente para aceptar nuevos scans.
+    try {
+        if (html5Qrcode) html5Qrcode.resume();
+    } catch (e) {
+        // La librería lanza "Scanner is not paused" si ya está activa — es normal, ignorar.
+    }
 }
 
 function resume(fromNFC = false) {
@@ -728,6 +731,8 @@ async function initNFC() {
 
                 if (!code) continue; // nada útil en este record → siguiente
 
+                // Desbloquear la cámara si estaba pausada por un scan QR previo
+                _resumeCamera();
                 handleScan(code.trim(), true /* fromNFC */);
                 break; // Primer registro válido procesado — detener el loop
             }
