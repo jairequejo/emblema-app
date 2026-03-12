@@ -122,11 +122,13 @@ function _saveOfflineData(data) {
 }
 
 window.addEventListener('load', async () => {
+    // NFC via URL: guardar el code ANTES de que initScanner arranque la camara
     const _urlParams = new URLSearchParams(window.location.search);
     const _nfcCode = _urlParams.get('code');
     if (_nfcCode) {
-        window.history.replaceState({}, '', '/scanner'); // limpiar URL
-        setTimeout(() => handleScan(_nfcCode.trim(), true), 800);
+        window.history.replaceState({}, '', '/scanner');
+        window._pendingNfcCode = _nfcCode.trim();
+        _dbg('NFC via URL capturado: ' + _nfcCode.slice(0,20));
     }
 
     try {
@@ -142,132 +144,10 @@ window.addEventListener('load', async () => {
             _saveOfflineData(data);
             hidePinOverlay();
         }
-    } catch { /* sin conexión al cargar — usar clave almacenada */ }
+    } catch { /* sin conexion al cargar */ }
     setTimeout(initScanner, 300);
 });
 
-// ── RELOJ ─────────────────────────────────────────────
-const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-
-function updateClock() {
-    const now = new Date();
-    const h = String(now.getHours()).padStart(2, '0');
-    const m = String(now.getMinutes()).padStart(2, '0');
-    const clockEl = document.getElementById('clock');
-    const dateEl = document.getElementById('date-display');
-    if (clockEl) clockEl.textContent = `${h}:${m}`;
-    if (dateEl) dateEl.textContent = `${DIAS[now.getDay()]} ${now.getDate()} ${MESES[now.getMonth()]}`;
-}
-updateClock();
-setInterval(updateClock, 1000);
-
-// ── AUDIO ─────────────────────────────────────────────
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-function playSuccess() {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain); gain.connect(audioCtx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(660, audioCtx.currentTime);
-    osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1);
-    gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-    osc.start(); osc.stop(audioCtx.currentTime + 0.4);
-}
-
-function playWarning() {
-    [0, 0.2].forEach(offset => {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(440, audioCtx.currentTime + offset);
-        gain.gain.setValueAtTime(0.3, audioCtx.currentTime + offset);
-        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + offset + 0.15);
-        osc.start(audioCtx.currentTime + offset);
-        osc.stop(audioCtx.currentTime + offset + 0.15);
-    });
-}
-
-function playError() {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain); gain.connect(audioCtx.destination);
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.5);
-    gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
-    osc.start(); osc.stop(audioCtx.currentTime + 0.5);
-}
-
-// ── FLASH DE PANTALLA ─────────────────────────────────
-const FLASH_DURATION = 3500;
-
-function showFlash(estado, nombre, mensaje) {
-    const flashBg = document.getElementById('flash-bg');
-    const overlay = document.getElementById('result-overlay');
-    const nameEl = document.getElementById('result-name');
-    const msgEl = document.getElementById('result-msg');
-
-    if (!flashBg || !overlay || !nameEl) return;
-
-    flashBg.className = `show ${estado}`;
-    overlay.className = `result-overlay show ${estado}`;
-    nameEl.textContent = nombre || 'Desconocido';
-    if (msgEl) {
-        msgEl.textContent = estado === 'success' ? '¡BIENVENIDO!' :
-            estado === 'warning' ? 'YA REGISTRADO' :
-                estado === 'debe' ? 'MENSUALIDAD VENCIDA' : 'RECHAZADO';
-    }
-
-    const oldBar = overlay.querySelector('.result-progress');
-    if (oldBar) oldBar.remove();
-    const bar = document.createElement('div');
-    bar.className = 'result-progress';
-    overlay.appendChild(bar);
-
-    setTimeout(() => {
-        flashBg.className = '';
-        overlay.className = 'result-overlay';
-        const statusEl = document.getElementById('status-text');
-        if (statusEl) statusEl.textContent = 'Acerca tu medallón';
-    }, FLASH_DURATION);
-}
-
-// ── HISTORIAL ─────────────────────────────────────────
-const historyItems = [];
-
-function addHistory(estado, nombre) {
-    const strip = document.getElementById('history-strip');
-    if (!strip) return;
-
-    const hora = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    historyItems.unshift({ type: estado, name: nombre, hora });
-    if (historyItems.length > 15) historyItems.pop();
-
-    strip.innerHTML = historyItems.map(item => `
-        <div class="history-item ${item.type}">
-            <div class="h-dot"></div>
-            <span class="h-name">${item.name}</span>
-            <span class="h-time">${item.hora}</span>
-        </div>
-    `).join('');
-}
-
-// ── SINCRONIZACIÓN OFFLINE ────────────────────────────
-function fetchOfflineData() {
-    const headers = _scannerPin ? { 'X-Scanner-Pin': _scannerPin } : {};
-    fetch('/attendance/scanner/offline-data', { headers })
-        .then(res => res.json())
-        .then(data => {
-            _saveOfflineData(data);
-            console.log("Base de datos offline actualizada:", Object.keys(data).length, "registros");
-        })
-        .catch(err => console.log("Error actualizando DB offline:", err));
-}
 setInterval(fetchOfflineData, 5 * 60 * 1000);
 
 let queuedScans = JSON.parse(localStorage.getItem('scanner_queued_scans') || '[]');
@@ -802,12 +682,27 @@ function initScanner() {
                 () => { }
             ).then(() => {
                 localStorage.setItem('preferred_camera_id', camId);
+                // Si habia un codigo NFC pendiente (llegó via URL), procesarlo ahora
+                if (window._pendingNfcCode) {
+                    const code = window._pendingNfcCode;
+                    window._pendingNfcCode = null;
+                    _dbg('NFC pendiente procesando: ' + code.slice(0,20));
+                    setTimeout(() => handleScan(code, true), 500);
+                }
             });
         })
         .catch(err => console.error('[Scanner] Error iniciando cámara:', err));
 
     startMirrorCheck();
-    initNFC();
+    // NO llamar initNFC() en PWA — el NFC llega via URL, no via NDEFReader
+    // initNFC() causa que Android pause la camara al interceptar el chip
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+                      || window.navigator.standalone === true;
+    if (!isStandalone) {
+        initNFC(); // solo en browser normal, no en PWA instalada
+    } else {
+        _dbg('PWA standalone — NFC via URL activo, NDEFReader desactivado');
+    }
 }
 
 const rightPanel = document.getElementById('right-panel');
