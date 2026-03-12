@@ -4,10 +4,10 @@
   "description": "Scanner de asistencia JR Stars Academia",
   "start_url": "/scanner",
   "scope": "/scanner",
-  "display": "standalone",
+  "display": "fullscreen",
   "orientation": "landscape",
-  "background_color": "#0a0a0a",
-  "theme_color": "#d4a017",
+  "background_color": "#080808",
+  "theme_color": "#080808",
   "icons": [
     {
       "src": "/static/img/logo.png",

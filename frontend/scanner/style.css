@@ -389,11 +389,11 @@ body::before {
   pointer-events: none;
   transition: opacity 0.2s;
   background: transparent;
-  /* el color viene de #flash-bg */
+  display: flex;
 }
-
 .result-overlay.show {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .result-icon {

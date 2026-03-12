@@ -237,24 +237,27 @@ const STATUS_CONFIG = {
 };
 
 function showFlash(status, name, msg) {
-    const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.error;
     const ov = document.getElementById('result-overlay');
     const ic = document.getElementById('result-icon');
     const nm = document.getElementById('result-name');
     const ms = document.getElementById('result-msg');
     const bg = document.getElementById('flash-bg');
+
+    const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.error;
     if (ic) ic.textContent = cfg.icon;
     if (nm) nm.textContent = name || '';
     if (ms) ms.textContent = msg || '';
+
+    // Overlay — usar clase .show (el CSS maneja opacity 0→1)
     if (ov) {
-        ov.className = 'result-overlay result-' + status;
-        ov.style.display = 'flex';
-        setTimeout(() => { ov.style.display = 'none'; }, FLASH_DURATION);
+        ov.className = 'result-overlay ' + status + ' show';
+        setTimeout(() => { ov.className = 'result-overlay'; }, FLASH_DURATION);
     }
+
+    // Flash fondo — usar clases CSS (success/warning/debe/error)
     if (bg) {
-        bg.style.background = cfg.color;
-        bg.style.opacity = '1';
-        setTimeout(() => { bg.style.opacity = '0'; }, FLASH_DURATION - 300);
+        bg.className = 'show ' + status;
+        setTimeout(() => { bg.className = ''; }, FLASH_DURATION);
     }
 }
 
