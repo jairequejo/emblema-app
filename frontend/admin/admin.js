@@ -36,7 +36,6 @@ function closeSidebar() {
 }
 
 // ── NAVEGACIÓN ────────────────────────────────────────
-let scannerInit = false;
 let paginaActual = 'stats';
 
 function goTo(page, ev) {
@@ -56,7 +55,12 @@ function goTo(page, ev) {
   if (page === 'ranking') cargarRanking();
   if (page === 'calendario') loadCalendario();
   if (page === 'entrenadores') loadEntrenadores();
-  if (page === 'scanner' && !scannerInit) initScanner();
+  
+  if (page === 'scanner') {
+      setTimeout(initAdminScanner, 200);
+  } else {
+      if (typeof stopAdminScanner === 'function') stopAdminScanner();
+  }
 }
 
 // Barra de navegación inferior (móvil)
@@ -88,54 +92,119 @@ async function loadStats() {
 }
 
 // ── SCANNER ───────────────────────────────────────────
-let adminScannerLock = false;
-let adminQrScanner = null;
+let _adminScanner = null;
+let _adminScannerStarted = false;
 
-function initScanner() {
-  scannerInit = true;
-  adminQrScanner = new Html5QrcodeScanner('admin-reader', {
-    fps: 10, // Reducido para dar más tiempo de procesamiento a QRs densos
-    qrbox: { width: 250, height: 250 }
-  });
+function initAdminScanner() {
+    if (_adminScannerStarted) return;
+    _adminScannerStarted = true;
 
-  adminQrScanner.render(async (code) => {
-    if (adminScannerLock) return;
-    adminScannerLock = true;
+    const readerEl = document.getElementById('admin-reader');
+    if (!readerEl) return;
 
-    // scanner.pause() ELIMINADO — bloqueo lógico para evitar crash de cámara en Android
+    _adminScanner = new Html5Qrcode('admin-reader');
 
-    const clean = code.includes('?code=') ? code.split('?code=')[1] : code;
-    try {
-      const res = await fetch('/attendance/scan', {
-        method: 'POST',
-        headers: H,
-        body: JSON.stringify({ code: clean })
-      });
-      const d = await res.json();
-      const el = document.getElementById('scan-result');
-      el.style.display = 'block';
-      el.className = `scan-result ${d.status}`;
+    Html5Qrcode.getCameras()
+        .then(cameras => {
+            if (!cameras || cameras.length === 0) {
+                readerEl.innerHTML = '<p style="color:red;font-family:monospace">No se encontró cámara.</p>';
+                return;
+            }
 
-      if (d.status === 'debe') {
-        el.innerHTML = `🚫 <strong>${d.student_name}</strong><br>
-          <span style="color:#ff6ec7;font-size:.85rem">MENSUALIDAD VENCIDA</span><br>
-          <span style="font-size:.8rem;opacity:.8">${d.detalle || ''}</span>`;
-      } else {
-        el.innerHTML = d.message;
-      }
+            // Preferir cámara trasera
+            let camId = cameras[0].id;
+            const back = cameras.find(c =>
+                c.label.toLowerCase().includes('back') ||
+                c.label.toLowerCase().includes('rear') ||
+                c.label.toLowerCase().includes('environment')
+            );
+            if (back) camId = back.id;
 
-      const li = document.createElement('li');
-      li.style.cssText = 'padding:.5rem 0;border-bottom:1px solid var(--border);font-family:var(--font-cond);font-size:.9rem';
-      const color = d.status === 'debe' ? '#e91e8c' : 'var(--gold)';
-      li.innerHTML = `<strong style="color:${color}">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</strong> — ${d.student_name || clean}`;
-      document.getElementById('scan-history').prepend(li);
+            return _adminScanner.start(
+                camId,
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                (decodedText) => {
+                    // Extraer código JRS si viene en URL
+                    let code = decodedText;
+                    if (decodedText.includes('?code=')) {
+                        code = decodedText.split('?code=')[1];
+                    }
+                    onAdminQRScanned(code);
+                },
+                () => { /* frame sin QR, ignorar */ }
+            );
+        })
+        .catch(err => {
+            console.error('[Admin Scanner] Error:', err);
+            readerEl.innerHTML = `<p style="color:red;font-family:monospace">Error de cámara: ${err}</p>`;
+        });
+        
+    initNFC();
+}
 
-      setTimeout(() => { el.style.display = 'none'; adminScannerLock = false; }, 3000);
-    } catch {
-      setTimeout(() => { adminScannerLock = false; }, 2000);
+function stopAdminScanner() {
+    if (_adminScanner) {
+        _adminScanner.stop().catch(() => {});
+        _adminScanner = null;
+        _adminScannerStarted = false;
     }
-  });
-  initNFC();
+}
+
+async function onAdminQRScanned(code) {
+    if (!code) return;
+
+    const resultEl = document.getElementById('scan-result');
+    const historyEl = document.getElementById('scan-history');
+
+    if (resultEl) {
+        resultEl.style.display = 'block';
+        resultEl.className = 'scan-result';
+        resultEl.textContent = 'Procesando...';
+    }
+
+    try {
+        const res = await fetch('/attendance/scan', {
+            method: 'POST',
+            headers: H,
+            body: JSON.stringify({ code })
+        });
+
+        const data = await res.json();
+        const nombre = data.student_name || 'Desconocido';
+        const estado = data.status || 'error';
+        const mensaje = data.message || data.detail || '';
+
+        if (resultEl) {
+            resultEl.className = `scan-result ${estado}`;
+            if (estado === 'debe') {
+              resultEl.innerHTML = `🚫 <strong>${nombre}</strong><br>
+                <span style="color:#ff6ec7;font-size:.85rem">MENSUALIDAD VENCIDA</span><br>
+                <span style="font-size:.8rem;opacity:.8">${data.detalle || ''}</span>`;
+            } else {
+              resultEl.innerHTML = mensaje;
+            }
+        }
+
+        // Agregar al historial
+        if (historyEl) {
+            const hora = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const li = document.createElement('li');
+            li.style.cssText = 'padding:.5rem 0;border-bottom:1px solid var(--border);font-family:var(--font-cond);font-size:.9rem';
+            const color = estado === 'debe' ? '#e91e8c' : 'var(--gold)';
+            li.innerHTML = `<strong style="color:${color}">${hora}</strong> — ${nombre || code}`;
+            historyEl.insertBefore(li, historyEl.firstChild);
+            if (historyEl.children.length > 10) historyEl.removeChild(historyEl.lastChild);
+        }
+
+        setTimeout(() => { if (resultEl) resultEl.style.display = 'none'; }, 3000);
+
+    } catch (e) {
+        if (resultEl) {
+            resultEl.className = 'scan-result error';
+            resultEl.textContent = '❌ Error de conexión';
+            setTimeout(() => { resultEl.style.display = 'none'; }, 2000);
+        }
+    }
 }
 
 

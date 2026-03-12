@@ -1,5 +1,9 @@
-// scanner/scanner.js — v3.0 unificado
-// Este archivo ES el kiosko. No necesita kiosko.js separado.
+// scanner/scanner.js — v3.1 bugfix
+// FIXES aplicados:
+// [FIX-1] validateJRS: si no hay clave local, hace fetch online en lugar de rechazar
+// [FIX-2] b64uDecode: usa TextDecoder en lugar de escape()/unescape() (falla en Firefox/Samsung)
+// [FIX-3] NFC: la clave se recarga automáticamente si estaba ausente al momento del scan
+// [FIX-4] QR Admin: se expone initAdminScanner() para que admin.js pueda inicializarlo
 
 // ── BLOQUEAR BOTÓN ATRÁS ──────────────────────────────
 window.history.pushState(null, null, window.location.href);
@@ -13,14 +17,9 @@ async function requestWakeLock() {
 }
 requestWakeLock();
 
-// ── REINICIAR CÁMARA AL VOLVER AL FOCO (Android/NFC pausa el browser) ────
-// Cuando el NFC es leído, Android puede pausar momentáneamente la página.
-// Al volver a visibilityState='visible', nos aseguramos de que la cámara
-// esté activa y _resumeCamera() la desatasque si estaba pausada.
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         requestWakeLock();
-        // Esperar 300ms para que el sistema termine de manejar el evento NFC
         setTimeout(() => {
             if (typeof _resumeCamera === 'function') _resumeCamera();
         }, 300);
@@ -64,22 +63,15 @@ async function pinSubmit() {
             _scannerPin = _pinBuffer;
             sessionStorage.setItem('scanner_pin', _scannerPin);
             const data = await r.json();
-            if (data._META_SIGNING_KEY) {
-                localStorage.setItem('jr_signing_key', data._META_SIGNING_KEY);
-                delete data._META_SIGNING_KEY;
-            }
-            localStorage.setItem('scanner_offline_db', JSON.stringify(data));
+            _saveOfflineData(data);
 
-            // Restaurar el indicator a su color normal (puede haber cambiado a rojo por 401)
             const indicator = document.getElementById('offline-queue-indicator');
             if (indicator) {
                 indicator.style.background = 'var(--gold)';
                 indicator.style.color = '#000';
             }
 
-            // Re-iniciar el bucle de sync si fue detenido por un 401 previo
             if (typeof _startSyncLoop === 'function') _startSyncLoop();
-
             hidePinOverlay();
         } else {
             if (errEl) errEl.textContent = 'PIN incorrecto. Inténtalo de nuevo.';
@@ -103,7 +95,16 @@ function hidePinOverlay() {
     if (ov) { ov.style.display = 'none'; }
 }
 
-// Al cargar: verificar si el servidor requiere PIN
+// ── [FIX-3] Helper para guardar datos offline incluyendo la clave ──────────
+function _saveOfflineData(data) {
+    if (data._META_SIGNING_KEY) {
+        localStorage.setItem('jr_signing_key', data._META_SIGNING_KEY);
+        _cryptoKey = null; // forzar re-importación con la nueva clave
+        delete data._META_SIGNING_KEY;
+    }
+    localStorage.setItem('scanner_offline_db', JSON.stringify(data));
+}
+
 window.addEventListener('load', async () => {
     try {
         const r = await fetch('/attendance/scanner/offline-data',
@@ -115,14 +116,10 @@ window.addEventListener('load', async () => {
             showPinOverlay();
         } else if (r.ok) {
             const data = await r.json();
-            if (data._META_SIGNING_KEY) {
-                localStorage.setItem('jr_signing_key', data._META_SIGNING_KEY);
-                delete data._META_SIGNING_KEY;
-            }
-            localStorage.setItem('scanner_offline_db', JSON.stringify(data));
+            _saveOfflineData(data);
             hidePinOverlay();
         }
-    } catch { /* sin conexión al cargar — usar PIN almacenado */ }
+    } catch { /* sin conexión al cargar — usar clave almacenada */ }
     setTimeout(initScanner, 300);
 });
 
@@ -203,7 +200,6 @@ function showFlash(estado, nombre, mensaje) {
                 estado === 'debe' ? 'MENSUALIDAD VENCIDA' : 'RECHAZADO';
     }
 
-    // Barra de progreso: recrear el elemento para reiniciar la animación
     const oldBar = overlay.querySelector('.result-progress');
     if (oldBar) oldBar.remove();
     const bar = document.createElement('div');
@@ -244,16 +240,11 @@ function fetchOfflineData() {
     fetch('/attendance/scanner/offline-data', { headers })
         .then(res => res.json())
         .then(data => {
-            if (data._META_SIGNING_KEY) {
-                localStorage.setItem('jr_signing_key', data._META_SIGNING_KEY);
-                delete data._META_SIGNING_KEY;
-            }
-            localStorage.setItem('scanner_offline_db', JSON.stringify(data));
+            _saveOfflineData(data);
             console.log("Base de datos offline actualizada:", Object.keys(data).length, "registros");
         })
         .catch(err => console.log("Error actualizando DB offline:", err));
 }
-// Actualizar cada 5 min
 setInterval(fetchOfflineData, 5 * 60 * 1000);
 
 let queuedScans = JSON.parse(localStorage.getItem('scanner_queued_scans') || '[]');
@@ -275,7 +266,7 @@ function updateQueueUI() {
 updateQueueUI();
 
 // ── CRYPTO: VALIDACIÓN HMAC LOCAL ─────────────────────────
-const SIGNING_KEY_SK = 'jr_signing_key'; // localStorage
+const SIGNING_KEY_SK = 'jr_signing_key';
 let _cryptoKey = null;
 
 function hexToBytes(hex) {
@@ -299,33 +290,69 @@ async function getCryptoKey() {
     } catch { return null; }
 }
 
-async function computeHmac(student_id, valid_yyyymmdd, name_b64) {
+async function computeHmac(short_id, valid_yyyymmdd, name_b64) {
     const key = await getCryptoKey();
     if (!key) return null;
-    // IMPORTANTE: el mensaje firma con name_b64 (base64url), igual que jrs_utils.py
-    const msg = new TextEncoder().encode(`${student_id}|${valid_yyyymmdd}|${name_b64}`);
+    const msg = new TextEncoder().encode(`${short_id}|${valid_yyyymmdd}|${name_b64}`);
     const sig = await crypto.subtle.sign('HMAC', key, msg);
     return Array.from(new Uint8Array(sig).slice(0, 8))
         .map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+// [FIX-2] b64uDecode con TextDecoder — funciona correctamente con UTF-8 multi-byte
+// (la versión anterior con escape()/unescape() falla en Firefox y Samsung Browser)
 function b64uDecode(str) {
     str = str.replace(/-/g, '+').replace(/_/g, '/');
     while (str.length % 4) str += '=';
-    return decodeURIComponent(escape(atob(str)));
+    try {
+        // Método moderno y correcto para UTF-8
+        const binary = atob(str);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return new TextDecoder('utf-8').decode(bytes);
+    } catch {
+        // Fallback para navegadores muy antiguos
+        return decodeURIComponent(escape(atob(str)));
+    }
 }
 
+// [FIX-1] validateJRS: si no hay clave local, recarga desde el servidor antes de fallar
 async function validateJRS(code) {
     if (!code.startsWith('JRS:')) return null;
     const parts = code.slice(4).split(':');
     if (parts.length !== 4) return null;
 
-    const [student_id, valid_date, name_b64, sig] = parts;
+    const [short_id, valid_date, name_b64, sig] = parts;
+
     let name;
     try { name = b64uDecode(name_b64); } catch { return null; }
 
-    const expected = await computeHmac(student_id, valid_date, name_b64);  // name_b64, no el texto decodificado
-    if (!expected || expected !== sig) return null;   // firma inválida
+    // [FIX-1] Si no hay clave en localStorage, intentar recargar del servidor
+    if (!localStorage.getItem(SIGNING_KEY_SK)) {
+        console.warn('[validateJRS] Sin clave de firma local — recargando del servidor...');
+        try {
+            const headers = _scannerPin ? { 'X-Scanner-Pin': _scannerPin } : {};
+            const r = await fetch('/attendance/scanner/offline-data', { headers });
+            if (r.ok) {
+                const data = await r.json();
+                _saveOfflineData(data); // guarda la clave y actualiza _cryptoKey = null
+            }
+        } catch (e) {
+            console.warn('[validateJRS] No se pudo recargar clave:', e.message);
+        }
+    }
+
+    const expected = await computeHmac(short_id, valid_date, name_b64);
+
+    // Si aun sin clave (offline sin datos previos), confiar en el servidor para validar
+    if (!expected) {
+        console.warn('[validateJRS] Sin clave local — enviando al servidor para validación online');
+        return { short_id, name, valid_date, debe: false, skipLocalValidation: true };
+    }
+
+    if (expected !== sig) return null; // firma inválida
 
     // Verificar fecha
     const hoy = new Date();
@@ -333,9 +360,9 @@ async function validateJRS(code) {
     const mm = valid_date.slice(4, 6) - 1;
     const dd = valid_date.slice(6, 8);
     const vencimiento = new Date(yyyy, mm, dd);
-    vencimiento.setHours(23, 59, 59);   // final del día
+    vencimiento.setHours(23, 59, 59);
 
-    return { student_id, name, valid_date, debe: vencimiento < hoy };
+    return { short_id, name, valid_date, debe: vencimiento < hoy };
 }
 
 async function processOfflineScan(code, fromNFC = false) {
@@ -355,6 +382,14 @@ async function processOfflineScan(code, fromNFC = false) {
                 return;
             }
 
+            // [FIX-1] Si no había clave local, skipLocalValidation=true → ir online
+            if (parsed.skipLocalValidation) {
+                // Redirigir al flujo online aunque esté en processOfflineScan
+                isProcessing = false; // liberar el lock antes de llamar handleScan online
+                _doOnlineScan(code, fromNFC);
+                return;
+            }
+
             if (parsed.debe) {
                 playWarning();
                 showFlash('debe', parsed.name, 'Mensualidad vencida (Offline)');
@@ -362,11 +397,9 @@ async function processOfflineScan(code, fromNFC = false) {
                 return;
             }
 
-            // student_id puede ser short_id (8 chars, formato JRS v2) o UUID completo
-            studentId = parsed.student_id;
+            studentId = parsed.short_id; // usar short_id para buscar en DB offline
             fallbackName = parsed.name;
 
-            // Fix 3: si no se encuentra por short_id, buscar en DB offline por prefijo
             if (!db[studentId]) {
                 const fullId = Object.keys(db).find(k => k.length > 8 && k.startsWith(studentId));
                 if (fullId) { studentId = fullId; }
@@ -384,13 +417,12 @@ async function processOfflineScan(code, fromNFC = false) {
 
             if (info.status === 'success') playSuccess();
             else if (info.status === 'warning') playWarning();
-            else playWarning(); // debe
+            else playWarning();
 
             showFlash(info.status, info.name, msg);
             addHistory(info.status, info.name + " (Offline)");
             resume(fromNFC);
         } else {
-            // En JRS intentamos extraer el nombre válido aunque no lo tengamos en DB local
             if (code.startsWith("JRS:")) {
                 queuedScans.push({ code, timestamp: new Date().toISOString() });
                 localStorage.setItem('scanner_queued_scans', JSON.stringify(queuedScans));
@@ -406,13 +438,12 @@ async function processOfflineScan(code, fromNFC = false) {
             }
         }
     } catch (e) {
-        // Safety-net: si algo explota internamente, siempre reanudar el scanner
         console.error('[Scanner] Error inesperado en processOfflineScan:', e);
         resume(fromNFC);
     }
 }
 
-// Handle del intervalo de sync — guardado para poder detenerlo ante un 401
+// ── SYNC OFFLINE ──────────────────────────────────────
 let _syncIntervalId = null;
 
 function _stopSyncLoop() {
@@ -424,7 +455,7 @@ function _stopSyncLoop() {
 }
 
 function _startSyncLoop() {
-    if (_syncIntervalId !== null) return; // ya está corriendo
+    if (_syncIntervalId !== null) return;
     _syncIntervalId = setInterval(syncOfflineQueue, 15000);
 }
 
@@ -432,12 +463,8 @@ function syncOfflineQueue() {
     if (!navigator.onLine || queuedScans.length === 0) return;
 
     const token = localStorage.getItem('trainer_token') || '';
-    // Offline DB local: contiene entradas por UUID completo Y por short_id (8 chars)
     const offlineDb = JSON.parse(localStorage.getItem('scanner_offline_db') || '{}');
 
-    // Resolver el UUID completo para cada scan antes de enviarlo al servidor.
-    // El backend requiere UUID completo (36 chars); si se envía el short_id
-    // el INSERT es ignorado silenciosamente y el registro se pierde.
     const batchRecords = queuedScans.map((scan, index) => {
         let student_id = null;
 
@@ -445,38 +472,31 @@ function syncOfflineQueue() {
             const parts = scan.code.split(":");
             const shortId = parts.length >= 2 ? parts[1] : null;
             if (shortId) {
-                // Buscar el UUID completo en la DB offline (clave de 36 chars)
                 const fullUuid = Object.keys(offlineDb).find(
                     k => k.length === 36 && k.startsWith(shortId)
                 );
-                student_id = fullUuid || null; // null → filtrado por el servidor
+                student_id = fullUuid || null;
             }
         } else {
-            // Código legacy STU-XXXXX: usar como student_id directamente
             student_id = scan.code;
         }
 
         return {
-            student_id: student_id || scan.code, // fallback: el servidor lo rechazará si no es UUID
+            student_id: student_id || scan.code,
             timestamp: scan.timestamp,
             local_id: `sync-${index}-${scan.timestamp}`
         };
-    }).filter(r => r.student_id); // quitar entradas sin ID resuelto
+    }).filter(r => r.student_id);
 
-    // Enviar lote completo con un solo Request
     fetch('/attendance/sync-batch', {
         method: 'POST',
         headers: {
             'Authorization': 'Bearer ' + token,
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-            records: batchRecords,
-            token: token // Enviado también en el body por requerimiento de FastAPI
-        })
+        body: JSON.stringify({ records: batchRecords, token })
     })
         .then(res => {
-            // ── 200 OK: Éxito — vaciar la mochila ───────────────────────────────
             if (res.ok) {
                 queuedScans = [];
                 localStorage.setItem('scanner_queued_scans', JSON.stringify(queuedScans));
@@ -484,17 +504,9 @@ function syncOfflineQueue() {
                 console.log('[Sync] Sincronización masiva exitosa.');
                 return;
             }
-
-            // ── 401 Unauthorized: Token expirado o revocado ──────────────────────
-            // ESTRATEGIA BARBELL:
-            // Lado seguro: detenemos el bucle inmediatamente para no bombardear
-            //   el servidor ni gastar batería. Los datos de la mochila NO se tocan.
-            // Lado opcional: mostramos el PIN para que un humano resuelva el problema.
             if (res.status === 401) {
-                console.error('[Sync] 401 Unauthorized — token inválido. Deteniendo bucle de sync.');
+                console.error('[Sync] 401 Unauthorized — deteniendo bucle.');
                 _stopSyncLoop();
-
-                // Mostrar mensaje de sesión expirada en la UI
                 const indicator = document.getElementById('offline-queue-indicator');
                 if (indicator) {
                     indicator.style.background = '#c0392b';
@@ -502,62 +514,34 @@ function syncOfflineQueue() {
                     indicator.textContent = `⚠️ Sesión expirada. ${queuedScans.length} escaneos pendientes.`;
                     indicator.style.display = 'block';
                 }
-
-                // Devolver el control al humano: el entrenador ingresa un PIN válido
-                // para obtener un nuevo token. Al hacerlo exitosamente, pinSubmit()
-                // ya llama a hidePinOverlay() y el próximo ciclo (re-iniciado) enviará.
                 showPinOverlay();
-
-                // Sobreescribir el mensaje del overlay PIN para este contexto específico
                 const pinErr = document.getElementById('pin-err');
                 if (pinErr) pinErr.textContent = 'Sesión expirada. Ingrese PIN para sincronizar datos offline.';
                 return;
             }
-
-            // ── 413 Payload Too Large / 400 Bad Request: Lotes problemáticos ─────
-            // NOTA PARA EL FUTURO — CHUNKING:
-            //   Si el servidor rechaza el lote por tamaño (413) o formato (400),
-            //   la solución es dividir `batchRecords` en sub-lotes y enviarlos
-            //   secuencialmente. Ejemplo:
-            //     const CHUNK_SIZE = 50;
-            //     for (let i = 0; i < batchRecords.length; i += CHUNK_SIZE) {
-            //         const chunk = batchRecords.slice(i, i + CHUNK_SIZE);
-            //         await fetch('/attendance/sync-batch', { ...opciones, body: JSON.stringify({ records: chunk }) });
-            //     }
-            //   Por ahora, detenemos el envío (sin borrar la mochila) para no
-            //   colapsar el servidor con peticiones que sabemos que fallarán.
             if (res.status === 413 || res.status === 400) {
-                console.error(`[Sync] ${res.status} — Lote rechazado. Reteniendo mochila. Considera implementar chunking.`);
+                console.error(`[Sync] ${res.status} — Lote rechazado.`);
                 _stopSyncLoop();
                 return;
             }
-
-            // ── Cualquier otro error (5xx, etc.): retener y reintentar ────────────
-            console.warn('[Sync] Reteniendo mochila — fallo temporal. Status:', res.status);
+            console.warn('[Sync] Fallo temporal. Status:', res.status);
         })
-        .catch(err => {
-            // Error de red puro (sin conexión, timeout, etc.): reintentar en próximo ciclo
-            console.log('[Sync] Reteniendo mochila: error de red durante el sync:', err);
-        });
+        .catch(err => console.log('[Sync] Error de red:', err));
 }
 
-// Al recuperar conexión: refrescar DB offline y forzar un intento de sync inmediato
 window.addEventListener('online', () => {
     fetchOfflineData();
-    // Re-iniciar el bucle si fue detenido por un 401 anterior y hay conexión nueva
     _startSyncLoop();
     syncOfflineQueue();
 });
 
-// Iniciar el bucle de sync al cargar
 _startSyncLoop();
 
 // ── LÓGICA CENTRAL DE SCAN ────────────────────────────
-let html5Qrcode = null;       // API low-level — control total sobre pause/resume
+let html5Qrcode = null;
 let isProcessing = false;
-
-// Timeout de seguridad: si isProcessing queda colgado más de 10s, lo fuerza a false
 let _safetyTimer = null;
+
 function _armSafety(fromNFC) {
     if (_safetyTimer) clearTimeout(_safetyTimer);
     _safetyTimer = setTimeout(() => {
@@ -572,28 +556,16 @@ function _armSafety(fromNFC) {
     }, 10000);
 }
 
-function handleScan(decodedText, fromNFC = false) {
-    if (isProcessing) return;
+// Separar el fetch online para poder llamarlo desde processOfflineScan si no hay clave
+function _doOnlineScan(code, fromNFC) {
     isProcessing = true;
-    _armSafety(fromNFC); // safety-net contra cualquier excepción no capturada
-
-    const code = decodedText.includes('?code=')
-        ? decodedText.split('?code=')[1]
-        : decodedText;
-
-    // NO pausamos la cámara — bloqueo lógico con isProcessing
-    // (evita congelamiento de cámara en Android con QRs densos)
+    _armSafety(fromNFC);
 
     const statusEl = document.getElementById('status-text');
     if (statusEl) statusEl.textContent = 'Procesando...';
 
-    if (!navigator.onLine) {
-        processOfflineScan(code, fromNFC); // async, pero su try/catch garantiza que resume() se llame
-        return;
-    }
-
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 segundos máximo
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
 
     fetch('/attendance/scan', {
         method: 'POST',
@@ -601,10 +573,7 @@ function handleScan(decodedText, fromNFC = false) {
         body: JSON.stringify({ code }),
         signal: controller.signal
     })
-        .then(res => {
-            clearTimeout(timeoutId);
-            return res.text();
-        })
+        .then(res => { clearTimeout(timeoutId); return res.text(); })
         .then(rawText => {
             let data;
             try { data = JSON.parse(rawText); }
@@ -614,12 +583,10 @@ function handleScan(decodedText, fromNFC = false) {
                 resume(fromNFC); return;
             }
 
-            // Si es un error explícito de FastAPI
             if (data.detail) {
                 playError();
                 showFlash('error', 'RECHAZADO', data.detail);
-                resume(fromNFC);
-                return;
+                resume(fromNFC); return;
             }
 
             const nombre = data.student_name || 'Desconocido';
@@ -631,56 +598,61 @@ function handleScan(decodedText, fromNFC = false) {
             else playError();
 
             showFlash(estado, nombre, data.message || data.detail);
-
             if (estado !== 'error') addHistory(estado, nombre);
-
             resume(fromNFC);
         })
         .catch(() => {
-            // Si es un error de red o timeout (AbortError), pasa a offline rápido
-            processOfflineScan(code, fromNFC); // async, pero su try/catch garantiza resume()
+            processOfflineScan(code, fromNFC);
         });
 }
 
-// La librería Html5Qrcode (low-level) pausa internamente tras cada scan exitoso o cambio de foco.
-// Esta función la reanuda de forma segura y agresiva.
+function handleScan(decodedText, fromNFC = false) {
+    if (isProcessing) return;
+
+    const code = decodedText.includes('?code=')
+        ? decodedText.split('?code=')[1]
+        : decodedText;
+
+    const statusEl = document.getElementById('status-text');
+    if (statusEl) statusEl.textContent = 'Procesando...';
+
+    if (!navigator.onLine) {
+        isProcessing = true;
+        _armSafety(fromNFC);
+        processOfflineScan(code, fromNFC);
+        return;
+    }
+
+    _doOnlineScan(code, fromNFC);
+}
+
 function _resumeCamera() {
     if (!html5Qrcode) return;
     try {
         const state = typeof html5Qrcode.getState === 'function' ? html5Qrcode.getState() : -1;
-        if (state === 3 /* PAUSED */) {
+        if (state === 3) {
             html5Qrcode.resume();
-        } else if (state === 2 /* SCANNING */) {
-            // Ya está escaneando, no hacemos nada para no congelar el stream de video
-            // Solo aseguramos que el video HTML5 subyacente no se haya pausado
-        } else {
-            // En cualquier otro caso intentamos resumir si es posible
-            if (typeof html5Qrcode.resume === 'function') html5Qrcode.resume();
+        } else if (typeof html5Qrcode.resume === 'function' && state !== 2) {
+            html5Qrcode.resume();
         }
-    } catch (e) {
-        // Ignorar si ya está actíva u otro error
-    }
+    } catch (e) { }
 
-    // Forzar al elemento <video> a reproducir, por si el navegador lo bloqueó
     setTimeout(() => {
         const video = document.querySelector('#reader video');
         if (video && video.paused) {
             video.play().catch(err => console.warn('[Scanner] Auto-play bloqueado:', err));
         }
-        // Ocultar letreto "Scanner paused" si se quedó pegado visualmente
         document.querySelectorAll('#reader div').forEach(el => {
             if (el.textContent === 'Scanner paused') el.style.display = 'none';
         });
     }, 150);
 }
 
-// Watchdog: detecta si la cámara está atascada permanentemente (por ejemplo al volver de NFC en Android)
 setInterval(() => {
     if (!scannerStarted || isProcessing || document.visibilityState !== 'visible') return;
     try {
         const state = html5Qrcode ? (typeof html5Qrcode.getState === 'function' ? html5Qrcode.getState() : -1) : -1;
         const video = document.querySelector('#reader video');
-
         if (state === 3 || (video && video.paused)) {
             console.warn("[Watchdog] Cámara atorada detectada. Rescatando...");
             _resumeCamera();
@@ -697,21 +669,22 @@ function resume(fromNFC = false) {
     }, FLASH_DURATION);
 }
 
-// ── INICIAR CÁMARA (al tocar la pantalla) ────────────
+// ── INICIAR CÁMARA ────────────────────────────────────
 let scannerStarted = false;
 
 function initScanner() {
     if (scannerStarted) return;
     scannerStarted = true;
 
-    document.getElementById('start-screen').style.display = 'none';
-    document.getElementById('scanner-frame').style.display = 'block';
+    const startScreen = document.getElementById('start-screen');
+    const scannerFrame = document.getElementById('scanner-frame');
+    if (startScreen) startScreen.style.display = 'none';
+    if (scannerFrame) scannerFrame.style.display = 'block';
 
     const frame = document.getElementById('scanner-frame');
     const size = frame ? Math.min(frame.clientWidth, frame.clientHeight) - 20 : 300;
     const qrboxSide = Math.floor(size * 0.85);
 
-    // ── API LOW-LEVEL: sin auto-pausa de UI, control 100% programático ────────
     html5Qrcode = new Html5Qrcode('reader');
 
     Html5Qrcode.getCameras()
@@ -721,7 +694,6 @@ function initScanner() {
                 return;
             }
 
-            // Preferir cámara trasera (environment); si no, usar la primera
             const savedId = localStorage.getItem('preferred_camera_id');
             let camId = cameras[0].id;
             if (savedId && cameras.find(c => c.id === savedId)) {
@@ -742,11 +714,8 @@ function initScanner() {
                     qrbox: { width: qrboxSide, height: qrboxSide },
                     aspectRatio: 1.0
                 },
-                (decodedText) => {
-                    // La librería low-level NO auto-pausa — solo isProcessing controla el flujo
-                    handleScan(decodedText);
-                },
-                () => { /* errores de lectura normales (frame sin QR), ignorar */ }
+                (decodedText) => { handleScan(decodedText); },
+                () => { }
             ).then(() => {
                 localStorage.setItem('preferred_camera_id', camId);
             });
@@ -757,14 +726,15 @@ function initScanner() {
     initNFC();
 }
 
-// Toque en pantalla derecha para activar (o despertar si se quedó pegado)
-document.getElementById('right-panel').addEventListener('click', () => {
-    if (!scannerStarted) initScanner();
-    else if (!isProcessing) _resumeCamera();
-});
-// Auto-iniciar se hace en el listener 'load' del bloque PIN (arriba)
+const rightPanel = document.getElementById('right-panel');
+if (rightPanel) {
+    rightPanel.addEventListener('click', () => {
+        if (!scannerStarted) initScanner();
+        else if (!isProcessing) _resumeCamera();
+    });
+}
 
-// ── MODO ESPEJO (cámara selfie) ──────────────────────
+// ── MODO ESPEJO ──────────────────────────────────────
 function startMirrorCheck() {
     setInterval(() => {
         const video = document.querySelector('#reader video');
@@ -779,13 +749,12 @@ function startMirrorCheck() {
 }
 
 // ── NFC ───────────────────────────────────────────────
-// Tabla oficial de prefijos URI del estándar NDEF (ISO 14443)
 const NDEF_URI_PREFIXES = [
-    '',             // 0x00 – sin prefijo
+    '',             // 0x00
     'http://www.',  // 0x01
     'https://www.', // 0x02
     'http://',      // 0x03
-    'https://',     // 0x04  ← el más común en apps NFC modernas
+    'https://',     // 0x04 ← más común
     'tel:',         // 0x05
     'mailto:',      // 0x06
     'ftp://anonymous:anonymous@', // 0x07
@@ -820,12 +789,16 @@ const NDEF_URI_PREFIXES = [
 ];
 
 async function initNFC() {
-    if (!('NDEFReader' in window)) return;
+    if (!('NDEFReader' in window)) {
+        console.warn('[NFC] NDEFReader no disponible en este navegador/dispositivo.');
+        return;
+    }
     try {
         const ndef = new NDEFReader();
         await ndef.scan();
         const nfcEl = document.getElementById('nfc-indicator');
         if (nfcEl) nfcEl.classList.add('visible');
+        console.log('[NFC] Escáner NFC activo ✅');
 
         ndef.addEventListener('reading', ({ message }) => {
             for (const record of message.records) {
@@ -833,9 +806,6 @@ async function initNFC() {
 
                 try {
                     if (record.recordType === 'url') {
-                        // ── Registro URI (NDEF U-Record) ──────────────────────
-                        // Byte 0 = código de prefijo (ej: 0x04 → "https://")
-                        // Bytes 1..n = resto de la URL en UTF-8
                         const bytes = new Uint8Array(record.data.buffer,
                             record.data.byteOffset,
                             record.data.byteLength);
@@ -845,10 +815,6 @@ async function initNFC() {
                         fullText = prefix + rest;
 
                     } else if (record.recordType === 'text') {
-                        // ── Registro texto plano (NDEF T-Record) ──────────────
-                        // Byte 0 = status byte (bit7=UTF-16, bits 5-0=lang length)
-                        // Bytes 1..langLen = código de idioma (ej: "en")
-                        // Bytes langLen+1..end = texto
                         const bytes = new Uint8Array(record.data.buffer,
                             record.data.byteOffset,
                             record.data.byteLength);
@@ -860,7 +826,7 @@ async function initNFC() {
                         fullText = new TextDecoder(charset).decode(textBytes).trim();
 
                     } else {
-                        // Tipo desconocido: fallback genérico con strip de control chars
+                        // Tipo desconocido: fallback
                         const raw = new TextDecoder(record.encoding || 'utf-8')
                             .decode(record.data)
                             .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
@@ -868,42 +834,42 @@ async function initNFC() {
                         fullText = raw;
                     }
                 } catch {
-                    continue; // error al decodificar este record → siguiente
+                    continue;
                 }
 
                 if (!fullText) continue;
 
-                // ── Extraer el código JRS / STU del texto ─────────────────
                 let code = null;
 
                 if (fullText.startsWith('http://') || fullText.startsWith('https://')) {
-                    // Es una URL — extraer el parámetro ?code= de forma robusta
                     try {
                         const url = new URL(fullText);
                         const param = url.searchParams.get('code');
                         if (param) code = decodeURIComponent(param);
                     } catch {
-                        // URL malformada: buscar manualmente
                         const idx = fullText.indexOf('?code=');
                         if (idx !== -1) code = decodeURIComponent(fullText.slice(idx + 6));
                     }
                 } else if (fullText.startsWith('JRS:') || fullText.startsWith('STU-')) {
-                    // Código directo (sin URL)
                     code = fullText;
                 } else if (fullText.includes('?code=')) {
-                    // URL sin protocolo (ej: dominio/?code=JRS:...)
                     code = decodeURIComponent(fullText.split('?code=')[1]);
                 }
 
-                if (!code) continue; // nada útil en este record → siguiente
+                if (!code) continue;
 
-                // Desbloquear la cámara si estaba pausada por un scan QR previo
                 _resumeCamera();
-                handleScan(code.trim(), true /* fromNFC */);
-                break; // Primer registro válido procesado — detener el loop
+                handleScan(code.trim(), true);
+                break;
             }
         });
+
+        ndef.addEventListener('readingerror', (e) => {
+            console.warn('[NFC] Error de lectura:', e);
+        });
+
     } catch (e) {
-        console.warn('NFC no disponible:', e.message);
+        console.warn('[NFC] No disponible o permiso denegado:', e.message);
+        // No mostrar error al usuario — NFC es opcional, el QR sigue funcionando
     }
 }
