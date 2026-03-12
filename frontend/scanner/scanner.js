@@ -1,21 +1,24 @@
-// scanner/scanner.js — v3.2
+// scanner/scanner.js — v3.3
 // FIXES aplicados:
 // [FIX-1] validateJRS: si no hay clave local, hace fetch online en lugar de rechazar
-// [FIX-2] b64uDecode: usa TextDecoder en lugar de escape()/unescape() (falla en Firefox/Samsung)
+// [FIX-2] b64uDecode: usa TextDecoder en lugar de escape()/unescape()
 // [FIX-3] NFC: la clave se recarga automáticamente si estaba ausente al momento del scan
 // [FIX-4] QR Admin: se expone initAdminScanner() para que admin.js pueda inicializarlo
 // [FIX-5] resume(fromNFC): usa delay correcto (2500ms NFC vs FLASH_DURATION QR)
 // [FIX-6] _scannerStartedAt: se asigna correctamente en initScanner()
 // [FIX-7] watchdog: no interrumpe mientras isProcessing=true
+// [FIX-8] initScanner: solo auto-arranca si ya hay camara guardada (permiso previo).
+//         Si no hay permiso previo, espera toque del usuario para no fallar silenciosamente.
+//         Si getCameras() o start() fallan, limpia el estado y permite reintento.
 
 // ── CONSTANTES ────────────────────────────────────────
-const FLASH_DURATION = 2200; // ms que se muestra el resultado en pantalla
+const FLASH_DURATION = 2200;
 
 // ── BLOQUEAR BOTÓN ATRÁS ──────────────────────────────
 window.history.pushState(null, null, window.location.href);
 window.onpopstate = function () { window.history.go(1); };
 
-// ── WAKE LOCK (pantalla no se apaga) ─────────────────
+// ── WAKE LOCK ─────────────────────────────────────────
 async function requestWakeLock() {
     if ('wakeLock' in navigator) {
         try { await navigator.wakeLock.request('screen'); } catch (e) { }
@@ -28,14 +31,8 @@ function updateClock() {
     const now = new Date();
     const clockEl = document.getElementById('clock');
     const dateEl = document.getElementById('date-display');
-    if (clockEl) {
-        clockEl.textContent = now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
-    }
-    if (dateEl) {
-        dateEl.textContent = now.toLocaleDateString('es-PE', {
-            weekday: 'long', day: 'numeric', month: 'long'
-        });
-    }
+    if (clockEl) clockEl.textContent = now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+    if (dateEl) dateEl.textContent = now.toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 updateClock();
 setInterval(updateClock, 1000);
@@ -58,14 +55,12 @@ document.addEventListener('visibilitychange', () => {
         requestWakeLock();
         _dbg('pagina visible - forzando restart camara');
         [100, 600, 1500, 3000].forEach(delay => {
-            setTimeout(() => {
-                if (!_restartingCamera) _hardRestartCamera();
-            }, delay);
+            setTimeout(() => { if (!_restartingCamera) _hardRestartCamera(); }, delay);
         });
     }
 });
 
-// ── GESTIÓN DEL PIN ───────────────────────────────────
+// ── PIN ───────────────────────────────────────────────
 let _scannerPin = sessionStorage.getItem('scanner_pin') || '';
 let _pinBuffer = '';
 
@@ -104,10 +99,7 @@ async function pinSubmit() {
             const data = await r.json();
             _saveOfflineData(data);
             const indicator = document.getElementById('offline-queue-indicator');
-            if (indicator) {
-                indicator.style.background = 'var(--gold)';
-                indicator.style.color = '#000';
-            }
+            if (indicator) { indicator.style.background = 'var(--gold)'; indicator.style.color = '#000'; }
             if (typeof _startSyncLoop === 'function') _startSyncLoop();
             hidePinOverlay();
         } else {
@@ -125,11 +117,11 @@ async function pinSubmit() {
 
 function showPinOverlay() {
     const ov = document.getElementById('pin-overlay');
-    if (ov) { ov.style.display = 'flex'; }
+    if (ov) ov.style.display = 'flex';
 }
 function hidePinOverlay() {
     const ov = document.getElementById('pin-overlay');
-    if (ov) { ov.style.display = 'none'; }
+    if (ov) ov.style.display = 'none';
 }
 
 // ── OFFLINE DATA ──────────────────────────────────────
@@ -146,21 +138,19 @@ async function fetchOfflineData() {
     try {
         const r = await fetch('/attendance/scanner/offline-data',
             { headers: _scannerPin ? { 'X-Scanner-Pin': _scannerPin } : {} });
-        if (r.ok) {
-            const data = await r.json();
-            _saveOfflineData(data);
-        }
-    } catch { /* sin conexión */ }
+        if (r.ok) { const data = await r.json(); _saveOfflineData(data); }
+    } catch { }
 }
 
 // ── LOAD ──────────────────────────────────────────────
 window.addEventListener('load', async () => {
+    // Capturar NFC via URL antes de limpiarla
     const _urlParams = new URLSearchParams(window.location.search);
     const _nfcCode = _urlParams.get('code');
     if (_nfcCode) {
         window.history.replaceState({}, '', '/scanner');
         window._pendingNfcCode = _nfcCode.trim();
-        _dbg('NFC via URL capturado: ' + _nfcCode.slice(0, 20));
+        _dbg('NFC via URL: ' + _nfcCode.slice(0, 20));
     }
 
     try {
@@ -176,8 +166,20 @@ window.addEventListener('load', async () => {
             _saveOfflineData(data);
             hidePinOverlay();
         }
-    } catch { /* sin conexion al cargar */ }
-    setTimeout(initScanner, 300);
+    } catch { }
+
+    // [FIX-8] Solo auto-arrancar si:
+    //   a) Ya tenemos una camara guardada (usuario ya dio permiso antes), O
+    //   b) Hay un NFC pendiente urgente que procesar
+    // Si no, mostrar "TOCA PARA ACTIVAR" y esperar gesto del usuario.
+    // Esto evita que getCameras() falle silenciosamente en Android/PWA sin interaccion previa.
+    const camGuardada = localStorage.getItem('preferred_camera_id');
+    if (camGuardada || window._pendingNfcCode) {
+        setTimeout(initScanner, 300);
+    } else {
+        _dbg('Sin camara guardada — esperando toque');
+        // start-screen ya es visible por defecto en el HTML
+    }
 });
 
 setInterval(fetchOfflineData, 5 * 60 * 1000);
@@ -202,7 +204,7 @@ function updateQueueUI() {
 }
 updateQueueUI();
 
-// ── CRYPTO: VALIDACIÓN HMAC LOCAL ─────────────────────
+// ── CRYPTO ────────────────────────────────────────────
 const SIGNING_KEY_SK = 'jr_signing_key';
 let _cryptoKey = null;
 
@@ -236,7 +238,6 @@ async function computeHmac(short_id, valid_yyyymmdd, name_b64) {
         .map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// [FIX-2] b64uDecode con TextDecoder
 function b64uDecode(str) {
     str = str.replace(/-/g, '+').replace(/_/g, '/');
     while (str.length % 4) str += '=';
@@ -250,18 +251,15 @@ function b64uDecode(str) {
     }
 }
 
-// [FIX-1] validateJRS
 async function validateJRS(code) {
     if (!code.startsWith('JRS:')) return null;
     const parts = code.slice(4).split(':');
     if (parts.length !== 4) return null;
-
     const [short_id, valid_date, name_b64, sig] = parts;
     let name;
     try { name = b64uDecode(name_b64); } catch { return null; }
 
     if (!localStorage.getItem(SIGNING_KEY_SK)) {
-        console.warn('[validateJRS] Sin clave local — recargando del servidor...');
         try {
             const headers = _scannerPin ? { 'X-Scanner-Pin': _scannerPin } : {};
             const r = await fetch('/attendance/scanner/offline-data', { headers });
@@ -270,23 +268,12 @@ async function validateJRS(code) {
     }
 
     const expected = await computeHmac(short_id, valid_date, name_b64);
-
-    if (!expected) {
-        console.warn('[validateJRS] Sin clave local — validando online');
-        return { short_id, name, valid_date, debe: false, skipLocalValidation: true };
-    }
-
+    if (!expected) return { short_id, name, valid_date, debe: false, skipLocalValidation: true };
     if (expected !== sig) return null;
 
-    const hoy = new Date();
-    const vencimiento = new Date(
-        valid_date.slice(0, 4),
-        valid_date.slice(4, 6) - 1,
-        valid_date.slice(6, 8)
-    );
+    const vencimiento = new Date(valid_date.slice(0, 4), valid_date.slice(4, 6) - 1, valid_date.slice(6, 8));
     vencimiento.setHours(23, 59, 59);
-
-    return { short_id, name, valid_date, debe: vencimiento < hoy };
+    return { short_id, name, valid_date, debe: vencimiento < new Date() };
 }
 
 // ── AUDIO ─────────────────────────────────────────────
@@ -304,12 +291,11 @@ function _beep(freq, duration, vol = 0.3) {
         setTimeout(() => ctx.close(), duration + 100);
     } catch (e) { }
 }
-
 function playSuccess() { _beep(880, 120); setTimeout(() => _beep(1100, 180), 130); }
 function playWarning() { _beep(440, 300); }
-function playError()   { _beep(220, 400, 0.4); }
+function playError() { _beep(220, 400, 0.4); }
 
-// ── FLASH / RESULTADO ─────────────────────────────────
+// ── FLASH ─────────────────────────────────────────────
 const STATUS_CONFIG = {
     success: { icon: '✅', color: '#1a472a', text: '#00ff88' },
     warning: { icon: '⚠️', color: '#7a4a00', text: '#ffd700' },
@@ -324,17 +310,14 @@ function showFlash(status, name, msg) {
     const nameEl  = document.getElementById('result-name');
     const msgEl   = document.getElementById('result-msg');
     const flashBg = document.getElementById('flash-bg');
-
-    if (iconEl)  iconEl.textContent  = cfg.icon;
-    if (nameEl)  nameEl.textContent  = name || '';
-    if (msgEl)   msgEl.textContent   = msg  || '';
-
+    if (iconEl) iconEl.textContent = cfg.icon;
+    if (nameEl) nameEl.textContent = name || '';
+    if (msgEl)  msgEl.textContent  = msg  || '';
     if (overlay) {
         overlay.className = 'result-overlay result-' + status;
         overlay.style.display = 'flex';
         setTimeout(() => { overlay.style.display = 'none'; }, FLASH_DURATION);
     }
-
     if (flashBg) {
         flashBg.style.background = cfg.color;
         flashBg.style.opacity = '1';
@@ -363,30 +346,11 @@ async function processOfflineScan(code, fromNFC = false) {
 
         if (code.startsWith("JRS:")) {
             const parsed = await validateJRS(code);
-
-            if (!parsed) {
-                playError();
-                showFlash('error', 'QR INVÁLIDO', 'Firma criptográfica incorrecta.');
-                resume(fromNFC);
-                return;
-            }
-
-            if (parsed.skipLocalValidation) {
-                isProcessing = false;
-                _doOnlineScan(code, fromNFC);
-                return;
-            }
-
-            if (parsed.debe) {
-                playWarning();
-                showFlash('debe', parsed.name, 'Mensualidad vencida (Offline)');
-                resume(fromNFC);
-                return;
-            }
-
+            if (!parsed) { playError(); showFlash('error', 'QR INVÁLIDO', 'Firma criptográfica incorrecta.'); resume(fromNFC); return; }
+            if (parsed.skipLocalValidation) { isProcessing = false; _doOnlineScan(code, fromNFC); return; }
+            if (parsed.debe) { playWarning(); showFlash('debe', parsed.name, 'Mensualidad vencida (Offline)'); resume(fromNFC); return; }
             studentId = parsed.short_id;
             fallbackName = parsed.name;
-
             if (!db[studentId]) {
                 const fullId = Object.keys(db).find(k => k.length > 8 && k.startsWith(studentId));
                 if (fullId) studentId = fullId;
@@ -398,11 +362,8 @@ async function processOfflineScan(code, fromNFC = false) {
             queuedScans.push({ code, timestamp: new Date().toISOString() });
             localStorage.setItem('scanner_queued_scans', JSON.stringify(queuedScans));
             updateQueueUI();
-
             const msg = info.status === 'success' ? "¡BIENVENIDO! (Guardado Offline)" : info.detalle;
-            if (info.status === 'success') playSuccess();
-            else playWarning();
-
+            if (info.status === 'success') playSuccess(); else playWarning();
             showFlash(info.status, info.name, msg);
             addHistory(info.status, info.name + " (Offline)");
             resume(fromNFC);
@@ -427,15 +388,11 @@ async function processOfflineScan(code, fromNFC = false) {
     }
 }
 
-// ── SYNC OFFLINE ──────────────────────────────────────
+// ── SYNC ──────────────────────────────────────────────
 let _syncIntervalId = null;
 
 function _stopSyncLoop() {
-    if (_syncIntervalId !== null) {
-        clearInterval(_syncIntervalId);
-        _syncIntervalId = null;
-        console.warn('[Sync] Bucle detenido.');
-    }
+    if (_syncIntervalId !== null) { clearInterval(_syncIntervalId); _syncIntervalId = null; }
 }
 
 function _startSyncLoop() {
@@ -445,24 +402,14 @@ function _startSyncLoop() {
 
 function syncOfflineQueue() {
     if (!navigator.onLine || queuedScans.length === 0) return;
-
     const token = localStorage.getItem('trainer_token') || '';
     const offlineDb = JSON.parse(localStorage.getItem('scanner_offline_db') || '{}');
-
     const batchRecords = queuedScans.map((scan, index) => {
         let student_id = null;
         if (scan.code.startsWith("JRS:")) {
-            const parts = scan.code.split(":");
-            const shortId = parts.length >= 2 ? parts[1] : null;
-            if (shortId) {
-                const fullUuid = Object.keys(offlineDb).find(
-                    k => k.length === 36 && k.startsWith(shortId)
-                );
-                student_id = fullUuid || null;
-            }
-        } else {
-            student_id = scan.code;
-        }
+            const shortId = scan.code.split(":")[1] || null;
+            if (shortId) student_id = Object.keys(offlineDb).find(k => k.length === 36 && k.startsWith(shortId)) || null;
+        } else { student_id = scan.code; }
         return { student_id: student_id || scan.code, timestamp: scan.timestamp, local_id: `sync-${index}-${scan.timestamp}` };
     }).filter(r => r.student_id);
 
@@ -470,49 +417,34 @@ function syncOfflineQueue() {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
         body: JSON.stringify({ records: batchRecords, token })
-    })
-        .then(res => {
-            if (res.ok) {
-                queuedScans = [];
-                localStorage.setItem('scanner_queued_scans', JSON.stringify(queuedScans));
-                updateQueueUI();
-                console.log('[Sync] Sincronización exitosa.');
-                return;
+    }).then(res => {
+        if (res.ok) {
+            queuedScans = [];
+            localStorage.setItem('scanner_queued_scans', JSON.stringify(queuedScans));
+            updateQueueUI();
+            return;
+        }
+        if (res.status === 401) {
+            _stopSyncLoop();
+            const indicator = document.getElementById('offline-queue-indicator');
+            if (indicator) {
+                indicator.style.background = '#c0392b';
+                indicator.style.color = '#fff';
+                indicator.textContent = `⚠️ Sesión expirada. ${queuedScans.length} escaneos pendientes.`;
+                indicator.style.display = 'block';
             }
-            if (res.status === 401) {
-                console.error('[Sync] 401 — deteniendo bucle.');
-                _stopSyncLoop();
-                const indicator = document.getElementById('offline-queue-indicator');
-                if (indicator) {
-                    indicator.style.background = '#c0392b';
-                    indicator.style.color = '#fff';
-                    indicator.textContent = `⚠️ Sesión expirada. ${queuedScans.length} escaneos pendientes.`;
-                    indicator.style.display = 'block';
-                }
-                showPinOverlay();
-                const pinErr = document.getElementById('pin-err');
-                if (pinErr) pinErr.textContent = 'Sesión expirada. Ingrese PIN para sincronizar.';
-                return;
-            }
-            if (res.status === 413 || res.status === 400) {
-                console.error(`[Sync] ${res.status} — Lote rechazado.`);
-                _stopSyncLoop();
-                return;
-            }
-            console.warn('[Sync] Fallo temporal. Status:', res.status);
-        })
-        .catch(err => console.log('[Sync] Error de red:', err));
+            showPinOverlay();
+            const pinErr = document.getElementById('pin-err');
+            if (pinErr) pinErr.textContent = 'Sesión expirada. Ingrese PIN para sincronizar.';
+        }
+        if (res.status === 413 || res.status === 400) _stopSyncLoop();
+    }).catch(err => console.log('[Sync] Error de red:', err));
 }
 
-window.addEventListener('online', () => {
-    fetchOfflineData();
-    _startSyncLoop();
-    syncOfflineQueue();
-});
-
+window.addEventListener('online', () => { fetchOfflineData(); _startSyncLoop(); syncOfflineQueue(); });
 _startSyncLoop();
 
-// ── LÓGICA CENTRAL DE SCAN ────────────────────────────
+// ── SCAN LOGIC ────────────────────────────────────────
 let html5Qrcode = null;
 let isProcessing = false;
 let _safetyTimer = null;
@@ -521,7 +453,7 @@ function _armSafety(fromNFC) {
     if (_safetyTimer) clearTimeout(_safetyTimer);
     _safetyTimer = setTimeout(() => {
         if (isProcessing) {
-            console.warn('[Scanner] Safety-net: forzando reset');
+            console.warn('[Scanner] Safety-net activado');
             isProcessing = false;
             _resumeCamera();
             const s = document.getElementById('status-text');
@@ -534,13 +466,10 @@ function _armSafety(fromNFC) {
 function _doOnlineScan(code, fromNFC) {
     isProcessing = true;
     _armSafety(fromNFC);
-
     const statusEl = document.getElementById('status-text');
     if (statusEl) statusEl.textContent = 'Procesando...';
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3000);
-
     fetch('/attendance/scan', {
         method: 'POST',
         headers: getScannerHeaders(),
@@ -551,51 +480,26 @@ function _doOnlineScan(code, fromNFC) {
         .then(rawText => {
             let data;
             try { data = JSON.parse(rawText); }
-            catch (e) {
-                playError();
-                showFlash('error', 'ERROR', 'Conexión fallida');
-                resume(fromNFC); return;
-            }
-
-            if (data.detail) {
-                playError();
-                showFlash('error', 'RECHAZADO', data.detail);
-                resume(fromNFC); return;
-            }
-
+            catch (e) { playError(); showFlash('error', 'ERROR', 'Conexión fallida'); resume(fromNFC); return; }
+            if (data.detail) { playError(); showFlash('error', 'RECHAZADO', data.detail); resume(fromNFC); return; }
             const nombre = data.student_name || 'Desconocido';
             const estado = data.status || 'error';
-
             if (estado === 'success') playSuccess();
             else if (estado === 'warning' || estado === 'debe') playWarning();
             else playError();
-
             showFlash(estado, nombre, data.message || data.detail);
             if (estado !== 'error') addHistory(estado, nombre);
             resume(fromNFC);
         })
-        .catch(() => {
-            processOfflineScan(code, fromNFC);
-        });
+        .catch(() => { processOfflineScan(code, fromNFC); });
 }
 
 function handleScan(decodedText, fromNFC = false) {
     if (isProcessing) return;
-
-    const code = decodedText.includes('?code=')
-        ? decodedText.split('?code=')[1]
-        : decodedText;
-
+    const code = decodedText.includes('?code=') ? decodedText.split('?code=')[1] : decodedText;
     const statusEl = document.getElementById('status-text');
     if (statusEl) statusEl.textContent = 'Procesando...';
-
-    if (!navigator.onLine) {
-        isProcessing = true;
-        _armSafety(fromNFC);
-        processOfflineScan(code, fromNFC);
-        return;
-    }
-
+    if (!navigator.onLine) { isProcessing = true; _armSafety(fromNFC); processOfflineScan(code, fromNFC); return; }
     _doOnlineScan(code, fromNFC);
 }
 
@@ -606,90 +510,69 @@ const _MAX_RESTART_ATTEMPTS = 10;
 
 function _resumeCamera() {
     if (!html5Qrcode) return;
-
-    try {
-        if (typeof html5Qrcode.resume === 'function') {
-            html5Qrcode.resume();
-        }
-    } catch (e) { }
-
+    try { if (typeof html5Qrcode.resume === 'function') html5Qrcode.resume(); } catch (e) { }
     setTimeout(() => {
-        if (isProcessing) return; // [FIX-7] no chequear si aún procesando
+        if (isProcessing) return;
         const video = document.querySelector('#reader video');
         const state = typeof html5Qrcode.getState === 'function' ? html5Qrcode.getState() : -1;
         const pausedLabel = Array.from(document.querySelectorAll('#reader *'))
             .some(el => el.innerText && el.innerText.trim() === 'Scanner paused' && el.style.display !== 'none');
-
-        if (state === 3 || (video && video.paused) || pausedLabel) {
-            _hardRestartCamera();
-        }
-    }, 600); // aumentado de 400 a 600ms para mayor estabilidad
+        if (state === 3 || (video && video.paused) || pausedLabel) _hardRestartCamera();
+    }, 600);
 }
 
 function _hardRestartCamera() {
     if (_restartingCamera || !html5Qrcode) return;
-
     if (_restartAttempts >= _MAX_RESTART_ATTEMPTS) {
-        console.error('[Scanner] Demasiados reintentos. Esperando interacción.');
         const statusEl = document.getElementById('status-text');
         if (statusEl) statusEl.textContent = 'Toca la pantalla para reactivar';
         document.getElementById('right-panel')?.addEventListener('click', () => {
-            _restartAttempts = 0;
-            _hardRestartCamera();
+            _restartAttempts = 0; _hardRestartCamera();
         }, { once: true });
         return;
     }
-
     _restartingCamera = true;
     _restartAttempts++;
     console.warn(`[Scanner] Hard restart #${_restartAttempts}...`);
-
     const camId = localStorage.getItem('preferred_camera_id');
     const frame = document.getElementById('scanner-frame');
     const size = frame ? Math.min(frame.clientWidth, frame.clientHeight) - 20 : 300;
     const qrboxSide = Math.floor(size * 0.85);
-
-    html5Qrcode.stop()
-        .catch(() => { })
-        .finally(() => {
-            document.querySelectorAll('#reader *').forEach(el => {
-                if (el.innerText && el.innerText.trim() === 'Scanner paused') el.remove();
-            });
-
-            html5Qrcode.start(
-                camId,
-                { fps: 15, qrbox: { width: qrboxSide, height: qrboxSide }, aspectRatio: 1.0 },
-                (decodedText) => { handleScan(decodedText); },
-                () => { }
-            )
-                .then(() => {
-                    _dbg('camara reiniciada OK #' + _restartAttempts);
-                    _restartAttempts = 0;
-                    _restartingCamera = false;
-                    isProcessing = false;
-                    _scannerStartedAt = Date.now(); // resetear ventana de gracia
-                })
-                .catch(err => {
-                    console.error(`[Scanner] Error restart #${_restartAttempts}:`, err);
-                    _restartingCamera = false;
-                    setTimeout(() => _hardRestartCamera(), _restartAttempts * 1000);
-                });
+    html5Qrcode.stop().catch(() => { }).finally(() => {
+        document.querySelectorAll('#reader *').forEach(el => {
+            if (el.innerText && el.innerText.trim() === 'Scanner paused') el.remove();
         });
+        html5Qrcode.start(
+            camId,
+            { fps: 15, qrbox: { width: qrboxSide, height: qrboxSide }, aspectRatio: 1.0 },
+            (decodedText) => { handleScan(decodedText); },
+            () => { }
+        ).then(() => {
+            _dbg('camara reiniciada OK #' + _restartAttempts);
+            _restartAttempts = 0;
+            _restartingCamera = false;
+            isProcessing = false;
+            _scannerStartedAt = Date.now();
+        }).catch(err => {
+            console.error(`[Scanner] Error restart #${_restartAttempts}:`, err);
+            _restartingCamera = false;
+            setTimeout(() => _hardRestartCamera(), _restartAttempts * 1000);
+        });
+    });
 }
 
 // ── WATCHDOG ──────────────────────────────────────────
-let _scannerStartedAt = 0; // [FIX-6] se asigna en initScanner()
+let _scannerStartedAt = 0;
 
 setInterval(() => {
     if (!scannerStarted || _restartingCamera || document.visibilityState !== 'visible') return;
-    if (Date.now() - _scannerStartedAt < 4000) return; // [FIX-6] ventana de gracia 4s
-    if (isProcessing) return; // [FIX-7] no interrumpir mientras procesa un scan
+    if (Date.now() - _scannerStartedAt < 4000) return;
+    if (isProcessing) return;
     try {
         const state = html5Qrcode ? (typeof html5Qrcode.getState === 'function' ? html5Qrcode.getState() : -1) : -1;
         const video = document.querySelector('#reader video');
         const pausedLabel = Array.from(document.querySelectorAll('#reader *'))
             .some(el => el.innerText && el.innerText.trim() === 'Scanner paused' && el.style.display !== 'none');
-
         if (state === 3 || (video && video.paused) || pausedLabel) {
             _dbg('watchdog: state=' + state + ' → restart');
             _hardRestartCamera();
@@ -698,7 +581,6 @@ setInterval(() => {
 }, 2500);
 
 // ── RESUME ────────────────────────────────────────────
-// [FIX-5] NFC usa 2500ms de delay, QR usa FLASH_DURATION
 function resume(fromNFC = false) {
     const delay = fromNFC ? 2500 : FLASH_DURATION;
     setTimeout(() => {
@@ -706,16 +588,30 @@ function resume(fromNFC = false) {
         _resumeCamera();
         const statusEl = document.getElementById('status-text');
         if (statusEl) statusEl.textContent = 'Acerca tu medallón';
-    }, delay); // ← delay correcto, no FLASH_DURATION hardcodeado
+    }, delay);
 }
 
-// ── INICIAR CÁMARA ────────────────────────────────────
+// ── INIT SCANNER ──────────────────────────────────────
 let scannerStarted = false;
+
+// Helper para mostrar start-screen y resetear estado si falla el arranque
+function _showStartScreen(msg) {
+    scannerStarted = false;
+    localStorage.removeItem('preferred_camera_id');
+    const ss = document.getElementById('start-screen');
+    if (ss) {
+        ss.style.display = 'flex';
+        const sub = ss.querySelector('.start-sub');
+        if (sub && msg) sub.textContent = msg;
+    }
+    const sf = document.getElementById('scanner-frame');
+    if (sf) sf.style.display = 'none';
+}
 
 function initScanner() {
     if (scannerStarted) return;
     scannerStarted = true;
-    _scannerStartedAt = Date.now(); // [FIX-6] marcar momento de arranque
+    _scannerStartedAt = Date.now();
 
     const startScreen = document.getElementById('start-screen');
     const scannerFrame = document.getElementById('scanner-frame');
@@ -731,7 +627,7 @@ function initScanner() {
     Html5Qrcode.getCameras()
         .then(cameras => {
             if (!cameras || cameras.length === 0) {
-                console.error('[Scanner] No se encontraron cámaras.');
+                _showStartScreen('No se encontró cámara — toca para reintentar');
                 return;
             }
 
@@ -755,9 +651,9 @@ function initScanner() {
                 () => { }
             ).then(() => {
                 localStorage.setItem('preferred_camera_id', camId);
-                _scannerStartedAt = Date.now(); // [FIX-6] actualizar al confirmar inicio real
+                _scannerStartedAt = Date.now();
+                _dbg('camara OK — ' + camId.slice(0, 12));
 
-                // NFC pendiente via URL redirect
                 if (window._pendingNfcCode) {
                     const code = window._pendingNfcCode;
                     window._pendingNfcCode = null;
@@ -766,25 +662,30 @@ function initScanner() {
                         isProcessing = false;
                         _restartAttempts = 0;
                         handleScan(code, true);
-                    }, 900); // 900ms: cámara estabilizada antes de procesar
+                    }, 900);
                 }
+            }).catch(err => {
+                console.error('[Scanner] Error al iniciar cámara:', err);
+                _showStartScreen('Error de cámara — toca para reintentar');
             });
         })
-        .catch(err => console.error('[Scanner] Error iniciando cámara:', err));
+        .catch(err => {
+            console.error('[Scanner] getCameras error:', err);
+            _showStartScreen('Permiso de cámara denegado — toca para reintentar');
+        });
 
     startMirrorCheck();
 
-    // En PWA el NFC llega via URL redirect — NDEFReader no se usa
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches
         || window.navigator.standalone === true;
     if (!isStandalone) {
         initNFC();
     } else {
-        _dbg('PWA standalone — NFC via URL activo');
+        _dbg('PWA standalone — NFC via URL');
     }
 }
 
-// Click en el panel derecho
+// Click en panel derecho → activar o refrescar cámara
 const rightPanel = document.getElementById('right-panel');
 if (rightPanel) {
     rightPanel.addEventListener('click', () => {
@@ -807,7 +708,7 @@ function startMirrorCheck() {
     }, 1000);
 }
 
-// ── NFC (browser normal, no PWA) ──────────────────────
+// ── NFC (solo en browser normal, no PWA) ─────────────
 const NDEF_URI_PREFIXES = [
     '', 'http://www.', 'https://www.', 'http://', 'https://',
     'tel:', 'mailto:', 'ftp://anonymous:anonymous@', 'ftp://ftp.',
@@ -819,10 +720,7 @@ const NDEF_URI_PREFIXES = [
 ];
 
 async function initNFC() {
-    if (!('NDEFReader' in window)) {
-        console.warn('[NFC] NDEFReader no disponible.');
-        return;
-    }
+    if (!('NDEFReader' in window)) { console.warn('[NFC] NDEFReader no disponible.'); return; }
     try {
         const ndef = new NDEFReader();
         await ndef.scan();
@@ -836,22 +734,18 @@ async function initNFC() {
                 try {
                     if (record.recordType === 'url') {
                         const bytes = new Uint8Array(record.data.buffer, record.data.byteOffset, record.data.byteLength);
-                        const prefix = NDEF_URI_PREFIXES[bytes[0]] ?? '';
-                        fullText = prefix + new TextDecoder('utf-8').decode(bytes.slice(1)).trim();
+                        fullText = (NDEF_URI_PREFIXES[bytes[0]] ?? '') + new TextDecoder('utf-8').decode(bytes.slice(1)).trim();
                     } else if (record.recordType === 'text') {
                         const bytes = new Uint8Array(record.data.buffer, record.data.byteOffset, record.data.byteLength);
-                        const statusByte = bytes[0];
-                        const langLen = statusByte & 0x3F;
-                        const charset = (statusByte & 0x80) ? 'utf-16' : 'utf-8';
-                        fullText = new TextDecoder(charset).decode(bytes.slice(1 + langLen)).trim();
+                        const langLen = bytes[0] & 0x3F;
+                        fullText = new TextDecoder((bytes[0] & 0x80) ? 'utf-16' : 'utf-8').decode(bytes.slice(1 + langLen)).trim();
                     } else {
-                        fullText = new TextDecoder(record.encoding || 'utf-8')
-                            .decode(record.data).replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
+                        fullText = new TextDecoder(record.encoding || 'utf-8').decode(record.data)
+                            .replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
                     }
                 } catch { continue; }
 
                 if (!fullText) continue;
-
                 let code = null;
                 if (fullText.startsWith('http://') || fullText.startsWith('https://')) {
                     try {
@@ -875,10 +769,7 @@ async function initNFC() {
             }
         });
 
-        ndef.addEventListener('readingerror', (e) => {
-            console.warn('[NFC] Error de lectura:', e);
-        });
-
+        ndef.addEventListener('readingerror', (e) => { console.warn('[NFC] Error de lectura:', e); });
     } catch (e) {
         console.warn('[NFC] No disponible o permiso denegado:', e.message);
     }
