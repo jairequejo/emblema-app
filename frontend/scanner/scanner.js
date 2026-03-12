@@ -17,14 +17,26 @@ async function requestWakeLock() {
 }
 requestWakeLock();
 
+// Debug visual — muestra mensajes en pantalla sin necesidad de DevTools
+function _dbg(msg) {
+    let el = document.getElementById('_dbg_bar');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = '_dbg_bar';
+        el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:rgba(0,0,0,0.85);color:#00ff88;font-size:12px;font-family:monospace;padding:4px 8px;pointer-events:none;';
+        document.body.appendChild(el);
+    }
+    el.textContent = new Date().toLocaleTimeString() + ' > ' + msg;
+}
+
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         requestWakeLock();
-        // Android pausa el browser al procesar NFC — reintentar varias veces
-        // porque el sistema puede tardar hasta 1s en devolver el control completo
-        [300, 700, 1200].forEach(delay => {
+        _dbg('pagina visible - forzando restart camara');
+        // Ir directo a hard restart en cascada, no pasar por _resumeCamera
+        [100, 600, 1500, 3000].forEach(delay => {
             setTimeout(() => {
-                if (typeof _resumeCamera === 'function') _resumeCamera();
+                if (!_restartingCamera) _hardRestartCamera();
             }, delay);
         });
     }
@@ -696,10 +708,10 @@ function _hardRestartCamera() {
                 () => { }
             )
             .then(() => {
-                console.log(`[Scanner] Cámara reiniciada ✅ (intento #${_restartAttempts})`);
+                _dbg('camara reiniciada OK intento #' + _restartAttempts);
                 _restartAttempts = 0;
                 _restartingCamera = false;
-                isProcessing = false; // liberar el lock por si quedó colgado durante el restart
+                isProcessing = false;
             })
             .catch(err => {
                 console.error(`[Scanner] Error restart #${_restartAttempts}:`, err);
@@ -719,7 +731,7 @@ setInterval(() => {
             .some(el => el.innerText && el.innerText.trim() === 'Scanner paused' && el.style.display !== 'none');
 
         if (state === 3 || (video && video.paused) || pausedLabel) {
-            console.warn('[Watchdog] Cámara atascada — hard restart.');
+            _dbg('watchdog: camara atascada state=' + state + ' restart...');
             _hardRestartCamera();
         }
     } catch (e) { }
