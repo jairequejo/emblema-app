@@ -174,26 +174,39 @@ def scan_credential(scan: ScanRequest, _pin=Depends(verify_scanner_pin)):
     is_uuid = re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', code, re.I)
     
     if is_uuid:
-        st_res = supabase.table("students") \
-            .select("id, full_name, valid_until, is_active") \
-            .eq("id", code).execute()
-            
-        if not st_res.data:
-            raise HTTPException(status_code=404, detail="Alumno no encontrado (por UUID)")
-            
         raw_data = {
             "id": None, # no hay credential_id
             "student_id": st_res.data[0]["id"],
             "students": st_res.data[0]
         }
     else:
-        res = supabase.table("credentials") \
-            .select("id, student_id, students(full_name, valid_until, is_active)") \
-            .eq("code", code).eq("is_active", True).execute()
-
-        if not res.data:
-            raise HTTPException(status_code=404, detail="Credencial inválida")
-        raw_data = res.data[0]
+        # Fallback LEGACY, buscar si es short_id también: si son 8 caracteres
+        if len(code) == 8 and all(c in "0123456789abcdefABCDEF" for c in code):
+           st_res_short = supabase.table("students") \
+               .select("id, full_name, valid_until, is_active") \
+               .ilike("id", f"{code}%").execute()
+           
+           if st_res_short.data:
+               raw_data = {
+                   "id": None,
+                   "student_id": st_res_short.data[0]["id"],
+                   "students": st_res_short.data[0]
+               }
+           else:
+               res = supabase.table("credentials") \
+                   .select("id, student_id, students(full_name, valid_until, is_active)") \
+                   .eq("code", code).eq("is_active", True).execute()
+               if not res.data:
+                   raise HTTPException(status_code=404, detail="Credencial inválida")
+               raw_data = res.data[0]
+        else:
+           res = supabase.table("credentials") \
+               .select("id, student_id, students(full_name, valid_until, is_active)") \
+               .eq("code", code).eq("is_active", True).execute()
+   
+           if not res.data:
+               raise HTTPException(status_code=404, detail="Credencial inválida")
+           raw_data = res.data[0]
     student_id = raw_data["student_id"]
 
     st_info = raw_data.get("students")
