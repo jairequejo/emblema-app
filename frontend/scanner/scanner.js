@@ -20,9 +20,13 @@ requestWakeLock();
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         requestWakeLock();
-        setTimeout(() => {
-            if (typeof _resumeCamera === 'function') _resumeCamera();
-        }, 300);
+        // Android pausa el browser al procesar NFC — reintentar varias veces
+        // porque el sistema puede tardar hasta 1s en devolver el control completo
+        [300, 700, 1200].forEach(delay => {
+            setTimeout(() => {
+                if (typeof _resumeCamera === 'function') _resumeCamera();
+            }, delay);
+        });
     }
 });
 
@@ -628,24 +632,41 @@ function handleScan(decodedText, fromNFC = false) {
 
 function _resumeCamera() {
     if (!html5Qrcode) return;
-    try {
-        const state = typeof html5Qrcode.getState === 'function' ? html5Qrcode.getState() : -1;
-        if (state === 3) {
-            html5Qrcode.resume();
-        } else if (typeof html5Qrcode.resume === 'function' && state !== 2) {
-            html5Qrcode.resume();
-        }
-    } catch (e) { }
 
-    setTimeout(() => {
-        const video = document.querySelector('#reader video');
-        if (video && video.paused) {
-            video.play().catch(err => console.warn('[Scanner] Auto-play bloqueado:', err));
+    // Paso 1: intentar resume() de la librería sin importar el estado reportado.
+    // html5-qrcode a veces reporta state=2 (SCANNING) pero internamente está pausado,
+    // especialmente tras una interrupción de NFC en Android.
+    try {
+        if (typeof html5Qrcode.resume === 'function') {
+            html5Qrcode.resume();
         }
-        document.querySelectorAll('#reader div').forEach(el => {
-            if (el.textContent === 'Scanner paused') el.style.display = 'none';
+    } catch (e) { /* ya estaba activa — ignorar */ }
+
+    // Paso 2: forzar el elemento <video> a reproducir (Android bloquea el autoplay tras NFC)
+    const forceVideo = () => {
+        const video = document.querySelector('#reader video');
+        if (video) {
+            // Quitar atributo pause que pone html5-qrcode internamente
+            video.removeAttribute('data-paused');
+            if (video.paused) {
+                video.play().catch(() => {
+                    // Si play() falla (política de autoplay), reintentar tras interacción
+                    // El watchdog lo rescatará en el próximo ciclo de 2.5s
+                });
+            }
+        }
+        // Ocultar el cartel "Scanner paused" que deja la librería en el DOM
+        document.querySelectorAll('#reader *').forEach(el => {
+            if (el.innerText && el.innerText.trim() === 'Scanner paused') {
+                el.style.display = 'none';
+            }
         });
-    }, 150);
+    };
+
+    // Ejecutar inmediatamente y también con delay para cubrir la animación de vuelta de NFC
+    forceVideo();
+    setTimeout(forceVideo, 200);
+    setTimeout(forceVideo, 600);
 }
 
 setInterval(() => {
@@ -653,8 +674,12 @@ setInterval(() => {
     try {
         const state = html5Qrcode ? (typeof html5Qrcode.getState === 'function' ? html5Qrcode.getState() : -1) : -1;
         const video = document.querySelector('#reader video');
-        if (state === 3 || (video && video.paused)) {
-            console.warn("[Watchdog] Cámara atorada detectada. Rescatando...");
+        const scannerPausedVisible = Array.from(document.querySelectorAll('#reader *'))
+            .some(el => el.innerText && el.innerText.trim() === 'Scanner paused' && el.style.display !== 'none');
+
+        // Rescatar si: estado PAUSED, video pausado, O cartel "Scanner paused" visible
+        if (state === 3 || (video && video.paused) || scannerPausedVisible) {
+            console.warn("[Watchdog] Cámara atorada detectada (state=" + state + ", videoPaused=" + (video && video.paused) + "). Rescatando...");
             _resumeCamera();
         }
     } catch (e) { }
