@@ -639,11 +639,11 @@ function _resumeCamera() {
         if (state === 3 /* PAUSED */) {
             html5Qrcode.resume();
         } else if (state === 2 /* SCANNING */) {
-            // Hack para despertar a html5-qrcode si se atoró internamente
-            html5Qrcode.pause(true);
-            setTimeout(() => { try { html5Qrcode.resume(); } catch (e) { } }, 50);
+            // Ya está escaneando, no hacemos nada para no congelar el stream de video
+            // Solo aseguramos que el video HTML5 subyacente no se haya pausado
         } else {
-            html5Qrcode.resume();
+            // En cualquier otro caso intentamos resumir si es posible
+            if (typeof html5Qrcode.resume === 'function') html5Qrcode.resume();
         }
     } catch (e) {
         // Ignorar si ya está actíva u otro error
