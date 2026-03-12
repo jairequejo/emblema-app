@@ -697,8 +697,9 @@ function _hardRestartCamera() {
             )
             .then(() => {
                 console.log(`[Scanner] Cámara reiniciada ✅ (intento #${_restartAttempts})`);
-                _restartAttempts = 0; // reset al tener éxito
+                _restartAttempts = 0;
                 _restartingCamera = false;
+                isProcessing = false; // liberar el lock por si quedó colgado durante el restart
             })
             .catch(err => {
                 console.error(`[Scanner] Error restart #${_restartAttempts}:`, err);
@@ -710,7 +711,7 @@ function _hardRestartCamera() {
 }
 
 setInterval(() => {
-    if (!scannerStarted || isProcessing || _restartingCamera || document.visibilityState !== 'visible') return;
+    if (!scannerStarted || _restartingCamera || document.visibilityState !== 'visible') return;
     try {
         const state = html5Qrcode ? (typeof html5Qrcode.getState === 'function' ? html5Qrcode.getState() : -1) : -1;
         const video = document.querySelector('#reader video');
