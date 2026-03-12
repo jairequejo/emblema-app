@@ -1,14 +1,11 @@
-// scanner/scanner.js — v4.0
-// NFC eliminado del kiosko. El kiosko lee SOLO QR.
-// El chip NFC del alumno apunta a /?code=JRS:... (portal home).
+// scanner/scanner.js — v4.1
+// NFC eliminado. Solo QR. Selector de cámara al primer arranque.
 
 const FLASH_DURATION = 2200;
 
-// ── BLOQUEAR BOTÓN ATRÁS ──────────────────────────────
 window.history.pushState(null, null, window.location.href);
 window.onpopstate = function () { window.history.go(1); };
 
-// ── WAKE LOCK ─────────────────────────────────────────
 async function requestWakeLock() {
     if ('wakeLock' in navigator) {
         try { await navigator.wakeLock.request('screen'); } catch (e) { }
@@ -16,7 +13,6 @@ async function requestWakeLock() {
 }
 requestWakeLock();
 
-// ── RELOJ ─────────────────────────────────────────────
 function updateClock() {
     const now = new Date();
     const clockEl = document.getElementById('clock');
@@ -27,7 +23,6 @@ function updateClock() {
 updateClock();
 setInterval(updateClock, 1000);
 
-// ── DEBUG VISUAL ──────────────────────────────────────
 function _dbg(msg) {
     let el = document.getElementById('_dbg_bar');
     if (!el) {
@@ -39,7 +34,6 @@ function _dbg(msg) {
     el.textContent = new Date().toLocaleTimeString() + ' > ' + msg;
 }
 
-// ── VISIBILITYCHANGE ──────────────────────────────────
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         requestWakeLock();
@@ -121,7 +115,6 @@ async function fetchOfflineData() {
     } catch { }
 }
 
-// ── LOAD ──────────────────────────────────────────────
 window.addEventListener('load', async () => {
     try {
         const r = await fetch('/attendance/scanner/offline-data',
@@ -134,11 +127,9 @@ window.addEventListener('load', async () => {
         }
     } catch { }
 
-    // Auto-arrancar solo si ya hay camara guardada (permiso previo dado)
     if (localStorage.getItem('preferred_camera_id')) {
         setTimeout(initScanner, 300);
     }
-    // Sin camara guardada → mostrar "TOCA PARA ACTIVAR"
 });
 
 setInterval(fetchOfflineData, 5 * 60 * 1000);
@@ -207,7 +198,6 @@ async function validateJRS(code) {
     const [short_id, valid_date, name_b64, sig] = parts;
     let name;
     try { name = b64uDecode(name_b64); } catch { return null; }
-
     if (!localStorage.getItem(SIGNING_KEY_SK)) {
         try {
             const r = await fetch('/attendance/scanner/offline-data',
@@ -215,11 +205,9 @@ async function validateJRS(code) {
             if (r.ok) { const d = await r.json(); _saveOfflineData(d); }
         } catch { }
     }
-
     const expected = await computeHmac(short_id, valid_date, name_b64);
     if (!expected) return { short_id, name, valid_date, debe: false, skipLocalValidation: true };
     if (expected !== sig) return null;
-
     const v = new Date(valid_date.slice(0, 4), valid_date.slice(4, 6) - 1, valid_date.slice(6, 8));
     v.setHours(23, 59, 59);
     return { short_id, name, valid_date, debe: v < new Date() };
@@ -287,7 +275,6 @@ async function processOfflineScan(code) {
     try {
         const db = JSON.parse(localStorage.getItem('scanner_offline_db') || '{}');
         let studentId = code, fallbackName = 'Desconocido';
-
         if (code.startsWith('JRS:')) {
             const parsed = await validateJRS(code);
             if (!parsed) { playError(); showFlash('error', 'QR INVÁLIDO', 'Firma incorrecta.'); resume(); return; }
@@ -300,15 +287,13 @@ async function processOfflineScan(code) {
                 if (full) studentId = full;
             }
         }
-
         const info = db[studentId];
         if (info) {
             queuedScans.push({ code, timestamp: new Date().toISOString() });
             localStorage.setItem('scanner_queued_scans', JSON.stringify(queuedScans));
             updateQueueUI();
-            const msg = info.status === 'success' ? '¡BIENVENIDO! (Guardado Offline)' : info.detalle;
             if (info.status === 'success') playSuccess(); else playWarning();
-            showFlash(info.status, info.name, msg);
+            showFlash(info.status, info.name, info.status === 'success' ? '¡BIENVENIDO! (Guardado Offline)' : info.detalle);
             addHistory(info.status, info.name + ' (Offline)');
             resume();
         } else if (code.startsWith('JRS:')) {
@@ -345,7 +330,6 @@ function syncOfflineQueue() {
             : s.code;
         return { student_id: sid || s.code, timestamp: s.timestamp, local_id: `sync-${i}-${s.timestamp}` };
     }).filter(r => r.student_id);
-
     fetch('/attendance/sync-batch', {
         method: 'POST',
         headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
@@ -376,7 +360,6 @@ function _armSafety() {
     if (_safetyTimer) clearTimeout(_safetyTimer);
     _safetyTimer = setTimeout(() => {
         if (isProcessing) {
-            console.warn('[Scanner] Safety-net');
             isProcessing = false;
             _softResume();
             const s = document.getElementById('status-text');
@@ -394,10 +377,8 @@ function _doOnlineScan(code) {
     const ctrl = new AbortController();
     const tid = setTimeout(() => ctrl.abort(), 3000);
     fetch('/attendance/scan', {
-        method: 'POST',
-        headers: getScannerHeaders(),
-        body: JSON.stringify({ code }),
-        signal: ctrl.signal
+        method: 'POST', headers: getScannerHeaders(),
+        body: JSON.stringify({ code }), signal: ctrl.signal
     })
         .then(r => { clearTimeout(tid); return r.text(); })
         .then(raw => {
@@ -449,12 +430,10 @@ function _hardRestartCamera() {
     _restartingCamera = true;
     _restartAttempts++;
     _dbg('hardRestart #' + _restartAttempts);
-
     const camId = localStorage.getItem('preferred_camera_id');
     const frame = document.getElementById('scanner-frame');
     const size = frame ? Math.min(frame.clientWidth, frame.clientHeight) - 20 : 300;
     const qrboxSide = Math.floor(size * 0.85);
-
     html5Qrcode.stop().catch(() => { }).finally(() => {
         document.querySelectorAll('#reader *').forEach(el => {
             if (el.innerText && el.innerText.trim() === 'Scanner paused') el.remove();
@@ -465,7 +444,7 @@ function _hardRestartCamera() {
             (text) => { handleScan(text); },
             () => { }
         ).then(() => {
-            _dbg('hardRestart OK #' + _restartAttempts);
+            _dbg('hardRestart OK');
             _restartAttempts = 0;
             _restartingCamera = false;
             isProcessing = false;
@@ -490,8 +469,7 @@ setInterval(() => {
     if (Date.now() - _lastResumeAt < 5000) return;
     try {
         const state = html5Qrcode
-            ? (typeof html5Qrcode.getState === 'function' ? html5Qrcode.getState() : -1)
-            : -1;
+            ? (typeof html5Qrcode.getState === 'function' ? html5Qrcode.getState() : -1) : -1;
         const video = document.querySelector('#reader video');
         const pausedLabel = Array.from(document.querySelectorAll('#reader *'))
             .some(el => el.innerText && el.innerText.trim() === 'Scanner paused' && el.style.display !== 'none');
@@ -511,6 +489,75 @@ function resume() {
         const s = document.getElementById('status-text');
         if (s) s.textContent = 'Acerca tu medallón';
     }, FLASH_DURATION);
+}
+
+// ── SELECTOR DE CÁMARA ────────────────────────────────
+function _showCameraSelector(cameras) {
+    const old = document.getElementById('_cam_selector');
+    if (old) old.remove();
+
+    const ov = document.createElement('div');
+    ov.id = '_cam_selector';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.96);display:flex;align-items:center;justify-content:center;font-family:"Barlow Condensed",system-ui,sans-serif;';
+
+    const box = document.createElement('div');
+    box.style.cssText = 'background:#111;border:2px solid #d4a017;border-radius:16px;padding:2rem;width:320px;text-align:center;color:#fff;';
+    box.innerHTML = `
+        <div style="font-size:2.5rem;margin-bottom:.4rem">📷</div>
+        <div style="font-size:1.6rem;font-weight:700;color:#d4a017;margin-bottom:.3rem">ELEGIR CÁMARA</div>
+        <div style="font-size:.85rem;color:#888;margin-bottom:1.4rem">Se guardará la elección</div>
+    `;
+
+    cameras.forEach((cam, i) => {
+        const label = cam.label || `Cámara ${i + 1}`;
+        const btn = document.createElement('button');
+        btn.style.cssText = 'display:block;width:100%;margin-bottom:.6rem;background:#1a1a1a;border:1px solid #333;color:#fff;border-radius:10px;padding:1rem;font-size:1rem;font-family:inherit;cursor:pointer;text-align:left;';
+        btn.innerHTML = `<span style="color:#d4a017;font-weight:700;margin-right:.6rem">${i + 1}.</span>${label}`;
+        btn.ontouchstart = () => btn.style.background = '#2a2a1a';
+        btn.ontouchend = () => btn.style.background = '#1a1a1a';
+        btn.onmouseover = () => btn.style.background = '#2a2a1a';
+        btn.onmouseout = () => btn.style.background = '#1a1a1a';
+        btn.onclick = () => {
+            ov.remove();
+            _startWithCamera(cam.id);
+        };
+        box.appendChild(btn);
+    });
+
+    // Botón cambiar cámara (olvidar elección)
+    const changeBtn = document.createElement('button');
+    changeBtn.style.cssText = 'margin-top:1rem;background:transparent;border:none;color:#555;font-size:.8rem;cursor:pointer;font-family:inherit;text-decoration:underline;';
+    changeBtn.textContent = '🔄 Cambiar cámara guardada';
+    changeBtn.onclick = () => {
+        localStorage.removeItem('preferred_camera_id');
+        ov.remove();
+        _showCameraSelector(cameras);
+    };
+    box.appendChild(changeBtn);
+
+    ov.appendChild(box);
+    document.body.appendChild(ov);
+}
+
+function _startWithCamera(camId) {
+    const frame = document.getElementById('scanner-frame');
+    const size = frame ? Math.min(frame.clientWidth, frame.clientHeight) - 20 : 300;
+    const qrboxSide = Math.floor(size * 0.85);
+
+    html5Qrcode.start(
+        camId,
+        { fps: 15, qrbox: { width: qrboxSide, height: qrboxSide }, aspectRatio: 1.0 },
+        (text) => { handleScan(text); },
+        () => { }
+    ).then(() => {
+        localStorage.setItem('preferred_camera_id', camId);
+        _scannerStartedAt = Date.now();
+        _lastResumeAt = Date.now();
+        _dbg('camara OK — ' + camId.slice(0, 20));
+    }).catch(err => {
+        console.error('[Scanner] start error:', err);
+        _showStartScreen('Error de cámara — toca para reintentar');
+    });
 }
 
 // ── INIT SCANNER ──────────────────────────────────────
@@ -540,10 +587,6 @@ function initScanner() {
     if (ss) ss.style.display = 'none';
     if (sf) sf.style.display = 'block';
 
-    const frame = document.getElementById('scanner-frame');
-    const size = frame ? Math.min(frame.clientWidth, frame.clientHeight) - 20 : 300;
-    const qrboxSide = Math.floor(size * 0.85);
-
     html5Qrcode = new Html5Qrcode('reader');
 
     Html5Qrcode.getCameras()
@@ -553,31 +596,16 @@ function initScanner() {
                 return;
             }
             const savedId = localStorage.getItem('preferred_camera_id');
-            let camId = cameras[0].id;
             if (savedId && cameras.find(c => c.id === savedId)) {
-                camId = savedId;
+                // Elección guardada → arrancar directo
+                _startWithCamera(savedId);
+            } else if (cameras.length === 1) {
+                // Una sola cámara → arrancar directo
+                _startWithCamera(cameras[0].id);
             } else {
-                const back = cameras.find(c =>
-                    c.label.toLowerCase().includes('back') ||
-                    c.label.toLowerCase().includes('rear') ||
-                    c.label.toLowerCase().includes('environment')
-                );
-                if (back) camId = back.id;
+                // Varias cámaras → mostrar selector
+                _showCameraSelector(cameras);
             }
-            return html5Qrcode.start(
-                camId,
-                { fps: 15, qrbox: { width: qrboxSide, height: qrboxSide }, aspectRatio: 1.0 },
-                (text) => { handleScan(text); },
-                () => { }
-            ).then(() => {
-                localStorage.setItem('preferred_camera_id', camId);
-                _scannerStartedAt = Date.now();
-                _lastResumeAt = Date.now();
-                _dbg('camara OK — solo QR');
-            }).catch(err => {
-                console.error('[Scanner] start error:', err);
-                _showStartScreen('Error de cámara — toca para reintentar');
-            });
         })
         .catch(err => {
             console.error('[Scanner] getCameras error:', err);
@@ -585,7 +613,6 @@ function initScanner() {
         });
 
     startMirrorCheck();
-    _dbg('NFC desactivado — chips apuntan al portal home');
 }
 
 // Click en panel derecho
