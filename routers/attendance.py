@@ -174,6 +174,13 @@ def scan_credential(scan: ScanRequest, _pin=Depends(verify_scanner_pin)):
     is_uuid = re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', code, re.I)
     
     if is_uuid:
+        st_res = supabase.table("students") \
+            .select("id, full_name, valid_until, is_active") \
+            .eq("id", code).execute()
+            
+        if not st_res.data:
+            raise HTTPException(status_code=404, detail="Alumno no encontrado (por UUID)")
+            
         raw_data = {
             "id": None, # no hay credential_id
             "student_id": st_res.data[0]["id"],
