@@ -602,6 +602,14 @@ function handleScan(decodedText, fromNFC = false) {
                 resume(fromNFC); return;
             }
 
+            // Si es un error explícito de FastAPI
+            if (data.detail) {
+                playError();
+                showFlash('error', 'RECHAZADO', data.detail);
+                resume(fromNFC);
+                return;
+            }
+
             const nombre = data.student_name || 'Desconocido';
             const estado = data.status || 'error';
 
@@ -610,7 +618,7 @@ function handleScan(decodedText, fromNFC = false) {
             else if (estado === 'debe') playWarning();
             else playError();
 
-            showFlash(estado, nombre, data.message);
+            showFlash(estado, nombre, data.message || data.detail);
 
             if (estado !== 'error') addHistory(estado, nombre);
 
