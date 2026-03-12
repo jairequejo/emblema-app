@@ -3,23 +3,17 @@
 
 <head>
   <script>
-  // Si hay ?code= en la URL, decidir a dónde ir según el contexto
+  // Si hay ?code= en la URL y estamos en la PWA del kiosko → redirigir al scanner
+  // Si estamos en browser normal → dejar que home.js lo maneje (muestra ficha del alumno)
   (function() {
       const code = new URLSearchParams(window.location.search).get('code');
-      if (!code) return; // sin code, cargar home normal
-
-      // ¿Estamos dentro de la PWA del scanner (modo standalone)?
+      if (!code) return;
       const isKiosko = window.matchMedia('(display-mode: standalone)').matches
                     || window.navigator.standalone === true;
-
       if (isKiosko) {
-          // Estamos en la PWA instalada — redirigir al scanner para registrar asistencia
           window.location.replace('/scanner?code=' + encodeURIComponent(code));
-      } else {
-          // Estamos en browser normal — redirigir al portal del alumno
-          window.location.replace('/public/student/' + encodeURIComponent(code) + '/info');
-          // Ajusta esta URL según cómo esté tu portal de alumno
       }
+      // Si NO es kiosko: NO redirigir — home.js lee el ?code= y muestra la ficha
   })();
   </script>
   <meta charset="UTF-8">
@@ -31,7 +25,6 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap"
     rel="stylesheet">
-  <!-- Estilos del portal en home.css -->
   <link rel="stylesheet" href="/static/home/home.css">
   <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
@@ -156,7 +149,6 @@
     </div>
   </div>
 
-  <!-- Lógica del portal en home.js -->
   <script src="/static/home/home.js"></script>
 </body>
 
