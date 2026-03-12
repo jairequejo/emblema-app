@@ -68,6 +68,18 @@ def scanner():
     resp.headers["Pragma"] = "no-cache"
     return resp
 
+@app.get("/scanner/sw.js")
+def scanner_sw():
+    resp = FileResponse("frontend/scanner/sw.js", media_type="application/javascript")
+    resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+    resp.headers["Service-Worker-Allowed"] = "/scanner"
+    return resp
+
+@app.get("/scanner/manifest.json")
+def scanner_manifest():
+    resp = FileResponse("frontend/scanner/manifest.json", media_type="application/manifest+json")
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
 
 @app.get("/caja")
 def caja_page():

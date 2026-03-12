@@ -1,0 +1,23 @@
+{
+  "name": "JR Stars Scanner",
+  "short_name": "Scanner",
+  "description": "Scanner de asistencia JR Stars Academia",
+  "start_url": "/scanner",
+  "scope": "/scanner",
+  "display": "standalone",
+  "orientation": "landscape",
+  "background_color": "#0a0a0a",
+  "theme_color": "#d4a017",
+  "icons": [
+    {
+      "src": "/static/img/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/img/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
