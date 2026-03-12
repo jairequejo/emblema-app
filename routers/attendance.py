@@ -48,7 +48,7 @@ def _b64u_encode(text: str) -> str:
 
 
 def _b64u_decode(text: str) -> str:
-    padding = 4 - len(text) % 4
+    padding = (4 - len(text) % 4) % 4
     return base64.urlsafe_b64decode(text + "=" * padding).decode("utf-8")
 
 
