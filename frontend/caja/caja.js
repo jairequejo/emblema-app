@@ -208,5 +208,5 @@ function resetCaja() {
   document.getElementById('cliente-box').classList.remove('active');
   document.getElementById('menu-grid').classList.remove('active');
   document.getElementById('status-nfc').innerHTML = "📡 Esperando NFC o QR...";
-  try { if (html5QrcodeScanner) html5QrcodeScanner.resume(); } catch (e) { /* ya activo */ }
+  // Scanner no se pausa explícitamente.
 }

@@ -99,7 +99,7 @@ async function initNFC() {
         const raw = _homeNfcExtract(record);
         if (!raw) continue;
         // Reanudar scanner QR si estaba pausado
-        try { if (qrScanner) qrScanner.resume(); } catch (e) { /* ya activo */ }
+        // qrScanner no se pausa explícitamente y html5QrCodeScanner.resume() sin pausa causa freeze.
         handleScanCode(raw);
         break;
       }

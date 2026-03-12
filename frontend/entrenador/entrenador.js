@@ -295,7 +295,7 @@ async function handleScan(decodedText) {
 function scheduleResume() {
     setTimeout(() => {
         processing = false;
-        try { if (qrScanner) qrScanner.resume(); } catch (e) { /* ya activo */ }
+        // qrScanner no se pausa explícitamente.
     }, RESUME_DELAY);
 }
 
