@@ -25,15 +25,26 @@ function toggleScanner() {
       });
       qrScanner.render(
         (decodedText) => {
-          // Al leer, detenemos si es posible y buscamos
+          // Al leer, detenemos el scanner para que no capture más frames repetidos
+          if (qrScanner.getState && qrScanner.getState() !== 3) {
+            qrScanner.pause(true);
+          }
           toggleScanner();
           handleScanCode(decodedText);
         },
         () => { }
       );
+    } else {
+        // Reanudar el escaneo si ya estaba renderizado pero pausado
+        if (qrScanner.getState && qrScanner.getState() === 3) {
+            qrScanner.resume();
+        }
     }
   } else {
     container.classList.add('hidden');
+    if (qrScanner && qrScanner.getState && qrScanner.getState() !== 3) {
+        qrScanner.pause(true);
+    }
   }
 }
 
@@ -98,8 +109,10 @@ async function initNFC() {
       for (const record of message.records) {
         const raw = _homeNfcExtract(record);
         if (!raw) continue;
-        // Reanudar scanner QR si estaba pausado
-        // qrScanner no se pausa explícitamente y html5QrCodeScanner.resume() sin pausa causa freeze.
+        // Si el QR estaba activo, lo pausamos y saltamos
+        if (qrScanner && !$('scanner-container').classList.contains('hidden')) {
+             toggleScanner();
+        }
         handleScanCode(raw);
         break;
       }
@@ -126,7 +139,7 @@ async function buscar() {
   $('ld').classList.remove('hidden');
 
   try {
-    const res = await fetch(`/public/student/${dni}/info`);
+    const res = await fetch(`/public/student/${encodeURIComponent(dni)}/info`);
 
     if (res.status === 404) {
       $('ld').classList.add('hidden');

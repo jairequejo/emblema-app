@@ -3,7 +3,7 @@ import os
 import hmac
 import hashlib
 import base64
-from fastapi import APIRouter, HTTPException, Depends, Header
+from fastapi import APIRouter, HTTPException, Depends, Header, Request
 from pydantic import BaseModel
 from typing import Optional, List
 from database import supabase
@@ -28,10 +28,22 @@ SIGNING_KEY = _JRS_SECRET
 _SCANNER_PIN = os.getenv("SCANNER_PIN", "").strip()
 
 
-def verify_scanner_pin(x_scanner_pin: Optional[str] = Header(None)):
+def verify_scanner_pin(request: Request, x_scanner_pin: Optional[str] = Header(None)):
     """Valida el PIN del scanner. Sin SCANNER_PIN configurado → acceso público."""
     if not _SCANNER_PIN:
         return  # fallback público para desarrollo
+        
+    # Permitir si hay un token JWT válido de Supabase (Admin o Entrenador)
+    auth = request.headers.get("Authorization")
+    if auth and auth.startswith("Bearer "):
+        token = auth.replace("Bearer ", "")
+        try:
+            user = supabase.auth.get_user(token)
+            if user and user.user:
+                return  # Válido
+        except Exception:
+            pass
+
     if x_scanner_pin != _SCANNER_PIN:
         raise HTTPException(status_code=401, detail="PIN de scanner inválido")
 
@@ -384,6 +396,7 @@ def scanner_offline_data(_pin=Depends(verify_scanner_pin)):
         offline_db[a["id"]] = entry           # clave UUID completo (legacy)
         offline_db[a["id"][:8]] = entry       # Fix 3: clave short_id para JRS v2
 
+    offline_db["_META_SIGNING_KEY"] = _JRS_SECRET.hex()
     return offline_db
 
 @router.get("/today")

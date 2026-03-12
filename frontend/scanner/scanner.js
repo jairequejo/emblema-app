@@ -64,6 +64,10 @@ async function pinSubmit() {
             _scannerPin = _pinBuffer;
             sessionStorage.setItem('scanner_pin', _scannerPin);
             const data = await r.json();
+            if (data._META_SIGNING_KEY) {
+                localStorage.setItem('jr_signing_key', data._META_SIGNING_KEY);
+                delete data._META_SIGNING_KEY;
+            }
             localStorage.setItem('scanner_offline_db', JSON.stringify(data));
 
             // Restaurar el indicator a su color normal (puede haber cambiado a rojo por 401)
@@ -111,6 +115,10 @@ window.addEventListener('load', async () => {
             showPinOverlay();
         } else if (r.ok) {
             const data = await r.json();
+            if (data._META_SIGNING_KEY) {
+                localStorage.setItem('jr_signing_key', data._META_SIGNING_KEY);
+                delete data._META_SIGNING_KEY;
+            }
             localStorage.setItem('scanner_offline_db', JSON.stringify(data));
             hidePinOverlay();
         }
@@ -236,6 +244,10 @@ function fetchOfflineData() {
     fetch('/attendance/scanner/offline-data', { headers })
         .then(res => res.json())
         .then(data => {
+            if (data._META_SIGNING_KEY) {
+                localStorage.setItem('jr_signing_key', data._META_SIGNING_KEY);
+                delete data._META_SIGNING_KEY;
+            }
             localStorage.setItem('scanner_offline_db', JSON.stringify(data));
             console.log("Base de datos offline actualizada:", Object.keys(data).length, "registros");
         })

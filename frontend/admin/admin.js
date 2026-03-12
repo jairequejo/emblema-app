@@ -445,7 +445,7 @@ async function verQR(studentId) {
       const d = await gen.json();
       codeStr = d.code;
     }
-    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${codeStr}`;
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(codeStr)}`;
     window.open(qrImageUrl, '_blank');
   } catch {
     showToast('❌ Error al obtener el QR.', 'error');
