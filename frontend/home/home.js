@@ -1,13 +1,21 @@
 // home/home.js — Lógica de la página pública JR Stars
-// Extraído del <script> inline de index.html
 
 const $ = id => document.getElementById(id);
 const p1 = $('p1'), p2 = $('p2'), p3 = $('p3');
 
 document.addEventListener('DOMContentLoaded', () => {
+  // ── NUEVO: leer ?code= de la URL al abrir desde chip NFC ──
+  const urlParams = new URLSearchParams(window.location.search);
+  const nfcCode = urlParams.get('code');
+  if (nfcCode) {
+    window.history.replaceState({}, '', '/'); // limpiar URL
+    handleScanCode(nfcCode.trim());           // buscar directo
+  }
+
   loadRanking();
   initNFC();
 });
+
 $('dni').addEventListener('keypress', e => { if (e.key === 'Enter') buscar(); });
 
 /* ── SCANNER QR / NFC ── */
@@ -25,7 +33,6 @@ function toggleScanner() {
       });
       qrScanner.render(
         (decodedText) => {
-          // Al leer, detenemos el scanner para que no capture más frames repetidos
           if (qrScanner.getState && qrScanner.getState() !== 3) {
             qrScanner.pause(true);
           }
@@ -35,15 +42,14 @@ function toggleScanner() {
         () => { }
       );
     } else {
-        // Reanudar el escaneo si ya estaba renderizado pero pausado
-        if (qrScanner.getState && qrScanner.getState() === 3) {
-            qrScanner.resume();
-        }
+      if (qrScanner.getState && qrScanner.getState() === 3) {
+        qrScanner.resume();
+      }
     }
   } else {
     container.classList.add('hidden');
     if (qrScanner && qrScanner.getState && qrScanner.getState() !== 3) {
-        qrScanner.pause(true);
+      qrScanner.pause(true);
     }
   }
 }
@@ -51,7 +57,6 @@ function toggleScanner() {
 function handleScanCode(rawCode) {
   let raw = rawCode.replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
 
-  // Extraer ?code= si viene como URL completa
   if (raw.startsWith('http://') || raw.startsWith('https://')) {
     try {
       const url = new URL(raw);
@@ -65,11 +70,11 @@ function handleScanCode(rawCode) {
     raw = decodeURIComponent(raw.split('?code=')[1]);
   }
 
-  // Pasar el código completo (JRS:..., STU-..., DNI numérico) al buscador
   $('dni').value = raw;
   buscar();
 }
 
+/* ── NFC ── */
 const NDEF_URI_PREFIXES_HOME = [
   '', 'http://www.', 'https://www.', 'http://', 'https://',
   'tel:', 'mailto:', 'ftp://anonymous:anonymous@', 'ftp://ftp.',
@@ -109,9 +114,8 @@ async function initNFC() {
       for (const record of message.records) {
         const raw = _homeNfcExtract(record);
         if (!raw) continue;
-        // Si el QR estaba activo, lo pausamos y saltamos
         if (qrScanner && !$('scanner-container').classList.contains('hidden')) {
-             toggleScanner();
+          toggleScanner();
         }
         handleScanCode(raw);
         break;
@@ -121,7 +125,6 @@ async function initNFC() {
     console.warn('NFC no disponible:', e.message);
   }
 }
-
 
 /* ── CONSULTAR DNI O UUID ── */
 async function buscar() {
@@ -250,11 +253,11 @@ function renderCard(d) {
         ${(d.talla_actual || d.peso_actual) ? `
         <div class="bio-row">
           <div class="bio-cell">
-            <div class="bio-val">${d.talla_actual || '\u2014'}<span class="bio-delta">${d.delta_talla || ''}</span></div>
+            <div class="bio-val">${d.talla_actual || '—'}<span class="bio-delta">${d.delta_talla || ''}</span></div>
             <div class="bio-label">Estatura</div>
           </div>
           <div class="bio-cell">
-            <div class="bio-val">${d.peso_actual || '\u2014'}</div>
+            <div class="bio-val">${d.peso_actual || '—'}</div>
             <div class="bio-label">Peso corporal</div>
           </div>
         </div>` : `
