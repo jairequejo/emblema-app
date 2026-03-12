@@ -1,9 +1,15 @@
-// scanner/scanner.js — v3.1 bugfix
+// scanner/scanner.js — v3.2
 // FIXES aplicados:
 // [FIX-1] validateJRS: si no hay clave local, hace fetch online en lugar de rechazar
 // [FIX-2] b64uDecode: usa TextDecoder en lugar de escape()/unescape() (falla en Firefox/Samsung)
 // [FIX-3] NFC: la clave se recarga automáticamente si estaba ausente al momento del scan
 // [FIX-4] QR Admin: se expone initAdminScanner() para que admin.js pueda inicializarlo
+// [FIX-5] resume(fromNFC): usa delay correcto (2500ms NFC vs FLASH_DURATION QR)
+// [FIX-6] _scannerStartedAt: se asigna correctamente en initScanner()
+// [FIX-7] watchdog: no interrumpe mientras isProcessing=true
+
+// ── CONSTANTES ────────────────────────────────────────
+const FLASH_DURATION = 2200; // ms que se muestra el resultado en pantalla
 
 // ── BLOQUEAR BOTÓN ATRÁS ──────────────────────────────
 window.history.pushState(null, null, window.location.href);
@@ -17,7 +23,24 @@ async function requestWakeLock() {
 }
 requestWakeLock();
 
-// Debug visual — muestra mensajes en pantalla sin necesidad de DevTools
+// ── RELOJ ─────────────────────────────────────────────
+function updateClock() {
+    const now = new Date();
+    const clockEl = document.getElementById('clock');
+    const dateEl = document.getElementById('date-display');
+    if (clockEl) {
+        clockEl.textContent = now.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' });
+    }
+    if (dateEl) {
+        dateEl.textContent = now.toLocaleDateString('es-PE', {
+            weekday: 'long', day: 'numeric', month: 'long'
+        });
+    }
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ── DEBUG VISUAL ──────────────────────────────────────
 function _dbg(msg) {
     let el = document.getElementById('_dbg_bar');
     if (!el) {
@@ -29,11 +52,11 @@ function _dbg(msg) {
     el.textContent = new Date().toLocaleTimeString() + ' > ' + msg;
 }
 
+// ── VISIBILIDAD ───────────────────────────────────────
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         requestWakeLock();
         _dbg('pagina visible - forzando restart camara');
-        // Ir directo a hard restart en cascada, no pasar por _resumeCamera
         [100, 600, 1500, 3000].forEach(delay => {
             setTimeout(() => {
                 if (!_restartingCamera) _hardRestartCamera();
@@ -42,7 +65,7 @@ document.addEventListener('visibilitychange', () => {
     }
 });
 
-// ── FIX 2: GESTIÓN DEL PIN DEL SCANNER ────────────────────────────────────
+// ── GESTIÓN DEL PIN ───────────────────────────────────
 let _scannerPin = sessionStorage.getItem('scanner_pin') || '';
 let _pinBuffer = '';
 
@@ -80,13 +103,11 @@ async function pinSubmit() {
             sessionStorage.setItem('scanner_pin', _scannerPin);
             const data = await r.json();
             _saveOfflineData(data);
-
             const indicator = document.getElementById('offline-queue-indicator');
             if (indicator) {
                 indicator.style.background = 'var(--gold)';
                 indicator.style.color = '#000';
             }
-
             if (typeof _startSyncLoop === 'function') _startSyncLoop();
             hidePinOverlay();
         } else {
@@ -111,24 +132,35 @@ function hidePinOverlay() {
     if (ov) { ov.style.display = 'none'; }
 }
 
-// ── [FIX-3] Helper para guardar datos offline incluyendo la clave ──────────
+// ── OFFLINE DATA ──────────────────────────────────────
 function _saveOfflineData(data) {
     if (data._META_SIGNING_KEY) {
         localStorage.setItem('jr_signing_key', data._META_SIGNING_KEY);
-        _cryptoKey = null; // forzar re-importación con la nueva clave
+        _cryptoKey = null;
         delete data._META_SIGNING_KEY;
     }
     localStorage.setItem('scanner_offline_db', JSON.stringify(data));
 }
 
+async function fetchOfflineData() {
+    try {
+        const r = await fetch('/attendance/scanner/offline-data',
+            { headers: _scannerPin ? { 'X-Scanner-Pin': _scannerPin } : {} });
+        if (r.ok) {
+            const data = await r.json();
+            _saveOfflineData(data);
+        }
+    } catch { /* sin conexión */ }
+}
+
+// ── LOAD ──────────────────────────────────────────────
 window.addEventListener('load', async () => {
-    // NFC via URL: guardar el code ANTES de que initScanner arranque la camara
     const _urlParams = new URLSearchParams(window.location.search);
     const _nfcCode = _urlParams.get('code');
     if (_nfcCode) {
         window.history.replaceState({}, '', '/scanner');
         window._pendingNfcCode = _nfcCode.trim();
-        _dbg('NFC via URL capturado: ' + _nfcCode.slice(0,20));
+        _dbg('NFC via URL capturado: ' + _nfcCode.slice(0, 20));
     }
 
     try {
@@ -150,7 +182,9 @@ window.addEventListener('load', async () => {
 
 setInterval(fetchOfflineData, 5 * 60 * 1000);
 
+// ── COLA OFFLINE ──────────────────────────────────────
 let queuedScans = JSON.parse(localStorage.getItem('scanner_queued_scans') || '[]');
+
 function updateQueueUI() {
     let indicator = document.getElementById('offline-queue-indicator');
     if (!indicator) {
@@ -168,7 +202,7 @@ function updateQueueUI() {
 }
 updateQueueUI();
 
-// ── CRYPTO: VALIDACIÓN HMAC LOCAL ─────────────────────────
+// ── CRYPTO: VALIDACIÓN HMAC LOCAL ─────────────────────
 const SIGNING_KEY_SK = 'jr_signing_key';
 let _cryptoKey = null;
 
@@ -202,76 +236,128 @@ async function computeHmac(short_id, valid_yyyymmdd, name_b64) {
         .map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// [FIX-2] b64uDecode con TextDecoder — funciona correctamente con UTF-8 multi-byte
-// (la versión anterior con escape()/unescape() falla en Firefox y Samsung Browser)
+// [FIX-2] b64uDecode con TextDecoder
 function b64uDecode(str) {
     str = str.replace(/-/g, '+').replace(/_/g, '/');
     while (str.length % 4) str += '=';
     try {
-        // Método moderno y correcto para UTF-8
         const binary = atob(str);
         const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.charCodeAt(i);
-        }
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
         return new TextDecoder('utf-8').decode(bytes);
     } catch {
-        // Fallback para navegadores muy antiguos
         return decodeURIComponent(escape(atob(str)));
     }
 }
 
-// [FIX-1] validateJRS: si no hay clave local, recarga desde el servidor antes de fallar
+// [FIX-1] validateJRS
 async function validateJRS(code) {
     if (!code.startsWith('JRS:')) return null;
     const parts = code.slice(4).split(':');
     if (parts.length !== 4) return null;
 
     const [short_id, valid_date, name_b64, sig] = parts;
-
     let name;
     try { name = b64uDecode(name_b64); } catch { return null; }
 
-    // [FIX-1] Si no hay clave en localStorage, intentar recargar del servidor
     if (!localStorage.getItem(SIGNING_KEY_SK)) {
-        console.warn('[validateJRS] Sin clave de firma local — recargando del servidor...');
+        console.warn('[validateJRS] Sin clave local — recargando del servidor...');
         try {
             const headers = _scannerPin ? { 'X-Scanner-Pin': _scannerPin } : {};
             const r = await fetch('/attendance/scanner/offline-data', { headers });
-            if (r.ok) {
-                const data = await r.json();
-                _saveOfflineData(data); // guarda la clave y actualiza _cryptoKey = null
-            }
-        } catch (e) {
-            console.warn('[validateJRS] No se pudo recargar clave:', e.message);
-        }
+            if (r.ok) { const data = await r.json(); _saveOfflineData(data); }
+        } catch (e) { console.warn('[validateJRS] No se pudo recargar clave:', e.message); }
     }
 
     const expected = await computeHmac(short_id, valid_date, name_b64);
 
-    // Si aun sin clave (offline sin datos previos), confiar en el servidor para validar
     if (!expected) {
-        console.warn('[validateJRS] Sin clave local — enviando al servidor para validación online');
+        console.warn('[validateJRS] Sin clave local — validando online');
         return { short_id, name, valid_date, debe: false, skipLocalValidation: true };
     }
 
-    if (expected !== sig) return null; // firma inválida
+    if (expected !== sig) return null;
 
-    // Verificar fecha
     const hoy = new Date();
-    const yyyy = valid_date.slice(0, 4);
-    const mm = valid_date.slice(4, 6) - 1;
-    const dd = valid_date.slice(6, 8);
-    const vencimiento = new Date(yyyy, mm, dd);
+    const vencimiento = new Date(
+        valid_date.slice(0, 4),
+        valid_date.slice(4, 6) - 1,
+        valid_date.slice(6, 8)
+    );
     vencimiento.setHours(23, 59, 59);
 
     return { short_id, name, valid_date, debe: vencimiento < hoy };
 }
 
+// ── AUDIO ─────────────────────────────────────────────
+function _beep(freq, duration, vol = 0.3) {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.frequency.value = freq;
+        gain.gain.value = vol;
+        osc.start();
+        osc.stop(ctx.currentTime + duration / 1000);
+        setTimeout(() => ctx.close(), duration + 100);
+    } catch (e) { }
+}
+
+function playSuccess() { _beep(880, 120); setTimeout(() => _beep(1100, 180), 130); }
+function playWarning() { _beep(440, 300); }
+function playError()   { _beep(220, 400, 0.4); }
+
+// ── FLASH / RESULTADO ─────────────────────────────────
+const STATUS_CONFIG = {
+    success: { icon: '✅', color: '#1a472a', text: '#00ff88' },
+    warning: { icon: '⚠️', color: '#7a4a00', text: '#ffd700' },
+    debe:    { icon: '💰', color: '#7a2a00', text: '#ff8c00' },
+    error:   { icon: '❌', color: '#4a0000', text: '#ff4444' },
+};
+
+function showFlash(status, name, msg) {
+    const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.error;
+    const overlay = document.getElementById('result-overlay');
+    const iconEl  = document.getElementById('result-icon');
+    const nameEl  = document.getElementById('result-name');
+    const msgEl   = document.getElementById('result-msg');
+    const flashBg = document.getElementById('flash-bg');
+
+    if (iconEl)  iconEl.textContent  = cfg.icon;
+    if (nameEl)  nameEl.textContent  = name || '';
+    if (msgEl)   msgEl.textContent   = msg  || '';
+
+    if (overlay) {
+        overlay.className = 'result-overlay result-' + status;
+        overlay.style.display = 'flex';
+        setTimeout(() => { overlay.style.display = 'none'; }, FLASH_DURATION);
+    }
+
+    if (flashBg) {
+        flashBg.style.background = cfg.color;
+        flashBg.style.opacity = '1';
+        setTimeout(() => { flashBg.style.opacity = '0'; }, FLASH_DURATION - 300);
+    }
+}
+
+function addHistory(status, name) {
+    const strip = document.getElementById('history-strip');
+    if (!strip) return;
+    const cfg = STATUS_CONFIG[status] || STATUS_CONFIG.error;
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.style.color = cfg.text;
+    item.textContent = cfg.icon + ' ' + name;
+    strip.insertBefore(item, strip.firstChild);
+    while (strip.children.length > 8) strip.removeChild(strip.lastChild);
+}
+
+// ── OFFLINE SCAN ──────────────────────────────────────
 async function processOfflineScan(code, fromNFC = false) {
     try {
         const db = JSON.parse(localStorage.getItem('scanner_offline_db') || '{}');
-
         let studentId = code;
         let fallbackName = "Desconocido";
 
@@ -285,10 +371,8 @@ async function processOfflineScan(code, fromNFC = false) {
                 return;
             }
 
-            // [FIX-1] Si no había clave local, skipLocalValidation=true → ir online
             if (parsed.skipLocalValidation) {
-                // Redirigir al flujo online aunque esté en processOfflineScan
-                isProcessing = false; // liberar el lock antes de llamar handleScan online
+                isProcessing = false;
                 _doOnlineScan(code, fromNFC);
                 return;
             }
@@ -300,12 +384,12 @@ async function processOfflineScan(code, fromNFC = false) {
                 return;
             }
 
-            studentId = parsed.short_id; // usar short_id para buscar en DB offline
+            studentId = parsed.short_id;
             fallbackName = parsed.name;
 
             if (!db[studentId]) {
                 const fullId = Object.keys(db).find(k => k.length > 8 && k.startsWith(studentId));
-                if (fullId) { studentId = fullId; }
+                if (fullId) studentId = fullId;
             }
         }
 
@@ -315,11 +399,8 @@ async function processOfflineScan(code, fromNFC = false) {
             localStorage.setItem('scanner_queued_scans', JSON.stringify(queuedScans));
             updateQueueUI();
 
-            let msg = info.detalle;
-            if (info.status === 'success') msg = "¡BIENVENIDO! (Guardado Offline)";
-
+            const msg = info.status === 'success' ? "¡BIENVENIDO! (Guardado Offline)" : info.detalle;
             if (info.status === 'success') playSuccess();
-            else if (info.status === 'warning') playWarning();
             else playWarning();
 
             showFlash(info.status, info.name, msg);
@@ -341,7 +422,7 @@ async function processOfflineScan(code, fromNFC = false) {
             }
         }
     } catch (e) {
-        console.error('[Scanner] Error inesperado en processOfflineScan:', e);
+        console.error('[Scanner] Error en processOfflineScan:', e);
         resume(fromNFC);
     }
 }
@@ -353,7 +434,7 @@ function _stopSyncLoop() {
     if (_syncIntervalId !== null) {
         clearInterval(_syncIntervalId);
         _syncIntervalId = null;
-        console.warn('[Sync] Bucle de sincronización DETENIDO.');
+        console.warn('[Sync] Bucle detenido.');
     }
 }
 
@@ -370,7 +451,6 @@ function syncOfflineQueue() {
 
     const batchRecords = queuedScans.map((scan, index) => {
         let student_id = null;
-
         if (scan.code.startsWith("JRS:")) {
             const parts = scan.code.split(":");
             const shortId = parts.length >= 2 ? parts[1] : null;
@@ -383,20 +463,12 @@ function syncOfflineQueue() {
         } else {
             student_id = scan.code;
         }
-
-        return {
-            student_id: student_id || scan.code,
-            timestamp: scan.timestamp,
-            local_id: `sync-${index}-${scan.timestamp}`
-        };
+        return { student_id: student_id || scan.code, timestamp: scan.timestamp, local_id: `sync-${index}-${scan.timestamp}` };
     }).filter(r => r.student_id);
 
     fetch('/attendance/sync-batch', {
         method: 'POST',
-        headers: {
-            'Authorization': 'Bearer ' + token,
-            'Content-Type': 'application/json'
-        },
+        headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
         body: JSON.stringify({ records: batchRecords, token })
     })
         .then(res => {
@@ -404,11 +476,11 @@ function syncOfflineQueue() {
                 queuedScans = [];
                 localStorage.setItem('scanner_queued_scans', JSON.stringify(queuedScans));
                 updateQueueUI();
-                console.log('[Sync] Sincronización masiva exitosa.');
+                console.log('[Sync] Sincronización exitosa.');
                 return;
             }
             if (res.status === 401) {
-                console.error('[Sync] 401 Unauthorized — deteniendo bucle.');
+                console.error('[Sync] 401 — deteniendo bucle.');
                 _stopSyncLoop();
                 const indicator = document.getElementById('offline-queue-indicator');
                 if (indicator) {
@@ -419,7 +491,7 @@ function syncOfflineQueue() {
                 }
                 showPinOverlay();
                 const pinErr = document.getElementById('pin-err');
-                if (pinErr) pinErr.textContent = 'Sesión expirada. Ingrese PIN para sincronizar datos offline.';
+                if (pinErr) pinErr.textContent = 'Sesión expirada. Ingrese PIN para sincronizar.';
                 return;
             }
             if (res.status === 413 || res.status === 400) {
@@ -449,7 +521,7 @@ function _armSafety(fromNFC) {
     if (_safetyTimer) clearTimeout(_safetyTimer);
     _safetyTimer = setTimeout(() => {
         if (isProcessing) {
-            console.warn('[Scanner] Safety-net: forzando reset de isProcessing');
+            console.warn('[Scanner] Safety-net: forzando reset');
             isProcessing = false;
             _resumeCamera();
             const s = document.getElementById('status-text');
@@ -459,7 +531,6 @@ function _armSafety(fromNFC) {
     }, 10000);
 }
 
-// Separar el fetch online para poder llamarlo desde processOfflineScan si no hay clave
 function _doOnlineScan(code, fromNFC) {
     isProcessing = true;
     _armSafety(fromNFC);
@@ -496,8 +567,7 @@ function _doOnlineScan(code, fromNFC) {
             const estado = data.status || 'error';
 
             if (estado === 'success') playSuccess();
-            else if (estado === 'warning') playWarning();
-            else if (estado === 'debe') playWarning();
+            else if (estado === 'warning' || estado === 'debe') playWarning();
             else playError();
 
             showFlash(estado, nombre, data.message || data.detail);
@@ -529,6 +599,7 @@ function handleScan(decodedText, fromNFC = false) {
     _doOnlineScan(code, fromNFC);
 }
 
+// ── CÁMARA ────────────────────────────────────────────
 let _restartingCamera = false;
 let _restartAttempts = 0;
 const _MAX_RESTART_ATTEMPTS = 10;
@@ -543,6 +614,7 @@ function _resumeCamera() {
     } catch (e) { }
 
     setTimeout(() => {
+        if (isProcessing) return; // [FIX-7] no chequear si aún procesando
         const video = document.querySelector('#reader video');
         const state = typeof html5Qrcode.getState === 'function' ? html5Qrcode.getState() : -1;
         const pausedLabel = Array.from(document.querySelectorAll('#reader *'))
@@ -551,18 +623,16 @@ function _resumeCamera() {
         if (state === 3 || (video && video.paused) || pausedLabel) {
             _hardRestartCamera();
         }
-    }, 400);
+    }, 600); // aumentado de 400 a 600ms para mayor estabilidad
 }
 
 function _hardRestartCamera() {
     if (_restartingCamera || !html5Qrcode) return;
 
     if (_restartAttempts >= _MAX_RESTART_ATTEMPTS) {
-        // Demasiados reintentos — mostrar mensaje en pantalla y esperar toque del usuario
-        console.error('[Scanner] Demasiados reintentos. Esperando interacción del usuario.');
+        console.error('[Scanner] Demasiados reintentos. Esperando interacción.');
         const statusEl = document.getElementById('status-text');
         if (statusEl) statusEl.textContent = 'Toca la pantalla para reactivar';
-        // Resetear el contador cuando el usuario toque la pantalla
         document.getElementById('right-panel')?.addEventListener('click', () => {
             _restartAttempts = 0;
             _hardRestartCamera();
@@ -583,9 +653,7 @@ function _hardRestartCamera() {
         .catch(() => { })
         .finally(() => {
             document.querySelectorAll('#reader *').forEach(el => {
-                if (el.innerText && el.innerText.trim() === 'Scanner paused') {
-                    el.remove();
-                }
+                if (el.innerText && el.innerText.trim() === 'Scanner paused') el.remove();
             });
 
             html5Qrcode.start(
@@ -594,23 +662,28 @@ function _hardRestartCamera() {
                 (decodedText) => { handleScan(decodedText); },
                 () => { }
             )
-            .then(() => {
-                _dbg('camara reiniciada OK intento #' + _restartAttempts);
-                _restartAttempts = 0;
-                _restartingCamera = false;
-                isProcessing = false;
-            })
-            .catch(err => {
-                console.error(`[Scanner] Error restart #${_restartAttempts}:`, err);
-                _restartingCamera = false;
-                // Espera progresiva: 1s, 2s, 3s... hasta _MAX_RESTART_ATTEMPTS
-                setTimeout(() => _hardRestartCamera(), _restartAttempts * 1000);
-            });
+                .then(() => {
+                    _dbg('camara reiniciada OK #' + _restartAttempts);
+                    _restartAttempts = 0;
+                    _restartingCamera = false;
+                    isProcessing = false;
+                    _scannerStartedAt = Date.now(); // resetear ventana de gracia
+                })
+                .catch(err => {
+                    console.error(`[Scanner] Error restart #${_restartAttempts}:`, err);
+                    _restartingCamera = false;
+                    setTimeout(() => _hardRestartCamera(), _restartAttempts * 1000);
+                });
         });
 }
 
+// ── WATCHDOG ──────────────────────────────────────────
+let _scannerStartedAt = 0; // [FIX-6] se asigna en initScanner()
+
 setInterval(() => {
     if (!scannerStarted || _restartingCamera || document.visibilityState !== 'visible') return;
+    if (Date.now() - _scannerStartedAt < 4000) return; // [FIX-6] ventana de gracia 4s
+    if (isProcessing) return; // [FIX-7] no interrumpir mientras procesa un scan
     try {
         const state = html5Qrcode ? (typeof html5Qrcode.getState === 'function' ? html5Qrcode.getState() : -1) : -1;
         const video = document.querySelector('#reader video');
@@ -618,19 +691,22 @@ setInterval(() => {
             .some(el => el.innerText && el.innerText.trim() === 'Scanner paused' && el.style.display !== 'none');
 
         if (state === 3 || (video && video.paused) || pausedLabel) {
-            _dbg('watchdog: camara atascada state=' + state + ' restart...');
+            _dbg('watchdog: state=' + state + ' → restart');
             _hardRestartCamera();
         }
     } catch (e) { }
 }, 2500);
 
+// ── RESUME ────────────────────────────────────────────
+// [FIX-5] NFC usa 2500ms de delay, QR usa FLASH_DURATION
 function resume(fromNFC = false) {
+    const delay = fromNFC ? 2500 : FLASH_DURATION;
     setTimeout(() => {
         isProcessing = false;
         _resumeCamera();
         const statusEl = document.getElementById('status-text');
         if (statusEl) statusEl.textContent = 'Acerca tu medallón';
-    }, FLASH_DURATION);
+    }, delay); // ← delay correcto, no FLASH_DURATION hardcodeado
 }
 
 // ── INICIAR CÁMARA ────────────────────────────────────
@@ -639,6 +715,7 @@ let scannerStarted = false;
 function initScanner() {
     if (scannerStarted) return;
     scannerStarted = true;
+    _scannerStartedAt = Date.now(); // [FIX-6] marcar momento de arranque
 
     const startScreen = document.getElementById('start-screen');
     const scannerFrame = document.getElementById('scanner-frame');
@@ -673,38 +750,41 @@ function initScanner() {
 
             return html5Qrcode.start(
                 camId,
-                {
-                    fps: 15,
-                    qrbox: { width: qrboxSide, height: qrboxSide },
-                    aspectRatio: 1.0
-                },
+                { fps: 15, qrbox: { width: qrboxSide, height: qrboxSide }, aspectRatio: 1.0 },
                 (decodedText) => { handleScan(decodedText); },
                 () => { }
             ).then(() => {
                 localStorage.setItem('preferred_camera_id', camId);
-                // Si habia un codigo NFC pendiente (llegó via URL), procesarlo ahora
+                _scannerStartedAt = Date.now(); // [FIX-6] actualizar al confirmar inicio real
+
+                // NFC pendiente via URL redirect
                 if (window._pendingNfcCode) {
                     const code = window._pendingNfcCode;
                     window._pendingNfcCode = null;
-                    _dbg('NFC pendiente procesando: ' + code.slice(0,20));
-                    setTimeout(() => handleScan(code, true), 500);
+                    _dbg('NFC pendiente: ' + code.slice(0, 20));
+                    setTimeout(() => {
+                        isProcessing = false;
+                        _restartAttempts = 0;
+                        handleScan(code, true);
+                    }, 900); // 900ms: cámara estabilizada antes de procesar
                 }
             });
         })
         .catch(err => console.error('[Scanner] Error iniciando cámara:', err));
 
     startMirrorCheck();
-    // NO llamar initNFC() en PWA — el NFC llega via URL, no via NDEFReader
-    // initNFC() causa que Android pause la camara al interceptar el chip
+
+    // En PWA el NFC llega via URL redirect — NDEFReader no se usa
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-                      || window.navigator.standalone === true;
+        || window.navigator.standalone === true;
     if (!isStandalone) {
-        initNFC(); // solo en browser normal, no en PWA instalada
+        initNFC();
     } else {
-        _dbg('PWA standalone — NFC via URL activo, NDEFReader desactivado');
+        _dbg('PWA standalone — NFC via URL activo');
     }
 }
 
+// Click en el panel derecho
 const rightPanel = document.getElementById('right-panel');
 if (rightPanel) {
     rightPanel.addEventListener('click', () => {
@@ -713,7 +793,7 @@ if (rightPanel) {
     });
 }
 
-// ── MODO ESPEJO ──────────────────────────────────────
+// ── MODO ESPEJO ───────────────────────────────────────
 function startMirrorCheck() {
     setInterval(() => {
         const video = document.querySelector('#reader video');
@@ -727,49 +807,20 @@ function startMirrorCheck() {
     }, 1000);
 }
 
-// ── NFC ───────────────────────────────────────────────
+// ── NFC (browser normal, no PWA) ──────────────────────
 const NDEF_URI_PREFIXES = [
-    '',             // 0x00
-    'http://www.',  // 0x01
-    'https://www.', // 0x02
-    'http://',      // 0x03
-    'https://',     // 0x04 ← más común
-    'tel:',         // 0x05
-    'mailto:',      // 0x06
-    'ftp://anonymous:anonymous@', // 0x07
-    'ftp://ftp.',   // 0x08
-    'ftps://',      // 0x09
-    'sftp://',      // 0x0A
-    'smb://',       // 0x0B
-    'nfs://',       // 0x0C
-    'ftp://',       // 0x0D
-    'dav://',       // 0x0E
-    'news:',        // 0x0F
-    'telnet://',    // 0x10
-    'imap:',        // 0x11
-    'rtsp://',      // 0x12
-    'urn:',         // 0x13
-    'pop:',         // 0x14
-    'sip:',         // 0x15
-    'sips:',        // 0x16
-    'tftp:',        // 0x17
-    'btspp://',     // 0x18
-    'btl2cap://',   // 0x19
-    'btgoep://',    // 0x1A
-    'tcpobex://',   // 0x1B
-    'irdaobex://',  // 0x1C
-    'file://',      // 0x1D
-    'urn:epc:id:',  // 0x1E
-    'urn:epc:tag:', // 0x1F
-    'urn:epc:pat:', // 0x20
-    'urn:epc:raw:', // 0x21
-    'urn:epc:',     // 0x22
-    'urn:nfc:',     // 0x23
+    '', 'http://www.', 'https://www.', 'http://', 'https://',
+    'tel:', 'mailto:', 'ftp://anonymous:anonymous@', 'ftp://ftp.',
+    'ftps://', 'sftp://', 'smb://', 'nfs://', 'ftp://', 'dav://',
+    'news:', 'telnet://', 'imap:', 'rtsp://', 'urn:', 'pop:',
+    'sip:', 'sips:', 'tftp:', 'btspp://', 'btl2cap://', 'btgoep://',
+    'tcpobex://', 'irdaobex://', 'file://', 'urn:epc:id:', 'urn:epc:tag:',
+    'urn:epc:pat:', 'urn:epc:raw:', 'urn:epc:', 'urn:nfc:',
 ];
 
 async function initNFC() {
     if (!('NDEFReader' in window)) {
-        console.warn('[NFC] NDEFReader no disponible en este navegador/dispositivo.');
+        console.warn('[NFC] NDEFReader no disponible.');
         return;
     }
     try {
@@ -782,44 +833,26 @@ async function initNFC() {
         ndef.addEventListener('reading', ({ message }) => {
             for (const record of message.records) {
                 let fullText = null;
-
                 try {
                     if (record.recordType === 'url') {
-                        const bytes = new Uint8Array(record.data.buffer,
-                            record.data.byteOffset,
-                            record.data.byteLength);
-                        const identifierCode = bytes[0];
-                        const prefix = NDEF_URI_PREFIXES[identifierCode] ?? '';
-                        const rest = new TextDecoder('utf-8').decode(bytes.slice(1)).trim();
-                        fullText = prefix + rest;
-
+                        const bytes = new Uint8Array(record.data.buffer, record.data.byteOffset, record.data.byteLength);
+                        const prefix = NDEF_URI_PREFIXES[bytes[0]] ?? '';
+                        fullText = prefix + new TextDecoder('utf-8').decode(bytes.slice(1)).trim();
                     } else if (record.recordType === 'text') {
-                        const bytes = new Uint8Array(record.data.buffer,
-                            record.data.byteOffset,
-                            record.data.byteLength);
+                        const bytes = new Uint8Array(record.data.buffer, record.data.byteOffset, record.data.byteLength);
                         const statusByte = bytes[0];
-                        const isUtf16 = (statusByte & 0x80) !== 0;
                         const langLen = statusByte & 0x3F;
-                        const textBytes = bytes.slice(1 + langLen);
-                        const charset = isUtf16 ? 'utf-16' : 'utf-8';
-                        fullText = new TextDecoder(charset).decode(textBytes).trim();
-
+                        const charset = (statusByte & 0x80) ? 'utf-16' : 'utf-8';
+                        fullText = new TextDecoder(charset).decode(bytes.slice(1 + langLen)).trim();
                     } else {
-                        // Tipo desconocido: fallback
-                        const raw = new TextDecoder(record.encoding || 'utf-8')
-                            .decode(record.data)
-                            .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
-                            .trim();
-                        fullText = raw;
+                        fullText = new TextDecoder(record.encoding || 'utf-8')
+                            .decode(record.data).replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
                     }
-                } catch {
-                    continue;
-                }
+                } catch { continue; }
 
                 if (!fullText) continue;
 
                 let code = null;
-
                 if (fullText.startsWith('http://') || fullText.startsWith('https://')) {
                     try {
                         const url = new URL(fullText);
@@ -836,7 +869,6 @@ async function initNFC() {
                 }
 
                 if (!code) continue;
-
                 _resumeCamera();
                 handleScan(code.trim(), true);
                 break;
@@ -849,6 +881,5 @@ async function initNFC() {
 
     } catch (e) {
         console.warn('[NFC] No disponible o permiso denegado:', e.message);
-        // No mostrar error al usuario — NFC es opcional, el QR sigue funcionando
     }
 }
