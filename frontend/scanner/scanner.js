@@ -630,57 +630,96 @@ function handleScan(decodedText, fromNFC = false) {
     _doOnlineScan(code, fromNFC);
 }
 
+let _restartingCamera = false;
+let _restartAttempts = 0;
+const _MAX_RESTART_ATTEMPTS = 10;
+
 function _resumeCamera() {
     if (!html5Qrcode) return;
 
-    // Paso 1: intentar resume() de la librería sin importar el estado reportado.
-    // html5-qrcode a veces reporta state=2 (SCANNING) pero internamente está pausado,
-    // especialmente tras una interrupción de NFC en Android.
     try {
         if (typeof html5Qrcode.resume === 'function') {
             html5Qrcode.resume();
         }
-    } catch (e) { /* ya estaba activa — ignorar */ }
+    } catch (e) { }
 
-    // Paso 2: forzar el elemento <video> a reproducir (Android bloquea el autoplay tras NFC)
-    const forceVideo = () => {
+    setTimeout(() => {
         const video = document.querySelector('#reader video');
-        if (video) {
-            // Quitar atributo pause que pone html5-qrcode internamente
-            video.removeAttribute('data-paused');
-            if (video.paused) {
-                video.play().catch(() => {
-                    // Si play() falla (política de autoplay), reintentar tras interacción
-                    // El watchdog lo rescatará en el próximo ciclo de 2.5s
-                });
-            }
-        }
-        // Ocultar el cartel "Scanner paused" que deja la librería en el DOM
-        document.querySelectorAll('#reader *').forEach(el => {
-            if (el.innerText && el.innerText.trim() === 'Scanner paused') {
-                el.style.display = 'none';
-            }
-        });
-    };
+        const state = typeof html5Qrcode.getState === 'function' ? html5Qrcode.getState() : -1;
+        const pausedLabel = Array.from(document.querySelectorAll('#reader *'))
+            .some(el => el.innerText && el.innerText.trim() === 'Scanner paused' && el.style.display !== 'none');
 
-    // Ejecutar inmediatamente y también con delay para cubrir la animación de vuelta de NFC
-    forceVideo();
-    setTimeout(forceVideo, 200);
-    setTimeout(forceVideo, 600);
+        if (state === 3 || (video && video.paused) || pausedLabel) {
+            _hardRestartCamera();
+        }
+    }, 400);
+}
+
+function _hardRestartCamera() {
+    if (_restartingCamera || !html5Qrcode) return;
+
+    if (_restartAttempts >= _MAX_RESTART_ATTEMPTS) {
+        // Demasiados reintentos — mostrar mensaje en pantalla y esperar toque del usuario
+        console.error('[Scanner] Demasiados reintentos. Esperando interacción del usuario.');
+        const statusEl = document.getElementById('status-text');
+        if (statusEl) statusEl.textContent = 'Toca la pantalla para reactivar';
+        // Resetear el contador cuando el usuario toque la pantalla
+        document.getElementById('right-panel')?.addEventListener('click', () => {
+            _restartAttempts = 0;
+            _hardRestartCamera();
+        }, { once: true });
+        return;
+    }
+
+    _restartingCamera = true;
+    _restartAttempts++;
+    console.warn(`[Scanner] Hard restart #${_restartAttempts}...`);
+
+    const camId = localStorage.getItem('preferred_camera_id');
+    const frame = document.getElementById('scanner-frame');
+    const size = frame ? Math.min(frame.clientWidth, frame.clientHeight) - 20 : 300;
+    const qrboxSide = Math.floor(size * 0.85);
+
+    html5Qrcode.stop()
+        .catch(() => { })
+        .finally(() => {
+            document.querySelectorAll('#reader *').forEach(el => {
+                if (el.innerText && el.innerText.trim() === 'Scanner paused') {
+                    el.remove();
+                }
+            });
+
+            html5Qrcode.start(
+                camId,
+                { fps: 15, qrbox: { width: qrboxSide, height: qrboxSide }, aspectRatio: 1.0 },
+                (decodedText) => { handleScan(decodedText); },
+                () => { }
+            )
+            .then(() => {
+                console.log(`[Scanner] Cámara reiniciada ✅ (intento #${_restartAttempts})`);
+                _restartAttempts = 0; // reset al tener éxito
+                _restartingCamera = false;
+            })
+            .catch(err => {
+                console.error(`[Scanner] Error restart #${_restartAttempts}:`, err);
+                _restartingCamera = false;
+                // Espera progresiva: 1s, 2s, 3s... hasta _MAX_RESTART_ATTEMPTS
+                setTimeout(() => _hardRestartCamera(), _restartAttempts * 1000);
+            });
+        });
 }
 
 setInterval(() => {
-    if (!scannerStarted || isProcessing || document.visibilityState !== 'visible') return;
+    if (!scannerStarted || isProcessing || _restartingCamera || document.visibilityState !== 'visible') return;
     try {
         const state = html5Qrcode ? (typeof html5Qrcode.getState === 'function' ? html5Qrcode.getState() : -1) : -1;
         const video = document.querySelector('#reader video');
-        const scannerPausedVisible = Array.from(document.querySelectorAll('#reader *'))
+        const pausedLabel = Array.from(document.querySelectorAll('#reader *'))
             .some(el => el.innerText && el.innerText.trim() === 'Scanner paused' && el.style.display !== 'none');
 
-        // Rescatar si: estado PAUSED, video pausado, O cartel "Scanner paused" visible
-        if (state === 3 || (video && video.paused) || scannerPausedVisible) {
-            console.warn("[Watchdog] Cámara atorada detectada (state=" + state + ", videoPaused=" + (video && video.paused) + "). Rescatando...");
-            _resumeCamera();
+        if (state === 3 || (video && video.paused) || pausedLabel) {
+            console.warn('[Watchdog] Cámara atascada — hard restart.');
+            _hardRestartCamera();
         }
     } catch (e) { }
 }, 2500);
