@@ -694,15 +694,7 @@ function initScanner() {
         .catch(err => console.error('[Scanner] Error iniciando cámara:', err));
 
     startMirrorCheck();
-    // NO llamar initNFC() en PWA — el NFC llega via URL, no via NDEFReader
-    // initNFC() causa que Android pause la camara al interceptar el chip
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-                      || window.navigator.standalone === true;
-    if (!isStandalone) {
-        initNFC(); // solo en browser normal, no en PWA instalada
-    } else {
-        _dbg('PWA standalone — NFC via URL activo, NDEFReader desactivado');
-    }
+    startMirrorCheck();
 }
 
 const rightPanel = document.getElementById('right-panel');
@@ -727,128 +719,8 @@ function startMirrorCheck() {
     }, 1000);
 }
 
-// ── NFC ───────────────────────────────────────────────
-const NDEF_URI_PREFIXES = [
-    '',             // 0x00
-    'http://www.',  // 0x01
-    'https://www.', // 0x02
-    'http://',      // 0x03
-    'https://',     // 0x04 ← más común
-    'tel:',         // 0x05
-    'mailto:',      // 0x06
-    'ftp://anonymous:anonymous@', // 0x07
-    'ftp://ftp.',   // 0x08
-    'ftps://',      // 0x09
-    'sftp://',      // 0x0A
-    'smb://',       // 0x0B
-    'nfs://',       // 0x0C
-    'ftp://',       // 0x0D
-    'dav://',       // 0x0E
-    'news:',        // 0x0F
-    'telnet://',    // 0x10
-    'imap:',        // 0x11
-    'rtsp://',      // 0x12
-    'urn:',         // 0x13
-    'pop:',         // 0x14
-    'sip:',         // 0x15
-    'sips:',        // 0x16
-    'tftp:',        // 0x17
-    'btspp://',     // 0x18
-    'btl2cap://',   // 0x19
-    'btgoep://',    // 0x1A
-    'tcpobex://',   // 0x1B
-    'irdaobex://',  // 0x1C
-    'file://',      // 0x1D
-    'urn:epc:id:',  // 0x1E
-    'urn:epc:tag:', // 0x1F
-    'urn:epc:pat:', // 0x20
-    'urn:epc:raw:', // 0x21
-    'urn:epc:',     // 0x22
-    'urn:nfc:',     // 0x23
-];
-
-async function initNFC() {
-    if (!('NDEFReader' in window)) {
-        console.warn('[NFC] NDEFReader no disponible en este navegador/dispositivo.');
-        return;
-    }
-    try {
-        const ndef = new NDEFReader();
-        await ndef.scan();
-        const nfcEl = document.getElementById('nfc-indicator');
-        if (nfcEl) nfcEl.classList.add('visible');
-        console.log('[NFC] Escáner NFC activo ✅');
-
-        ndef.addEventListener('reading', ({ message }) => {
-            for (const record of message.records) {
-                let fullText = null;
-
-                try {
-                    if (record.recordType === 'url') {
-                        const bytes = new Uint8Array(record.data.buffer,
-                            record.data.byteOffset,
-                            record.data.byteLength);
-                        const identifierCode = bytes[0];
-                        const prefix = NDEF_URI_PREFIXES[identifierCode] ?? '';
-                        const rest = new TextDecoder('utf-8').decode(bytes.slice(1)).trim();
-                        fullText = prefix + rest;
-
-                    } else if (record.recordType === 'text') {
-                        const bytes = new Uint8Array(record.data.buffer,
-                            record.data.byteOffset,
-                            record.data.byteLength);
-                        const statusByte = bytes[0];
-                        const isUtf16 = (statusByte & 0x80) !== 0;
-                        const langLen = statusByte & 0x3F;
-                        const textBytes = bytes.slice(1 + langLen);
-                        const charset = isUtf16 ? 'utf-16' : 'utf-8';
-                        fullText = new TextDecoder(charset).decode(textBytes).trim();
-
-                    } else {
-                        // Tipo desconocido: fallback
-                        const raw = new TextDecoder(record.encoding || 'utf-8')
-                            .decode(record.data)
-                            .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
-                            .trim();
-                        fullText = raw;
-                    }
-                } catch {
-                    continue;
-                }
-
-                if (!fullText) continue;
-
-                let code = null;
-
-                if (fullText.startsWith('http://') || fullText.startsWith('https://')) {
-                    try {
-                        const url = new URL(fullText);
-                        const param = url.searchParams.get('code');
-                        if (param) code = decodeURIComponent(param);
-                    } catch {
-                        const idx = fullText.indexOf('?code=');
-                        if (idx !== -1) code = decodeURIComponent(fullText.slice(idx + 6));
-                    }
-                } else if (fullText.startsWith('JRS:') || fullText.startsWith('STU-')) {
-                    code = fullText;
-                } else if (fullText.includes('?code=')) {
-                    code = decodeURIComponent(fullText.split('?code=')[1]);
-                }
-
-                if (!code) continue;
-
-                _resumeCamera();
-                handleScan(code.trim(), true);
-                break;
-            }
-        });
-
-        ndef.addEventListener('readingerror', (e) => {
-            console.warn('[NFC] Error de lectura:', e);
-        });
-
-    } catch (e) {
-        console.warn('[NFC] No disponible o permiso denegado:', e.message);
-        // No mostrar error al usuario — NFC es opcional, el QR sigue funcionando
-    }
-}
+// ── NFC MANEJADO POR URL ──────────────────────────────
+// Todo el manejo de NFC se realiza capturando el parámetro ?code= 
+// en el evento load de la ventana y siendo redirigido 
+// desde el home (index.html). No se usa NDEFReader por
+// problemas de compatibilidad y pausas de cámara.
