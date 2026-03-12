@@ -622,15 +622,51 @@ function handleScan(decodedText, fromNFC = false) {
         });
 }
 
-// La librería Html5Qrcode (low-level) pausa internamente tras cada scan exitoso.
-// Esta función la reanuda de forma segura.
+// La librería Html5Qrcode (low-level) pausa internamente tras cada scan exitoso o cambio de foco.
+// Esta función la reanuda de forma segura y agresiva.
 function _resumeCamera() {
+    if (!html5Qrcode) return;
     try {
-        if (html5Qrcode) html5Qrcode.resume();
+        const state = typeof html5Qrcode.getState === 'function' ? html5Qrcode.getState() : -1;
+        if (state === 3 /* PAUSED */) {
+            html5Qrcode.resume();
+        } else if (state === 2 /* SCANNING */) {
+            // Hack para despertar a html5-qrcode si se atoró internamente
+            html5Qrcode.pause(true);
+            setTimeout(() => { try { html5Qrcode.resume(); } catch (e) { } }, 50);
+        } else {
+            html5Qrcode.resume();
+        }
     } catch (e) {
-        // La librería lanza "Scanner is not paused" si ya está activa — es normal, ignorar.
+        // Ignorar si ya está actíva u otro error
     }
+
+    // Forzar al elemento <video> a reproducir, por si el navegador lo bloqueó
+    setTimeout(() => {
+        const video = document.querySelector('#reader video');
+        if (video && video.paused) {
+            video.play().catch(err => console.warn('[Scanner] Auto-play bloqueado:', err));
+        }
+        // Ocultar letreto "Scanner paused" si se quedó pegado visualmente
+        document.querySelectorAll('#reader div').forEach(el => {
+            if (el.textContent === 'Scanner paused') el.style.display = 'none';
+        });
+    }, 150);
 }
+
+// Watchdog: detecta si la cámara está atascada permanentemente (por ejemplo al volver de NFC en Android)
+setInterval(() => {
+    if (!scannerStarted || isProcessing || document.visibilityState !== 'visible') return;
+    try {
+        const state = html5Qrcode ? (typeof html5Qrcode.getState === 'function' ? html5Qrcode.getState() : -1) : -1;
+        const video = document.querySelector('#reader video');
+
+        if (state === 3 || (video && video.paused)) {
+            console.warn("[Watchdog] Cámara atorada detectada. Rescatando...");
+            _resumeCamera();
+        }
+    } catch (e) { }
+}, 2500);
 
 function resume(fromNFC = false) {
     setTimeout(() => {
@@ -701,8 +737,11 @@ function initScanner() {
     initNFC();
 }
 
-// Toque en pantalla derecha para activar
-document.getElementById('right-panel').addEventListener('click', initScanner);
+// Toque en pantalla derecha para activar (o despertar si se quedó pegado)
+document.getElementById('right-panel').addEventListener('click', () => {
+    if (!scannerStarted) initScanner();
+    else if (!isProcessing) _resumeCamera();
+});
 // Auto-iniciar se hace en el listener 'load' del bloque PIN (arriba)
 
 // ── MODO ESPEJO (cámara selfie) ──────────────────────
