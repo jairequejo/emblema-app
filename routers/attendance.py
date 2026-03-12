@@ -15,48 +15,33 @@ except ImportError:
 
 router = APIRouter(prefix="/attendance", tags=["attendance"])
 
-# Zona horaria Lima (Fix 6)
 PERU_TZ = ZoneInfo("America/Lima")
 
-# ── CLAVE HMAC ────────────────────────────────────────────
-# Misma variable que usa jrs_utils.py para GENERAR los códigos.
-# Setear JRS_SECRET_KEY en Railway para producción.
 _JRS_SECRET = os.getenv("JRS_SECRET_KEY", "default_secret_key_123").encode("utf-8")
 SIGNING_KEY = _JRS_SECRET
 
-# ── FIX 2: PIN del scanner ──────────────────────────────────────────────────
 _SCANNER_PIN = os.getenv("SCANNER_PIN", "").strip()
 
 
 def verify_scanner_pin(request: Request, x_scanner_pin: Optional[str] = Header(None)):
-    """Valida el PIN del scanner. Sin SCANNER_PIN configurado → acceso público."""
     if not _SCANNER_PIN:
-        return  # fallback público para desarrollo
-        
-    # Permitir si hay un token JWT válido de Supabase (Admin o Entrenador)
+        return
     auth = request.headers.get("Authorization")
     if auth and auth.startswith("Bearer "):
         token = auth.replace("Bearer ", "")
         try:
             user = supabase.auth.get_user(token)
             if user and user.user:
-                return  # Válido
+                return
         except Exception:
             pass
-
     if x_scanner_pin != _SCANNER_PIN:
         raise HTTPException(status_code=401, detail="PIN de scanner inválido")
 
 
 def _sign(short_id: str, valid_until: str, name_b64: str) -> str:
-    """Reproduce la firma de jrs_utils.py: HMAC-SHA256 sobre 'short_id|fecha|name_b64url', 16 hex chars.
-    Usa short_id (primeros 8 chars del UUID), igual que jrs_utils.py."""
     msg = f"{short_id}|{valid_until}|{name_b64}".encode("utf-8")
     return hmac.new(SIGNING_KEY, msg, hashlib.sha256).hexdigest()[:16]
-
-
-def _b64u_encode(text: str) -> str:
-    return base64.urlsafe_b64encode(text.encode("utf-8")).rstrip(b"=").decode()
 
 
 def _b64u_decode(text: str) -> str:
@@ -65,29 +50,41 @@ def _b64u_decode(text: str) -> str:
 
 
 def _parse_jrs(code: str):
-    """
-    Parsea payload JRS:{short_id}:{YYYYMMDD}:{name_b64url}:{hmac16hex}
-    short_id = primeros 8 chars del UUID del alumno (igual que jrs_utils.py).
-    Devuelve dict o None si es inválido/manipulado.
-    """
     try:
-        parts = code[4:].split(":")          # quitar "JRS:"
+        parts = code[4:].split(":")
         if len(parts) != 4:
             return None
         short_id, valid_date, name_b64, sig = parts
         name = _b64u_decode(name_b64)
-
-        # Verificar firma usando short_id, igual que jrs_utils.py al generar
         expected = _sign(short_id, valid_date, name_b64)
         if not hmac.compare_digest(expected, sig):
-            return None                      # firma inválida
-
+            return None
         return {"short_id": short_id, "valid_date": valid_date, "name": name}
     except Exception:
         return None
 
 
-# ── MODELO ───────────────────────────────────────────────
+# ── HELPER: verificar si ya fue registrado hoy ───────────────────────────────
+def _ya_registrado_hoy(student_id: str) -> bool:
+    """
+    Verifica si el alumno ya tiene un registro de asistencia en el día de hoy (hora Lima).
+    Esto es el respaldo en Python por si el UNIQUE INDEX aún no existe en Supabase.
+    Con el índice creado, el upsert ignore_duplicates lo maneja solo.
+    """
+    hoy_lima = datetime.now(PERU_TZ)
+    inicio_dia = hoy_lima.replace(hour=0, minute=0, second=0, microsecond=0)
+    fin_dia    = hoy_lima.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    res = supabase.table("attendance") \
+        .select("id") \
+        .eq("student_id", student_id) \
+        .gte("created_at", inicio_dia.isoformat()) \
+        .lte("created_at", fin_dia.isoformat()) \
+        .limit(1).execute()
+
+    return bool(res.data)
+
+
 class ScanRequest(BaseModel):
     code: str
     timestamp: Optional[str] = None
@@ -95,140 +92,141 @@ class ScanRequest(BaseModel):
 
 class BatchScanRecord(BaseModel):
     student_id: str
-    timestamp: str                  # ISO8601
-    local_id: str                   # ID local del cliente para dedup
+    timestamp: str
+    local_id: str
 
 
 class BatchScanRequest(BaseModel):
     records: List[BatchScanRecord]
-    token: str                      # JWT del entrenador para autenticar
+    token: str
 
 
-# ── SCAN ─────────────────────────────────────────────────
+# ── SCAN ─────────────────────────────────────────────
 @router.post("/scan")
 def scan_credential(scan: ScanRequest, _pin=Depends(verify_scanner_pin)):
     code = scan.code.strip()
 
-    # ── FORMATO NUEVO: JRS:short_id:YYYYMMDD:name_b64:hmac ──
+    # ── FORMATO JRS ──────────────────────────────────────────────────────────
     if code.startswith("JRS:"):
         parsed = _parse_jrs(code)
         if not parsed:
             raise HTTPException(status_code=400, detail="Credencial JRS inválida o manipulada")
 
-        short_id = parsed["short_id"]        # primeros 8 chars del UUID
+        short_id     = parsed["short_id"]
         nombre_final = parsed["name"]
 
-        # ── Buscar estudiante via credentials (más seguro que id::text cast) ──
-        # El código en credentials siempre empieza con JRS:{short_id}:
         cred_res = supabase.table("credentials") \
             .select("student_id") \
             .like("code", f"JRS:{short_id}:%") \
             .eq("is_active", True) \
             .limit(1).execute()
 
-        if cred_res.data:
-            student_id = cred_res.data[0]["student_id"]
-            st_res = supabase.table("students") \
-                .select("id, is_active, valid_until") \
-                .eq("id", student_id).execute()
-        else:
-            # Fallback: castear a texto explícitamente usando eq si sabemos que era JRS
-            # O mejor, simplemente lanzar error si no se encuentra en credentials
+        if not cred_res.data:
             raise HTTPException(status_code=404, detail="Credencial JRS no registrada")
+
+        student_id = cred_res.data[0]["student_id"]
+
+        st_res = supabase.table("students") \
+            .select("id, is_active, valid_until, full_name") \
+            .eq("id", student_id).execute()
 
         if not st_res.data:
             raise HTTPException(status_code=404, detail="Alumno no encontrado")
 
         st = st_res.data[0]
-        student_id = st["id"]               # UUID completo real
+        student_id   = st["id"]
+        nombre_final = st.get("full_name") or nombre_final  # preferir nombre real de BD
 
         if not st.get("is_active"):
-            return {"status": "debe", "message": f"{nombre_final} — Alumno inactivo",
-                    "student_name": nombre_final, "detalle": "Este alumno está marcado como inactivo."}
+            return {
+                "status": "debe",
+                "message": f"{nombre_final} — Alumno inactivo",
+                "student_name": nombre_final,
+                "detalle": "Este alumno está marcado como inactivo."
+            }
 
-        # ── Verificar vencimiento usando valid_until de la BD (fuente de verdad) ──
-        # NUNCA usamos la fecha del payload JRS para validación online:
-        # puede estar desactualizada si el chip/QR no fue regrabado después del último pago.
-        hoy = datetime.now(timezone.utc).date()
+        # Verificar vencimiento contra BD (fuente de verdad)
+        hoy = datetime.now(PERU_TZ).date()
         valid_until_db = st.get("valid_until")
-
         if valid_until_db:
             try:
                 fecha_venc = datetime.strptime(valid_until_db, "%Y-%m-%d").date()
             except ValueError:
-                fecha_venc = hoy  # si el formato falla, permitir el acceso
+                fecha_venc = hoy
         else:
-            fecha_venc = hoy  # sin fecha en BD = no ha pagado → hoy como límite
+            fecha_venc = hoy
 
         if fecha_venc < hoy:
             dias = (hoy - fecha_venc).days
-            return {"status": "debe", "message": f"{nombre_final} — Mensualidad vencida",
-                    "student_name": nombre_final,
-                    "detalle": f"Venció hace {dias} día{'s' if dias != 1 else ''}. Contactar al administrador."}
+            return {
+                "status": "debe",
+                "message": f"{nombre_final} — Mensualidad vencida",
+                "student_name": nombre_final,
+                "detalle": f"Venció hace {dias} día{'s' if dias != 1 else ''}. Contactar al administrador."
+            }
 
-        # upsert con ignore_duplicates=True → INSERT ... ON CONFLICT DO NOTHING
-        # Cuando el UNIQUE INDEX rechaza el duplicado, res.data queda vacío.
-        # No hay SELECT previo: cero TOCTOU.
+        # ── [FIX] Verificar duplicado ANTES de insertar ──────────────────────
+        if _ya_registrado_hoy(student_id):
+            return {
+                "status": "warning",
+                "message": f"Ya registrado hoy: {nombre_final}",
+                "student_name": nombre_final,
+                "detalle": "Este alumno ya marcó asistencia hoy."
+            }
+
+        # Insertar asistencia
         fecha_registro = datetime.now(timezone.utc).isoformat()
-        res = supabase.table("attendance").upsert(
-            {"student_id": student_id, "created_at": fecha_registro},
-            ignore_duplicates=True,
-        ).execute()
+        supabase.table("attendance").insert({
+            "student_id": student_id,
+            "created_at": fecha_registro,
+            "source": "scanner"
+        }).execute()
 
-        if res.data is not None and len(res.data) == 0:
-            return {"status": "warning", "message": f"Ya registrado: {nombre_final}", "student_name": nombre_final}
+        return {
+            "status": "success",
+            "message": f"¡Bienvenido, {nombre_final}!",
+            "student_name": nombre_final
+        }
 
-        return {"status": "success", "message": f"¡Bienvenido, {nombre_final}!", "student_name": nombre_final}
-
-    # ── FORMATO LEGACY O UUID CRUDA ─────────
-    # Si el código tiene formato exacto de UUID (36 chars), buscar en students directamente
+    # ── FORMATO LEGACY / UUID ─────────────────────────────────────────────────
     import re
-    is_uuid = re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', code, re.I)
-    
+    is_uuid = re.match(
+        r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
+        code, re.I
+    )
+
     if is_uuid:
         st_res = supabase.table("students") \
             .select("id, full_name, valid_until, is_active") \
             .eq("id", code).execute()
-            
         if not st_res.data:
             raise HTTPException(status_code=404, detail="Alumno no encontrado (por UUID)")
-            
-        raw_data = {
-            "id": None, # no hay credential_id
-            "student_id": st_res.data[0]["id"],
-            "students": st_res.data[0]
-        }
+        raw_data = {"id": None, "student_id": st_res.data[0]["id"], "students": st_res.data[0]}
     else:
-        # Fallback LEGACY, buscar si es short_id también: si son 8 caracteres
         if len(code) == 8 and all(c in "0123456789abcdefABCDEF" for c in code):
-           st_res_short = supabase.table("students") \
-               .select("id, full_name, valid_until, is_active") \
-               .ilike("id", f"{code}%").execute()
-           
-           if st_res_short.data:
-               raw_data = {
-                   "id": None,
-                   "student_id": st_res_short.data[0]["id"],
-                   "students": st_res_short.data[0]
-               }
-           else:
-               res = supabase.table("credentials") \
-                   .select("id, student_id, students(full_name, valid_until, is_active)") \
-                   .eq("code", code).eq("is_active", True).execute()
-               if not res.data:
-                   raise HTTPException(status_code=404, detail="Credencial inválida")
-               raw_data = res.data[0]
+            st_res_short = supabase.table("students") \
+                .select("id, full_name, valid_until, is_active") \
+                .ilike("id", f"{code}%").execute()
+            if st_res_short.data:
+                raw_data = {"id": None, "student_id": st_res_short.data[0]["id"], "students": st_res_short.data[0]}
+            else:
+                res = supabase.table("credentials") \
+                    .select("id, student_id, students(full_name, valid_until, is_active)") \
+                    .eq("code", code).eq("is_active", True).execute()
+                if not res.data:
+                    raise HTTPException(status_code=404, detail="Credencial inválida")
+                raw_data = res.data[0]
         else:
-           res = supabase.table("credentials") \
-               .select("id, student_id, students(full_name, valid_until, is_active)") \
-               .eq("code", code).eq("is_active", True).execute()
-   
-           if not res.data:
-               raise HTTPException(status_code=404, detail="Credencial inválida")
-           raw_data = res.data[0]
-    student_id = raw_data["student_id"]
+            res = supabase.table("credentials") \
+                .select("id, student_id, students(full_name, valid_until, is_active)") \
+                .eq("code", code).eq("is_active", True).execute()
+            if not res.data:
+                raise HTTPException(status_code=404, detail="Credencial inválida")
+            raw_data = res.data[0]
 
-    st_info = raw_data.get("students")
+    student_id = raw_data["student_id"]
+    st_info    = raw_data.get("students")
+
     if isinstance(st_info, list) and st_info:
         nombre_final = st_info[0].get("full_name", "Sin Nombre")
         valid_until  = st_info[0].get("valid_until")
@@ -241,45 +239,55 @@ def scan_credential(scan: ScanRequest, _pin=Depends(verify_scanner_pin)):
         nombre_final, valid_until, is_active = "Sin Nombre", None, True
 
     if not is_active:
-        return {"status": "debe", "message": f"{nombre_final} — Alumno inactivo",
-                "student_name": nombre_final, "detalle": "Este alumno está marcado como inactivo."}
+        return {
+            "status": "debe",
+            "message": f"{nombre_final} — Alumno inactivo",
+            "student_name": nombre_final,
+            "detalle": "Este alumno está marcado como inactivo."
+        }
 
     if valid_until:
-        hoy = datetime.now(timezone.utc).date()
+        hoy = datetime.now(PERU_TZ).date()
         fecha_venc = datetime.strptime(valid_until, "%Y-%m-%d").date()
         if fecha_venc < hoy:
             dias = (hoy - fecha_venc).days
-            return {"status": "debe", "message": f"{nombre_final} — Mensualidad vencida",
-                    "student_name": nombre_final,
-                    "detalle": f"Venció hace {dias} día{'s' if dias != 1 else ''}. Contactar al administrador."}
+            return {
+                "status": "debe",
+                "message": f"{nombre_final} — Mensualidad vencida",
+                "student_name": nombre_final,
+                "detalle": f"Venció hace {dias} día{'s' if dias != 1 else ''}. Contactar al administrador."
+            }
+
+    # ── [FIX] Verificar duplicado ANTES de insertar ──────────────────────────
+    if _ya_registrado_hoy(student_id):
+        return {
+            "status": "warning",
+            "message": f"Ya registrado hoy: {nombre_final}",
+            "student_name": nombre_final,
+            "detalle": "Este alumno ya marcó asistencia hoy."
+        }
 
     fecha_registro = datetime.now(timezone.utc).isoformat()
-    res = supabase.table("attendance").upsert(
-        {"credential_id": raw_data["id"], "student_id": student_id, "created_at": fecha_registro},
-        ignore_duplicates=True,
-    ).execute()
+    supabase.table("attendance").insert({
+        "credential_id": raw_data["id"],
+        "student_id": student_id,
+        "created_at": fecha_registro,
+        "source": "scanner"
+    }).execute()
 
-    if res.data is not None and len(res.data) == 0:
-        return {"status": "warning", "message": f"Ya registrado: {nombre_final}", "student_name": nombre_final}
+    return {
+        "status": "success",
+        "message": f"¡Bienvenido, {nombre_final}!",
+        "student_name": nombre_final
+    }
 
-    return {"status": "success", "message": f"¡Bienvenido, {nombre_final}!", "student_name": nombre_final}
 
-
-# ── SYNC BATCH (desde Web Worker offline) ─────────────────
-
-# Máximo de registros por lote — protege contra payloads que superan 1MB de Starlette
+# ── SYNC BATCH ────────────────────────────────────────
 _MAX_BATCH = 500
 
 
 @router.post("/sync-batch")
 def sync_batch(req: BatchScanRequest):
-    """
-    Acepta lotes de registros de asistencia generados offline.
-    - Un único bulk INSERT (no bucle for).
-    - Duplicados absorbidos por el UNIQUE INDEX uq_attendance_student_day.
-    - Timestamps futuros descartados en el servidor.
-    """
-    # Verificar Magic Token del entrenador
     ent_res = supabase.table("entrenadores") \
         .select("id, is_active") \
         .eq("token", req.token).execute()
@@ -289,16 +297,14 @@ def sync_batch(req: BatchScanRequest):
     if not ent_res.data[0].get("is_active"):
         raise HTTPException(status_code=403, detail="Acceso revocado por el administrador")
 
-    ahora_utc = datetime.now(timezone.utc)
-    # Margen de tolerancia: 5 minutos hacia el futuro (desfases de reloj normales)
+    ahora_utc    = datetime.now(timezone.utc)
     limite_futuro = ahora_utc + timedelta(minutes=5)
 
     filas = []
     rechazados_futuro = 0
-    rechazados_id = 0
+    rechazados_id     = 0
 
-    for rec in req.records[:_MAX_BATCH]:  # Vía Negativa: ignorar lo que exceda el límite
-        # ── Filtro 1: timestamp futuro (reloj de niño adelantado) ─────────────
+    for rec in req.records[:_MAX_BATCH]:
         try:
             ts = datetime.fromisoformat(rec.timestamp.replace("Z", "+00:00"))
         except (ValueError, AttributeError):
@@ -309,8 +315,6 @@ def sync_batch(req: BatchScanRequest):
             rechazados_futuro += 1
             continue
 
-        # ── Filtro 2: student_id debe ser UUID completo (36 chars con guiones) ──
-        # El frontend enviaba short_id (8 chars) — eso causaba pérdida silenciosa.
         import re as _re
         if not _re.match(
             r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$',
@@ -332,15 +336,12 @@ def sync_batch(req: BatchScanRequest):
             "rechazados_id": rechazados_id,
         }
 
-    # ── Bulk upsert único — una sola petición HTTP a Supabase ──────────────
-    # ignore_duplicates=True → INSERT ... ON CONFLICT DO NOTHING
-    # El UNIQUE INDEX rechaza duplicados; res.data solo contiene las filas insertadas.
     res = supabase.table("attendance").upsert(
         filas,
         ignore_duplicates=True,
     ).execute()
 
-    inserted = len(res.data) if res.data else 0
+    inserted  = len(res.data) if res.data else 0
     duplicates = len(filas) - inserted
 
     return {
@@ -352,17 +353,13 @@ def sync_batch(req: BatchScanRequest):
     }
 
 
-# ── ENDPOINTS EXISTENTES ──────────────────────────────────
+# ── OFFLINE DATA ──────────────────────────────────────
 @router.get("/scanner/offline-data")
 def scanner_offline_data(_pin=Depends(verify_scanner_pin)):
-    """
-    Descarga una copia ligera del estado de los alumnos para que el kiosko de scanner
-    funcione offline. Fix 6: usa PERU_TZ. Fix 3: indexa también por short_id.
-    """
     res = supabase.table("students").select("id, full_name, is_active, valid_until").execute()
     alumnos = res.data or []
 
-    hoy = datetime.now(PERU_TZ).date()  # Fix 6: Lima, no UTC
+    hoy = datetime.now(PERU_TZ).date()
     offline_db = {}
 
     for a in alumnos:
@@ -388,38 +385,43 @@ def scanner_offline_data(_pin=Depends(verify_scanner_pin)):
                     status = "success"
                     detalle = "OK"
 
-        entry = {
-            "name": a["full_name"],
-            "status": status,
-            "detalle": detalle
-        }
-        offline_db[a["id"]] = entry           # clave UUID completo (legacy)
-        offline_db[a["id"][:8]] = entry       # Fix 3: clave short_id para JRS v2
+        entry = {"name": a["full_name"], "status": status, "detalle": detalle}
+        offline_db[a["id"]]       = entry
+        offline_db[a["id"][:8]]   = entry
 
     offline_db["_META_SIGNING_KEY"] = _JRS_SECRET.hex()
     return offline_db
 
+
 @router.get("/today")
 def get_today_attendance():
-    today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
-    all_students = supabase.table("students").select("id, full_name").eq("is_active", True).order("full_name").execute()
-    attended = supabase.table("attendance").select("student_id, created_at").gte("created_at", today_start).execute()
+    today_start = datetime.now(timezone.utc).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    ).isoformat()
+    all_students = supabase.table("students").select("id, full_name") \
+        .eq("is_active", True).order("full_name").execute()
+    attended = supabase.table("attendance").select("student_id, created_at") \
+        .gte("created_at", today_start).execute()
     attended_ids = {r["student_id"]: r["created_at"] for r in attended.data}
     result = []
     for student in all_students.data:
         sid = student["id"]
-        result.append({"id": sid, "full_name": student["full_name"],
-                        "present": sid in attended_ids, "time": attended_ids.get(sid)})
+        result.append({
+            "id": sid,
+            "full_name": student["full_name"],
+            "present": sid in attended_ids,
+            "time": attended_ids.get(sid)
+        })
     return result
 
 
 @router.get("/range")
 def get_attendance_range(start: str, end: str):
-    return supabase.table("attendance").select("student_id, created_at")\
+    return supabase.table("attendance").select("student_id, created_at") \
         .gte("created_at", start).lte("created_at", end).execute().data
 
 
 @router.get("/history")
 def get_history(limit: int = 50):
-    return supabase.table("attendance").select("id, created_at, students(full_name)")\
+    return supabase.table("attendance").select("id, created_at, students(full_name)") \
         .order("created_at", desc=True).limit(limit).execute().data
