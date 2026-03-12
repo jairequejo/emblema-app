@@ -58,7 +58,10 @@ app.include_router(entrenador.router)
 
 # --- PÁGINAS ---
 @app.get("/")
-def home():
+def home(code: str = None):
+    if code:
+        # Alumno tocó su chip NFC → portal home con su ficha
+        return FileResponse("frontend/home/index.html")
     return FileResponse("frontend/home/index.html")
 
 @app.get("/scanner")
