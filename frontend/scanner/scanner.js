@@ -634,3 +634,78 @@ function startMirrorCheck() {
             label.includes('front') || label.includes('user') || label.includes('facetime'));
     }, 1000);
 }
+
+// ── NFC (activo siempre — PWA y browser) ─────────────
+// NDEFReader intercepta el chip ANTES que Android abra Chrome.
+// No pausa ni toca la cámara — solo llama handleScan() con el código.
+const NDEF_URI_PREFIXES = [
+    '', 'http://www.', 'https://www.', 'http://', 'https://',
+    'tel:', 'mailto:', 'ftp://anonymous:anonymous@', 'ftp://ftp.',
+    'ftps://', 'sftp://', 'smb://', 'nfs://', 'ftp://', 'dav://',
+    'news:', 'telnet://', 'imap:', 'rtsp://', 'urn:', 'pop:',
+    'sip:', 'sips:', 'tftp:', 'btspp://', 'btl2cap://', 'btgoep://',
+    'tcpobex://', 'irdaobex://', 'file://', 'urn:epc:id:', 'urn:epc:tag:',
+    'urn:epc:pat:', 'urn:epc:raw:', 'urn:epc:', 'urn:nfc:',
+];
+
+async function initNFC() {
+    if (!('NDEFReader' in window)) {
+        _dbg('NFC API no disponible');
+        return;
+    }
+    try {
+        const ndef = new NDEFReader();
+        await ndef.scan();
+        _dbg('NFC activo interceptando chips');
+
+        const nfcEl = document.getElementById('nfc-indicator');
+        if (nfcEl) nfcEl.classList.add('visible');
+
+        ndef.addEventListener('reading', ({ message }) => {
+            for (const record of message.records) {
+                let fullText = null;
+                try {
+                    if (record.recordType === 'url') {
+                        const b = new Uint8Array(record.data.buffer, record.data.byteOffset, record.data.byteLength);
+                        fullText = (NDEF_URI_PREFIXES[b[0]] ?? '') + new TextDecoder('utf-8').decode(b.slice(1)).trim();
+                    } else if (record.recordType === 'text') {
+                        const b = new Uint8Array(record.data.buffer, record.data.byteOffset, record.data.byteLength);
+                        fullText = new TextDecoder((b[0] & 0x80) ? 'utf-16' : 'utf-8').decode(b.slice(1 + (b[0] & 0x3F))).trim();
+                    } else {
+                        fullText = new TextDecoder(record.encoding || 'utf-8').decode(record.data)
+                            .replace(/[\x00-\x1F\x7F-\x9F]/g, '').trim();
+                    }
+                } catch { continue; }
+
+                if (!fullText) continue;
+
+                let code = null;
+                if (fullText.startsWith('http://') || fullText.startsWith('https://')) {
+                    try {
+                        const u = new URL(fullText);
+                        const p = u.searchParams.get('code');
+                        if (p) code = decodeURIComponent(p);
+                    } catch {
+                        const i = fullText.indexOf('?code=');
+                        if (i !== -1) code = decodeURIComponent(fullText.slice(i + 6));
+                    }
+                } else if (fullText.startsWith('JRS:') || fullText.startsWith('STU-')) {
+                    code = fullText;
+                } else if (fullText.includes('?code=')) {
+                    code = decodeURIComponent(fullText.split('?code=')[1]);
+                }
+
+                if (!code) continue;
+                _dbg('NFC: ' + code.slice(0, 24));
+                handleScan(code.trim());
+                break;
+            }
+        });
+
+        ndef.addEventListener('readingerror', e => _dbg('NFC readingerror'));
+    } catch (e) {
+        _dbg('NFC: ' + e.message);
+    }
+}
+
+initNFC();
