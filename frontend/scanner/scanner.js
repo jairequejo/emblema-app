@@ -518,11 +518,16 @@ setInterval(() => {
 function resume(fromNFC = false) {
     const delay = fromNFC ? 2500 : FLASH_DURATION;
     setTimeout(() => {
-        isProcessing = false;
-        _lastResumeAt = Date.now(); // [FIX-10] marcar momento del resume
-        _softResume(); // [FIX-9] solo softResume, nunca hardRestart desde aquí
-        const s = document.getElementById('status-text');
-        if (s) s.textContent = 'Acerca tu medallón';
+        if (fromNFC) {
+            // NFC: recargar la página para tener cámara fresca siempre
+            location.reload();
+        } else {
+            // QR: comportamiento normal sin recargar
+            isProcessing = false;
+            _softResume();
+            const s = document.getElementById('status-text');
+            if (s) s.textContent = 'Acerca tu medallón';
+        }
     }, delay);
 }
 
