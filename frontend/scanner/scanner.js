@@ -122,6 +122,13 @@ function _saveOfflineData(data) {
 }
 
 window.addEventListener('load', async () => {
+    const _urlParams = new URLSearchParams(window.location.search);
+    const _nfcCode = _urlParams.get('code');
+    if (_nfcCode) {
+        window.history.replaceState({}, '', '/scanner'); // limpiar URL
+        setTimeout(() => handleScan(_nfcCode.trim(), true), 800);
+    }
+
     try {
         const r = await fetch('/attendance/scanner/offline-data',
             { headers: _scannerPin ? { 'X-Scanner-Pin': _scannerPin } : {} });
