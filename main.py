@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse
 from routers import students, credentials, attendance, batidos, admin, entrenador
 from routers.jrs_utils import generate_jrs_code
 from database import supabase
@@ -58,9 +58,7 @@ app.include_router(entrenador.router)
 
 # --- PÁGINAS ---
 @app.get("/")
-def home(code: str = None):
-    if code:
-        return RedirectResponse(url=f"/scanner?code={code}", status_code=302)
+def home():
     return FileResponse("frontend/home/index.html")
 
 @app.get("/scanner")

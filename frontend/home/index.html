@@ -2,6 +2,26 @@
 <html lang="es">
 
 <head>
+  <script>
+  // Si hay ?code= en la URL, decidir a dónde ir según el contexto
+  (function() {
+      const code = new URLSearchParams(window.location.search).get('code');
+      if (!code) return; // sin code, cargar home normal
+
+      // ¿Estamos dentro de la PWA del scanner (modo standalone)?
+      const isKiosko = window.matchMedia('(display-mode: standalone)').matches
+                    || window.navigator.standalone === true;
+
+      if (isKiosko) {
+          // Estamos en la PWA instalada — redirigir al scanner para registrar asistencia
+          window.location.replace('/scanner?code=' + encodeURIComponent(code));
+      } else {
+          // Estamos en browser normal — redirigir al portal del alumno
+          window.location.replace('/public/student/' + encodeURIComponent(code) + '/info');
+          // Ajusta esta URL según cómo esté tu portal de alumno
+      }
+  })();
+  </script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
   <title>JR Stars | Portal del Atleta</title>
