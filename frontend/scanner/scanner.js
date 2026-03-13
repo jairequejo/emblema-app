@@ -150,11 +150,29 @@ function updateQueueUI() {
     if (!ind) {
         ind = document.createElement('div');
         ind.id = 'offline-queue-indicator';
-        ind.style.cssText = 'position:fixed;bottom:1rem;right:1rem;background:var(--gold);color:#000;padding:.5rem 1rem;border-radius:20px;font-family:var(--font-cond);font-weight:bold;z-index:9999;display:none;';
+        ind.style.cssText = 'position:fixed;bottom:48px;right:1rem;background:var(--gold);color:#000;padding:.5rem 1rem;border-radius:20px;font-family:"Barlow Condensed",sans-serif;font-weight:bold;z-index:9999;display:none;gap:.6rem;align-items:center;flex-wrap:wrap;max-width:260px;';
         document.body.appendChild(ind);
     }
-    ind.style.display = queuedScans.length > 0 ? 'block' : 'none';
-    if (queuedScans.length > 0) ind.textContent = `⏳ ${queuedScans.length} pendientes de envío`;
+    if (queuedScans.length === 0) {
+        ind.style.display = 'none';
+        return;
+    }
+    ind.style.display = 'flex';
+    ind.style.background = '#d4a017';
+    ind.style.color = '#000';
+    ind.innerHTML = `
+        <span>⏳ ${queuedScans.length} pendiente${queuedScans.length > 1 ? 's' : ''}</span>
+        <button onclick="anularCola()" style="background:#000;color:#fff;border:none;border-radius:12px;padding:.2rem .7rem;font-size:.8rem;font-family:inherit;font-weight:700;cursor:pointer;letter-spacing:.05em;">
+            🗑 ANULAR
+        </button>
+    `;
+}
+
+function anularCola() {
+    if (!confirm('¿Anular ' + queuedScans.length + ' registro(s) pendiente(s)? Esta acción no se puede deshacer.')) return;
+    queuedScans = [];
+    localStorage.setItem('scanner_queued_scans', '[]');
+    updateQueueUI();
 }
 updateQueueUI();
 
