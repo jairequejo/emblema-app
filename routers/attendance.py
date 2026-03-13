@@ -64,25 +64,34 @@ def _parse_jrs(code: str):
         return None
 
 
-# ── HELPER: verificar si ya fue registrado hoy ───────────────────────────────
 def _ya_registrado_hoy(student_id: str) -> bool:
     """
-    Verifica si el alumno ya tiene un registro de asistencia en el día de hoy (hora Lima).
-    Esto es el respaldo en Python por si el UNIQUE INDEX aún no existe en Supabase.
-    Con el índice creado, el upsert ignore_duplicates lo maneja solo.
+    Verifica si el alumno ya tiene registro hoy (hora Lima).
+    Supabase guarda en UTC — convertimos el día de Lima a rango UTC.
     """
-    hoy_lima = datetime.now(PERU_TZ)
-    inicio_dia = hoy_lima.replace(hour=0, minute=0, second=0, microsecond=0)
-    fin_dia    = hoy_lima.replace(hour=23, minute=59, second=59, microsecond=999999)
+    try:
+        # Día actual en Lima
+        hoy_lima = datetime.now(PERU_TZ)
+        hoy_str  = hoy_lima.strftime("%Y-%m-%d")
 
-    res = supabase.table("attendance") \
-        .select("id") \
-        .eq("student_id", student_id) \
-        .gte("created_at", inicio_dia.isoformat()) \
-        .lte("created_at", fin_dia.isoformat()) \
-        .limit(1).execute()
+        # Inicio y fin del día Lima en UTC
+        inicio_lima = datetime.strptime(hoy_str + "T00:00:00", "%Y-%m-%dT%H:%M:%S").replace(tzinfo=PERU_TZ)
+        fin_lima    = datetime.strptime(hoy_str + "T23:59:59", "%Y-%m-%dT%H:%M:%S").replace(tzinfo=PERU_TZ)
 
-    return bool(res.data)
+        inicio_utc = inicio_lima.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+        fin_utc    = fin_lima.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+
+        res = supabase.table("attendance") \
+            .select("id") \
+            .eq("student_id", student_id) \
+            .gte("created_at", inicio_utc) \
+            .lte("created_at", fin_utc) \
+            .limit(1).execute()
+
+        return bool(res.data)
+    except Exception as e:
+        print(f"[_ya_registrado_hoy] Error: {e}")
+        return False  # Si falla, dejar pasar — no bloquear el scanner
 
 
 class ScanRequest(BaseModel):
@@ -135,7 +144,7 @@ def scan_credential(scan: ScanRequest, _pin=Depends(verify_scanner_pin)):
 
         st = st_res.data[0]
         student_id   = st["id"]
-        nombre_final = st.get("full_name") or nombre_final  # preferir nombre real de BD
+        nombre_final = st.get("full_name") or nombre_final
 
         if not st.get("is_active"):
             return {
@@ -145,7 +154,6 @@ def scan_credential(scan: ScanRequest, _pin=Depends(verify_scanner_pin)):
                 "detalle": "Este alumno está marcado como inactivo."
             }
 
-        # Verificar vencimiento contra BD (fuente de verdad)
         hoy = datetime.now(PERU_TZ).date()
         valid_until_db = st.get("valid_until")
         if valid_until_db:
@@ -165,7 +173,6 @@ def scan_credential(scan: ScanRequest, _pin=Depends(verify_scanner_pin)):
                 "detalle": f"Venció hace {dias} día{'s' if dias != 1 else ''}. Contactar al administrador."
             }
 
-        # ── [FIX] Verificar duplicado ANTES de insertar ──────────────────────
         if _ya_registrado_hoy(student_id):
             return {
                 "status": "warning",
@@ -174,7 +181,6 @@ def scan_credential(scan: ScanRequest, _pin=Depends(verify_scanner_pin)):
                 "detalle": "Este alumno ya marcó asistencia hoy."
             }
 
-        # Insertar asistencia
         fecha_registro = datetime.now(timezone.utc).isoformat()
         supabase.table("attendance").insert({
             "student_id": student_id,
@@ -258,7 +264,6 @@ def scan_credential(scan: ScanRequest, _pin=Depends(verify_scanner_pin)):
                 "detalle": f"Venció hace {dias} día{'s' if dias != 1 else ''}. Contactar al administrador."
             }
 
-    # ── [FIX] Verificar duplicado ANTES de insertar ──────────────────────────
     if _ya_registrado_hoy(student_id):
         return {
             "status": "warning",
@@ -297,7 +302,7 @@ def sync_batch(req: BatchScanRequest):
     if not ent_res.data[0].get("is_active"):
         raise HTTPException(status_code=403, detail="Acceso revocado por el administrador")
 
-    ahora_utc    = datetime.now(timezone.utc)
+    ahora_utc     = datetime.now(timezone.utc)
     limite_futuro = ahora_utc + timedelta(minutes=5)
 
     filas = []
@@ -341,7 +346,7 @@ def sync_batch(req: BatchScanRequest):
         ignore_duplicates=True,
     ).execute()
 
-    inserted  = len(res.data) if res.data else 0
+    inserted   = len(res.data) if res.data else 0
     duplicates = len(filas) - inserted
 
     return {
@@ -364,30 +369,30 @@ def scanner_offline_data(_pin=Depends(verify_scanner_pin)):
 
     for a in alumnos:
         if not a.get("is_active"):
-            status = "debe"
+            status  = "debe"
             detalle = "Alumno inactivo"
         else:
             fecha_str = a.get("valid_until")
             if not fecha_str:
-                status = "debe"
+                status  = "debe"
                 detalle = "Sin pago registrado"
             else:
                 try:
                     fecha_venc = datetime.strptime(fecha_str, "%Y-%m-%d").date()
                     if fecha_venc < hoy:
-                        status = "debe"
-                        dias = (hoy - fecha_venc).days
+                        status  = "debe"
+                        dias    = (hoy - fecha_venc).days
                         detalle = f"Venció hace {dias} día{'s' if dias != 1 else ''}."
                     else:
-                        status = "success"
+                        status  = "success"
                         detalle = "OK"
                 except Exception:
-                    status = "success"
+                    status  = "success"
                     detalle = "OK"
 
         entry = {"name": a["full_name"], "status": status, "detalle": detalle}
-        offline_db[a["id"]]       = entry
-        offline_db[a["id"][:8]]   = entry
+        offline_db[a["id"]]     = entry
+        offline_db[a["id"][:8]] = entry
 
     offline_db["_META_SIGNING_KEY"] = _JRS_SECRET.hex()
     return offline_db
@@ -407,10 +412,10 @@ def get_today_attendance():
     for student in all_students.data:
         sid = student["id"]
         result.append({
-            "id": sid,
+            "id":        sid,
             "full_name": student["full_name"],
-            "present": sid in attended_ids,
-            "time": attended_ids.get(sid)
+            "present":   sid in attended_ids,
+            "time":      attended_ids.get(sid)
         })
     return result
 
