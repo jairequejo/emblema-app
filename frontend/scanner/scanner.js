@@ -173,6 +173,12 @@ function anularCola() {
     queuedScans = [];
     localStorage.setItem('scanner_queued_scans', '[]');
     updateQueueUI();
+    // Resetear estado del scanner para que pueda volver a escanear
+    isProcessing = false;
+    _lastResumeAt = Date.now();
+    _softResume();
+    const s = document.getElementById('status-text');
+    if (s) s.textContent = 'Acerca tu medallón';
 }
 updateQueueUI();
 
@@ -414,14 +420,36 @@ function _doOnlineScan(code) {
             let data;
             try { data = JSON.parse(raw); }
             catch { playError(); showFlash('error', 'ERROR', 'Conexión fallida'); resume(); return; }
-            if (data.detail) { playError(); showFlash('error', 'RECHAZADO', data.detail); resume(); return; }
-            const nombre = data.student_name || 'Desconocido';
-            const estado = data.status || 'error';
-            if (estado === 'success') playSuccess();
-            else if (estado === 'warning' || estado === 'debe') playWarning();
+            // Si hay data.detail pero también hay student_name o status, no es un error real
+            const nombre = data.student_name || data.name || '';
+            const estado = data.status || '';
+
+            if (!nombre && !estado) {
+                // Error real del servidor sin datos de alumno
+                playError();
+                showFlash('error', 'ERROR', data.detail || 'Error del servidor');
+                resume();
+                return;
+            }
+
+            // Respuesta válida — puede tener detail como mensaje informativo
+            const msg = data.message || data.detail || '';
+            const finalEstado = estado || 'warning';
+            const finalNombre = nombre || 'Desconocido';
+
+            if (finalEstado === 'success') playSuccess();
+            else if (finalEstado === 'warning' || finalEstado === 'debe') playWarning();
+            else if (finalEstado === 'already_registered' || finalEstado === 'duplicate') {
+                playWarning();
+                showFlash('warning', finalNombre, 'Ya registrado hoy');
+                addHistory('warning', finalNombre);
+                resume();
+                return;
+            }
             else playError();
-            showFlash(estado, nombre, data.message || data.detail);
-            if (estado !== 'error') addHistory(estado, nombre);
+
+            showFlash(finalEstado, finalNombre, msg);
+            if (finalEstado !== 'error') addHistory(finalEstado, finalNombre);
             resume();
         })
         .catch(() => processOfflineScan(code));
