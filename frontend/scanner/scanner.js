@@ -116,16 +116,24 @@ async function fetchOfflineData() {
 }
 
 window.addEventListener('load', async () => {
-    try {
-        const r = await fetch('/attendance/scanner/offline-data',
-            { headers: _scannerPin ? { 'X-Scanner-Pin': _scannerPin } : {} });
-        if (r.status === 401) {
-            _scannerPin = ''; sessionStorage.removeItem('scanner_pin'); _pinBuffer = '';
-            showPinOverlay();
-        } else if (r.ok) {
-            const data = await r.json(); _saveOfflineData(data); hidePinOverlay();
-        }
-    } catch { }
+    // Solo pedir PIN si hay internet Y el servidor dice 401
+    // Sin internet: arrancar directo con el PIN guardado (o sin PIN)
+    if (navigator.onLine) {
+        try {
+            const r = await fetch('/attendance/scanner/offline-data',
+                { headers: _scannerPin ? { 'X-Scanner-Pin': _scannerPin } : {} });
+            if (r.status === 401 && !_scannerPin) {
+                // Solo mostrar PIN si no tenemos ninguno guardado
+                _scannerPin = ''; sessionStorage.removeItem('scanner_pin'); _pinBuffer = '';
+                showPinOverlay();
+            } else if (r.ok) {
+                const data = await r.json(); _saveOfflineData(data); hidePinOverlay();
+            }
+        } catch { }
+    } else {
+        // Sin internet: no pedir PIN, arrancar con lo que hay en cache
+        hidePinOverlay();
+    }
 
     if (localStorage.getItem('preferred_camera_id')) {
         setTimeout(initScanner, 300);
@@ -342,10 +350,10 @@ function syncOfflineQueue() {
         if (res.status === 401) {
             _stopSyncLoop();
             const ind = document.getElementById('offline-queue-indicator');
-            if (ind) { ind.style.background = '#c0392b'; ind.style.color = '#fff'; ind.textContent = `⚠️ Sesión expirada. ${queuedScans.length} pendientes.`; ind.style.display = 'block'; }
-            showPinOverlay();
-            const pe = document.getElementById('pin-err');
-            if (pe) pe.textContent = 'Sesión expirada. Ingrese PIN para sincronizar.';
+            if (ind) { ind.style.background = '#c0392b'; ind.style.color = '#fff'; ind.textContent = `⚠️ ${queuedScans.length} pendientes — reintentando...`; ind.style.display = 'block'; }
+            // No mostrar PIN overlay automáticamente — solo limpiar el PIN para que
+            // el próximo fetch al cargar lo solicite. No interrumpir el scanner.
+            _scannerPin = ''; sessionStorage.removeItem('scanner_pin');
         }
         if (res.status === 413 || res.status === 400) _stopSyncLoop();
     }).catch(e => console.log('[Sync] Error:', e));
@@ -557,6 +565,9 @@ function _startWithCamera(camId) {
         _scannerStartedAt = Date.now();
         _lastResumeAt = Date.now();
         _dbg('camara OK — ' + camId.slice(0, 20));
+        // NFC activo SOLO cuando camara esta corriendo
+        // Asi Android maneja el chip normalmente si el kiosko no esta activo
+        initNFC();
     }).catch(err => {
         console.error('[Scanner] start error:', err);
         _showStartScreen('Error de cámara — toca para reintentar');
@@ -711,4 +722,4 @@ async function initNFC() {
     }
 }
 
-initNFC();
+// initNFC se llama desde _startWithCamera cuando la camara esta lista
