@@ -407,6 +407,7 @@ function _armSafety() {
 function _doOnlineScan(code) {
     isProcessing = true;
     _armSafety();
+    _dbg('SCAN: ' + code.slice(0, 30));
     const statusEl = document.getElementById('status-text');
     if (statusEl) statusEl.textContent = 'Procesando...';
     const ctrl = new AbortController();
@@ -415,13 +416,12 @@ function _doOnlineScan(code) {
         method: 'POST', headers: getScannerHeaders(),
         body: JSON.stringify({ code }), signal: ctrl.signal
     })
-        .then(r => { clearTimeout(tid); return r.text(); })
+        .then(r => { clearTimeout(tid); _dbg('HTTP:' + r.status); return r.text(); })
         .then(raw => {
+            _dbg('RSP:' + raw.slice(0, 80));
             let data;
             try { data = JSON.parse(raw); }
             catch { playError(); showFlash('error', 'ERROR', 'Conexión fallida'); resume(); return; }
-            // DEBUG TEMPORAL — muestra respuesta cruda del servidor
-            _dbg('RAW: ' + raw.slice(0, 120));
             // El servidor siempre devuelve student_name cuando es una respuesta válida.
             // Solo devuelve {detail: "..."} sin student_name en errores HTTP (400, 404, etc.)
             const nombre = data.student_name || data.name || '';
