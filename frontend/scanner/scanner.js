@@ -420,36 +420,39 @@ function _doOnlineScan(code) {
             let data;
             try { data = JSON.parse(raw); }
             catch { playError(); showFlash('error', 'ERROR', 'Conexión fallida'); resume(); return; }
-            // Si hay data.detail pero también hay student_name o status, no es un error real
+            // El servidor siempre devuelve student_name cuando es una respuesta válida.
+            // Solo devuelve {detail: "..."} sin student_name en errores HTTP (400, 404, etc.)
             const nombre = data.student_name || data.name || '';
             const estado = data.status || '';
+            const msg    = data.message || data.detail || '';
 
-            if (!nombre && !estado) {
-                // Error real del servidor sin datos de alumno
+            // Sin student_name → error HTTP real (credencial inválida, no encontrado, etc.)
+            if (!nombre) {
                 playError();
-                showFlash('error', 'ERROR', data.detail || 'Error del servidor');
+                showFlash('error', 'RECHAZADO', msg || 'Error del servidor');
                 resume();
                 return;
             }
 
-            // Respuesta válida — puede tener detail como mensaje informativo
-            const msg = data.message || data.detail || '';
-            const finalEstado = estado || 'warning';
-            const finalNombre = nombre || 'Desconocido';
-
-            if (finalEstado === 'success') playSuccess();
-            else if (finalEstado === 'warning' || finalEstado === 'debe') playWarning();
-            else if (finalEstado === 'already_registered' || finalEstado === 'duplicate') {
+            // Respuesta válida con student_name → mostrar según status
+            if (estado === 'success') {
+                playSuccess();
+                showFlash('success', nombre, msg);
+                addHistory('success', nombre);
+            } else if (estado === 'warning') {
                 playWarning();
-                showFlash('warning', finalNombre, 'Ya registrado hoy');
-                addHistory('warning', finalNombre);
-                resume();
-                return;
+                showFlash('warning', nombre, msg);
+                addHistory('warning', nombre);
+            } else if (estado === 'debe') {
+                playWarning();
+                showFlash('debe', nombre, msg);
+                addHistory('debe', nombre);
+            } else {
+                // status desconocido pero tenemos nombre → warning por las dudas
+                playWarning();
+                showFlash('warning', nombre, msg);
+                addHistory('warning', nombre);
             }
-            else playError();
-
-            showFlash(finalEstado, finalNombre, msg);
-            if (finalEstado !== 'error') addHistory(finalEstado, finalNombre);
             resume();
         })
         .catch(() => processOfflineScan(code));
